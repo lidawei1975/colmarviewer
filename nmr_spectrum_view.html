@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>NMR 2D Spectrum Viewer</title>
+    <style>
+        a:link {
+            color: #000;
+        }
+
+        /* unvisited link */
+        a:visited {
+            color: #000;
+        }
+
+        /* visited link */
+        a:hover {
+            color: #000;
+        }
+
+        /* mouse over link */
+        a:active {
+            color: #000;
+        }
+
+        /* selected link */
+
+        #ccic {
+            margin: 0px;
+            padding: 0px;
+            border-top-color: #e74815;
+            border-top-style: solid;
+            border-top-width: 5px;
+            clear: both;
+            width: 100%;
+            height: 20px;
+        }
+
+        #container {
+            width: 100%;
+            min-width: 1024px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .error {
+            color: #e74815;
+            margin: 0px 0px 0px 0px;
+        }
+
+        #body {
+            font-family: Arial;
+            border-width: 2px;
+            clear: both;
+            width: 100%;
+            display: block;
+            margin-top: 25px;
+            margin-bottom: 25px;
+        }
+
+        table,
+        th,
+        td {
+            border: 1px solid black;
+            border-collapse: collapse;
+            padding: 5px;
+            text-align: center;
+        }
+
+        table tr th {
+            font-size: 18px;
+            padding: 12px;
+            text-align: left;
+            background-color: rgba(217, 221, 146, 0.2);
+        }
+
+        #matched_compound_table tr td:nth-child(2) {
+            color: #0921f8;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+
+        #menu {
+            height: 50px;
+            color: #000;
+            background: #DDD;
+            width: inherit;
+            margin-top: 5px;
+            margin-bottom: 25px;
+            float: left;
+            clear: both;
+            width: 100%;
+        }
+
+        #menu>ul {
+            list-style-type: none;
+            margin-left: 1px;
+            padding-left: 1px;
+            margin-top: 1px;
+            padding-top: 1px;
+        }
+
+        #menu>ul>li {
+            margin: 1px;
+            float: left;
+            font-size: 1rem;
+        }
+
+        #menu ul li button {
+            font-size: 1rem;
+        }
+
+        #menu>ul>li:last-child {
+            margin: 1px;
+            float: right;
+            min-width: 100px;
+        }
+
+        .btn {
+            background: #DDD;
+            color: #000;
+            display: inline-block;
+            border-top-left-radius: 10px;
+            border-top-right-radius: 10px;
+            border-bottom-right-radius: 10px;
+            border-bottom-left-radius: 10px;
+
+            font-family: Arial, sans-serif;
+            font-size: 1rem;
+            line-height: 24px;
+            margin: 2px 2px 2px 2px;
+            padding: 8px 2px 6px 2px;
+            text-decoration: none;
+        }
+
+        .btn0 {
+            background: #FFF;
+            color: #000;
+            display: inline-block;
+            border-top-left-radius: 10px;
+            border-top-right-radius: 10px;
+            border-bottom-right-radius: 10px;
+            border-bottom-left-radius: 10px;
+            font-weight: bold;
+            font-family: Arial, sans-serif;
+            line-height: 24 px;
+            margin: 2px 2px 2px 2px;
+            padding: 8px 2px 6px 2px;
+            text-decoration: none;
+        }
+
+
+
+        .topclass {
+            float: left;
+            font-size: 16px;
+            background: #fff;
+            border: 3px solid #a1a1a1;
+            padding: 3px 3px;
+            margin: 3px;
+            border-radius: 0.5rem;
+        }
+
+        div li+li {
+            margin-top: 0.3rem;
+        }
+
+
+        /* ul.dropdown-menu {
+    list-style: none;
+    padding: unset;
+    margin: unset;
+}
+
+ul.dropdown-menu>li {
+    padding: 14px;
+    transition: all linear 0.3s;
+}
+
+ul.dropdown-menu>li:hover {
+    background: gray;
+    cursor: pointer;
+    color: #fff;
+}
+
+#dropdown_menu {
+    background: #fff;
+    box-shadow: 0px 10px 30px 0px rgba(82, 63, 105, 0.05);
+    transition: all linear 0.3s;
+    margin: 10px;
+} */
+
+
+        #footer {
+            margin: 0px;
+            padding: 0px;
+            border-top-color: #000;
+            border-top-style: solid;
+            border-top-width: 2px;
+            background: #DDD;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 10px;
+            text-align: center;
+            float: left;
+            width: 100%;
+        }
+
+        .footnote {
+            font-family: Arial;
+            font-size: 0.85rem;
+        }
+
+        .reference {
+            font-family: Arial;
+            font-size: 0.85rem;
+        }
+
+
+        div.tooltip2 {
+            position: absolute;
+            text-align: center;
+            width: 120px;
+            height: 20px;
+            padding: 2px;
+            font: 16px sans-serif;
+            background: lightgray;
+            border: 0px;
+            border-radius: 0.5rem;
+            pointer-events: none;
+        }
+
+
+        .highlight {
+            background-color: #e6f10d;
+            color: blue;
+        }
+
+        #fixed65146 {
+            position: fixed;
+            font-size: x-large;
+            left: 400px;
+            top: 400px;
+            color: red;
+            background-color: yellow;
+            opacity: 0.6;
+        }
+
+        ;
+
+
+        .fieldset-auto-width {
+            display: inline-block;
+        }
+
+
+        .drop-area {
+            border: 2px dashed #ccc;
+            border-radius: 20px;
+            width: 480px;
+            font-family: sans-serif;
+            margin: 10px auto;
+            padding: 10px;
+        }
+
+        .drop-area-neighbor {
+            border: 2px solid #ccc;
+            border-radius: 10px;
+            width: 480px;
+            font-family: sans-serif;
+            margin: 10px;
+            padding: 10px;
+        }
+    </style>
+</head>
+
+
+<body>
+    <div id="container">
+
+
+        <div id="body">
+
+            <h1>Web based two-dimensional NMR spectral Viewer</h1>
+
+            <div id="step1" class="topclass" style="width: 580px; height: 300px">
+                <?php echo form_open_multipart('null/null', array('id' => 'process')) ?>
+                <strong>STEP 1 (option 2)</strong>: Spectra processing<br>
+                <label for="username">Your name and institute*: </label> <input type="text" name="username" id="username" value="user" size="40"><br>
+                <label for="userfile1_hsqc">HSQC spectrum file (required): </label><input type="file" name="userfile1_hsqc" id="userfile1_hsqc"><br>
+                (Notice: spectra files can be nmrpipe (.ft2), sparky (.ucsf), Topspin ASCII format (.txt)) or Mnova .csv format. The server uses the file extension to distinguish file formats! <br>
+                <label for="user_exp_name">User chosen experimental name (optional): </label><input type="text" name="user_exp_name" id="user_exp_name" value="noname" size="20"><br>
+                <input id="term_and_condition" value="yes" type="checkbox" checked> I agree to <a href="javascript:void(0);" onclick="window.open('<?php echo base_url("/files/colmarm_license.pdf") ?>')"> terms and conditions.</a><br>
+                <input type="submit" id="button_spectra_process" name="Submit" value="Upload spectrum for processing" disabled></br></p>
+                <?php echo form_close(); ?>
+                
+                
+
+            </div>
+
+            <div id="plot" class="topclass" style=" Padding: 10px; float: left">
+
+                <form id="contour_levels" onsubmit='event.preventDefault();'>
+                    <span>Contour levels calculation </span>
+                    <label for="noise_level">Noise level</label>
+                    <input type="text" name="noise_level" id="noise_level" value="0" size="5" readonly>
+                    <label for="contour0">Lowest contour level</label>
+                    <input type="text" name="contour0" id="contour0" value="100" size="5">
+                    <button onclick="reduce_contour()">Reduce lowest contour level by scale</button>
+                    <label for="logarithmic_scale">Logarithmic scale</label>
+                    <input type="number" min=1.0 max=2.0 step=0.05 value=1.3 id="logarithmic_scale"
+                        name="logarithmic_scale" size="5">
+                    <span id="contour_message" class="highlight">Drawing</span>
+                </form>
+
+                <span> Contour cutoff for visualization </span>
+                <input type="range" name="contour-slider" id="contour-slider" min="1" value="1" max="25"
+                    style="width:400px;">
+                <span> Current contour level cutoff: </span><span id="contour_level">1</span><br>
+
+                <strong>Control:</strong>
+                Brush an area to <input type="radio" name="radio1" value="zoom" checked> Zoom in, or <input type="radio"
+                    name="radio1" value="remove"> remove peaks within this area.
+                <button onclick="resetzoom()">Reset all Zoom</button>,
+                <button onclick="popzoom()">Zoom Back</button>,
+                <button onclick="zoomout()">Zoom out 120%</button>
+
+                <br>
+                <strong>Visualization:</strong>
+                <button onclick="toggle_contour()">Hide/Show contour lines</button>
+                <button onclick="toggle_peak()">Hide/Show picked peaks</button>
+                <br><br>
+
+
+
+                <div id="vis_parent" style="position: relative;">
+                    <div id="canvas_parent" style="position: absolute; top: 0; left: 0; z-index: 1;">
+                        <canvas id="canvas1" style="border:0px;"></canvas>
+                    </div>
+
+                    <div id="svg_parent" style="position: absolute; bottom: 0; left: 0; z-index: 2;">
+                        <svg id="visualization"></svg>
+                    </div>
+                </div>
+            </div>
+
+            <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
+            <script type="text/javascript" src="js/webgl-utils.js"></script>
+            <script type="text/javascript" src="js/d3.7.min.js"></script>
+            <script type="text/javascript" src="js/webgl-utils.js"></script>
+            <script type="text/javascript" src="js/m3.js"></script>
+            <script type="text/javascript" src="js/myplot/myplot_webgl.js"></script>
+            <script type="text/javascript" src="js/myplot/myplot1_new.js"></script>
+            <script type="text/javascript" src="js/nmrwebview.js"></script>
+
+        </div>
+    </div>
+</body>
+</html>
