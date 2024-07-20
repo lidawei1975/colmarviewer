@@ -16,7 +16,7 @@ class webgl_contour_plot {
         /**
          * camera define zoom and pan of the camera. We don't need rotation for this application
          */
-        let camera = {
+        this.camera = {
             x: 0,
             y: 0,
             zoom_x: 1,
@@ -27,19 +27,12 @@ class webgl_contour_plot {
          * view define the view port of the canvas. 
          * Relative to the canvas size. So full canvas is [0,1,0,1]
         */
-        let view = {
+        this.view = {
             left: 0,
             right:1,
             bottom: 0,
             top: 1,
         };
-
-        /**
-         * When show multiple zoomed regions, we need to keep track of the zoomed region (camera) 
-         * and correspond view port (view) for each region.
-         */
-        this.camera_stack = [camera];
-        this.view_stack = [view];
 
 
         /**
@@ -150,24 +143,6 @@ class webgl_contour_plot {
     drawScene() {
         webglUtils.resizeCanvasToDisplaySize(this.gl.canvas);
 
-        /**
-         * Loop through all the camera and view port pairs
-         * This is useful when we want to show multiple zoomed regions
-         */
-        for (var i = 0; i < this.camera_stack.length; i++) {
-            this.camera = this.camera_stack[i];
-            this.view = this.view_stack[i];
-            this.updateViewProjection();
-            this.drawScene_helper();
-        }
-    }
-
-    /**
-     * Draw the scene helper function
-     * This function is called by drawScene() only
-    */ 
-    drawScene_helper() {
-        // Tell WebGL how to convert from clip space to pixels
         this.gl.viewport(
             this.view.left * this.gl.canvas.width,
             this.view.bottom * this.gl.canvas.height, 
@@ -175,30 +150,35 @@ class webgl_contour_plot {
             (this.view.top - this.view.bottom) * this.gl.canvas.height
             );
 
-        /**
-         * Apply scissor test to clear only the viewport
-         */
-        this.gl.scissor(
-            this.view.left * this.gl.canvas.width,
-            this.view.bottom * this.gl.canvas.height,
-            (this.view.right - this.view.left) * this.gl.canvas.width,
-            (this.view.top - this.view.bottom) * this.gl.canvas.height
-        );
 
         // Clear the canvas.
         this.gl.clear(this.gl.COLOR_BUFFER_BIT);
 
-        /**
-         * Update the matrix acoording to the translation and scale defined in camera
-         */
-        this.updateViewProjection();
 
-        // Set the matrix. This matrix changes when zooming and panning
-        this.gl.uniformMatrix3fv(this.matrixLocation, false, this.viewProjectionMat);
 
         // Draw the geometry.
         for(var n=0;n<this.overlays.length;n++)
         {
+
+            /**
+             * Update the matrix according to the translation and scale defined in camera
+             * this also depends on setCamera_ppm() and setCamera() functions
+             */
+            const projectionMat = m3.projection(this.gl.canvas.width, this.gl.canvas.height);
+            const zoomScale_x = 1 / this.camera.zoom_x;
+            const zoomScale_y = 1 / this.camera.zoom_y;
+
+            let cameraMat = m3.identity();
+            cameraMat = m3.translate(cameraMat, this.camera.x, this.camera.y);
+            cameraMat = m3.scale(cameraMat, zoomScale_x, zoomScale_y);
+
+            let viewMat = m3.inverse(cameraMat);
+            this.viewProjectionMat = m3.multiply(projectionMat, viewMat);
+
+            // Set the matrix. This matrix changes when zooming and panning
+            this.gl.uniformMatrix3fv(this.matrixLocation, false, this.viewProjectionMat);
+
+
             let m_start =0;
             if(n>0)
             {
@@ -228,24 +208,7 @@ class webgl_contour_plot {
             }
         }
     };
-
-
-    makeCameraMatrix() {
-        const zoomScale_x = 1 / this.camera.zoom_x;
-        const zoomScale_y = 1 / this.camera.zoom_y;
-        let cameraMat = m3.identity();
-        cameraMat = m3.translate(cameraMat, this.camera.x, this.camera.y);
-        cameraMat = m3.scale(cameraMat, zoomScale_x, zoomScale_y);
-        return cameraMat;
-    };
-
-    updateViewProjection() {
-        const projectionMat = m3.projection(this.gl.canvas.width, this.gl.canvas.height);
-        const cameraMat = this.makeCameraMatrix();
-        let viewMat = m3.inverse(cameraMat);
-        this.viewProjectionMat = m3.multiply(projectionMat, viewMat);
-    };
-
+ 
     /**
      * Directly set this.camera position by calling this function.
      * This is useful when we want to zoom to a specific location, 
@@ -267,49 +230,14 @@ class webgl_contour_plot {
             y = tmp;
         }
 
-        let camera = {
+        this.camera = {
             x: x,
             y: y,
             zoom_x: this.canvas.clientWidth / (x2 - x),
             zoom_y: this.canvas.clientHeight / (y2 - y)
         };
 
-        this.camera_stack.push(camera);
     };
-
-    setView(x, x2, y, y2) {
-        /**
-         * make sure x2 > x and y2 > y. Swap if not
-         */
-        if (x2 <= x) {
-            let tmp = x2;
-            x2 = x;
-            x = tmp;
-        }
-        if (y2 <= y) {
-            let tmp = y2;
-            y2 = y;
-            y = tmp;
-        }
-
-        let view = {
-            left: x,
-            right: x2,
-            bottom: y,
-            top: y2
-        };
-
-
-        this.view_stack.push(view);
-    }
-
-    clearCamera() {
-        this.camera_stack = [];
-    }
-    
-    clearView() {
-        this.view_stack = [];
-    }
 
 
     /**

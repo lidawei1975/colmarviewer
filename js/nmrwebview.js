@@ -38,6 +38,7 @@ function MyWorker() {
         workerResult.points = new Float32Array(polygon_1d);
 
         workerResult.spectrum_type = spectrum.spectrum_type;
+        workerResult.spectrum_index = spectrum.spectrum_index;
     }
 
 }
@@ -83,12 +84,10 @@ class spectrum {
     }
 };
 
-var hsqc_spectrum = new spectrum(); //hsqc spectrum object
+var hsqc_spectra = []; //array of hsqc spectra
 
 
 $(document).ready(function () {
-
-
 
     /**
      * This is the main information output area
@@ -104,6 +103,11 @@ $(document).ready(function () {
         .append("div")
         .attr("class", "tooltip2")
         .style("opacity", 0);
+
+    /**
+     * clear hsqc_spectra array
+     */
+    hsqc_spectra = [];
 
 
     /**
@@ -121,6 +125,11 @@ $(document).ready(function () {
     document.getElementById("logarithmic_scale").addEventListener("change", update_contour0_or_logarithmic_scale);
 
     /**
+     * Add event listener to contour_color color picker
+     */
+    document.getElementById("contour_color").addEventListener("change", update_contour_color);
+
+    /**
      * Form "upload_spectra" processing
     */
     $('form#upload_spectra').submit(function (e) {
@@ -134,21 +143,25 @@ $(document).ready(function () {
         read_file('userfile')
             .then((result_spectrum) => {
 
-                hsqc_spectrum = result_spectrum;
+                hsqc_spectra.push(result_spectrum);
 
                 /**
                  * Define a new object to pass to the worker, it includes only the necessary information from hsqc_spectrum
                 */
                 let hsqc_spectrum_part = {
-                    n_direct: hsqc_spectrum.n_direct,
-                    n_indirect: hsqc_spectrum.n_indirect,
-                    levels: hsqc_spectrum.levels,
-                    spectrum_type: "hsqc"
+                    n_direct: result_spectrum.n_direct,
+                    n_indirect: result_spectrum.n_indirect,
+                    levels: result_spectrum.levels,
+                    spectrum_type: "hsqc",
+                    spectrum_index: hsqc_spectra.length - 1,
                 };
 
-                my_contour_worker.postMessage({ response_value: hsqc_spectrum.raw_data, spectrum: hsqc_spectrum_part });
+                my_contour_worker.postMessage({ response_value: result_spectrum.raw_data, spectrum: hsqc_spectrum_part });
                 set_scale_bigplot();
-                draw_bigplot(hsqc_spectrum);
+                if(hsqc_spectra.length === 1)
+                {
+                    draw_bigplot(hsqc_spectra[0]);
+                }
             });
     });
 
@@ -169,7 +182,7 @@ my_contour_worker.onmessage = (e) => {
 
     console.log("Message received from worker, spectral type: " + e.data.spectrum_type);
 
-    if (e.data.spectrum_type === "hsqc") {
+    if (e.data.spectrum_type === "hsqc" && e.data.spectrum_index === 0) {
         /**
          * We want to make sure main_plot object share same copy of points, polygon_length, levels_length with hsqc_spectrum
          */
@@ -185,7 +198,51 @@ my_contour_worker.onmessage = (e) => {
         main_plot.redraw_contour();
         set_scale_bigplot();
     }
-    else if (e.data.spectrum_type === "hsqc-unshift") {
+    else if (e.data.spectrum_type === "hsqc") {
+        /**
+         * This is not the 0st spectrum. Need to add new overlay to the main_plot object
+         */
+        /**
+         * Update main_plot.overlays from [20] to [20 40] suppose new_overlay.levels_length.length is 20
+         */
+        main_plot.overlays.push(main_plot.overlays[main_plot.overlays.length-1]+e.data.levels_length.length);
+
+        /**
+         * Append new_overlay.levels_length to main_plot.levels_length
+         * [8,13] + [5,7] ==> [8,13,18,20]
+         */
+        let current_levels_length=main_plot.levels_length[main_plot.levels_length.length-1];
+        for(var i=0;i<e.data.levels_length.length;i++)
+        {
+            main_plot.levels_length.push(e.data.levels_length[i]+current_levels_length);
+        }
+
+        /**
+         * Append new_overlay.polygon_length to main_plot.polygon_length
+         * [8,13] + [5,7] ==> [8,13,18,20]
+        */
+        let current_polygon_length=main_plot.polygon_length[main_plot.polygon_length.length-1];
+        for(var i=0;i<e.data.polygon_length.length;i++)
+        {
+            main_plot.polygon_length.push(e.data.polygon_length[i]+current_polygon_length);
+        }
+
+        /**
+         * Append new_overlay.points to main_plot.points
+        */
+        main_plot.points=Float32Concat(main_plot.points, new Float32Array(e.data.points));
+
+        /**
+         * Append new color to main_plot.colors
+         */
+        main_plot.colors.push([1,0,0,1]);
+
+        main_plot.redraw_contour();
+
+
+    }
+    else if (e.data.spectrum_type === "hsqc-unshiftdd")
+    {
         /**
          * For type hsqc-unshift, we will insert e.data.points,polygon_length,levels_length to the beginning of current contour data
          * Step 1, concat the new points and current points
@@ -235,8 +292,8 @@ my_contour_worker.onmessage = (e) => {
 
 
 function set_scale_bigplot() {
-    document.getElementById("contour0").value = hsqc_spectrum.levels[0].toFixed(2);
-    document.getElementById("contour-slider").max = hsqc_spectrum.levels.length;
+    document.getElementById("contour0").value = hsqc_spectra[0].levels[0].toFixed(2);
+    document.getElementById("contour-slider").max = hsqc_spectra[0].levels.length;
 }
 
 /**
@@ -270,11 +327,11 @@ function draw_bigplot(input) {
         /**
          * Update the text of contour_level
          */
-        document.getElementById("contour_level").innerText = hsqc_spectrum.levels[this.value - 1].toFixed(2);
+        document.getElementById("contour_level").innerText = hsqc_spectra[0].levels[this.value - 1].toFixed(2);
     });
     let tt = document.getElementById("contour-slider").value;
-    document.getElementById("contour_level").max = hsqc_spectrum.levels.length;
-    document.getElementById("contour_level").innerText = hsqc_spectrum.levels[tt - 1].toFixed(2);
+    document.getElementById("contour_level").max = hsqc_spectra[0].levels.length;
+    document.getElementById("contour_level").innerText = hsqc_spectra[0].levels[tt - 1].toFixed(2);
     main_plot.update_contour(+tt);
 
     document.getElementById("noise_level").value  = input.noise_level.toExponential(2);
@@ -385,7 +442,7 @@ function reduce_contour() {
     /**
      * Update hsqc_spectrum.levels (add the new level to the beginning of the array)
      */
-    hsqc_spectrum.levels.unshift(current_level);
+    hsqc_spectra[0].levels.unshift(current_level);
 
     /**
      * Recalculate the contour plot
@@ -436,6 +493,15 @@ function update_contour0_or_logarithmic_scale(e) {
 
 }
 
+/**
+ * Event listener for color picker contour_color
+ * @param {*} e 
+ */
+function update_contour_color(e) {
+    let color = document.getElementById('contour_color').value;
+    main_plot.colors = [[parseInt(color.substring(1, 3), 16) / 255, parseInt(color.substring(3, 5), 16) / 255, parseInt(color.substring(5, 7), 16) / 255, 1.0]];
+    main_plot.redraw_contour();
+}
 
 const read_file = (file_id) => {
     return new Promise((resolve, reject) => {
@@ -516,3 +582,16 @@ const read_file = (file_id) => {
         }
     });
 } //end of read_file
+
+
+
+function Float32Concat(first, second)
+{
+    var firstLength = first.length,
+        result = new Float32Array(firstLength + second.length);
+
+    result.set(first);
+    result.set(second, firstLength);
+
+    return result;
+}

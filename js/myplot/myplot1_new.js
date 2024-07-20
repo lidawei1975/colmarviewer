@@ -70,7 +70,6 @@ plotit.prototype.update_contour_ref = function (ref1, ref2) {
      * update_ppm will cause the contour to be redrawn. So we need to update the camera.
      * But we don't need to update the view
      */
-    this.contour_plot.clearCamera();
     this.contour_plot.setCamera_ppm(this.xscale[0], this.xscale[1], this.yscale[0], this.yscale[1]);
     this.contour_plot.drawScene();
     }
@@ -148,54 +147,6 @@ plotit.prototype.text = function () {
 
 
 
-
-plotit.prototype.transition_data = function () {
-
-    var self = this;
-
-    this.preparedata();
-    if (typeof this.dss !== "undefined") this.prepare_dss();
-
-    this.vis
-        .selectAll(".point")
-        //.transition()
-        .attr("cx", function (d) { return d.x; })
-        .attr("cy", function (d) { return d.y; });
-
-    this.vis
-        .selectAll(".point_match")
-        //.transition()
-        .attr("cx", function (d) { return self.xRange(d.x); })
-        .attr("cy", function (d) { return self.yRange(d.y); });
-
-
-    this.vis
-        .selectAll(".compound2")
-        //.transition()
-        .attr("cx", function (d) { return self.xRange(d.x); })
-        .attr("cy", function (d) { return self.yRange(d.y); });
-
-
-    this.vis
-        .selectAll(".compound2")
-        //.transition()
-        .attr("transform", function (d) { return "translate(" + self.xRange(d.x) + "," + self.yRange(d.y) + ")"; });
-
-
-    this.vis
-        .selectAll(".dss")
-        //.transition()
-        .attr("cx", function (d) { return d.x; })
-        .attr("cy", function (d) { return d.y; });
-
-    this.vis
-        .selectAll(".dss2")
-        //.transition()
-        .attr("cx", function (d) { return d.x; })
-        .attr("cy", function (d) { return d.y; });
-
-};
-
 plotit.prototype.reset_axis = function () {
     this.x2.call(this.xAxis);
     this.y2.call(this.yAxis);
@@ -250,12 +201,10 @@ plotit.prototype.brushend_zoom = function (selection) {
         /**
          * Update webgl contour. No change of view is needed here
          */
-        this.contour_plot.clearCamera();
         this.contour_plot.setCamera_ppm(this.xscale[0], this.xscale[1], this.yscale[0], this.yscale[1]);
         this.contour_plot.drawScene();
 
 
-        this.transition_data();
         this.reset_axis();
         var start = new Date().getTime() + 100;
         this.brushend_time = start;
@@ -338,11 +287,9 @@ plotit.prototype.popzoom = function () {
         /**
         * Update webgl contour. No need to update view
         */
-        this.contour_plot.clearCamera();
         this.contour_plot.setCamera_ppm(this.xscale[0], this.xscale[1], this.yscale[0], this.yscale[1]);
         this.contour_plot.drawScene();
 
-        this.transition_data();
         this.reset_axis();
 
     }
@@ -385,12 +332,9 @@ plotit.prototype.zoomout = function () {
     /**
      * Update webgl contour. No need to update view
      */
-    this.contour_plot.clearCamera();
     this.contour_plot.setCamera_ppm(this.xscale[0], this.xscale[1], this.yscale[0], this.yscale[1]);
     this.contour_plot.drawScene();
 
-
-    this.transition_data();
     this.reset_axis();
 };
 
@@ -412,37 +356,8 @@ plotit.prototype.invertdata = function () {
 
 };
 
-plotit.prototype.prepare_dss = function () {
-    for (var j = 0; j < this.dss.length; j++) {
-        var temp;
-        temp = this.dss[j].cs_x;
-        temp = this.xRange(temp);
-        this.dss[j].x = temp;
-        this.dss[j].y = this.yRange(this.dss[j].cs_y);
-    }
 
-    for (var j = 0; j < this.dss2.length; j++) {
-        var temp;
-        temp = this.dss2[j].cs_x;
-        temp = this.xRange(temp);
-        this.dss2[j].x = temp;
-        this.dss2[j].y = this.yRange(this.dss2[j].cs_y);
-    }
-};
 
-/*
-plotit.prototype.invert_dss = function() {
-    for (var j = 0; j < this.dss.length; j++) {
-        this.dss[j].cs_x = this.xRange.invert(this.dss[j].x);
-        this.dss[j].cs_y = this.yRange.invert(this.dss[j].y);
-    }
-
-    for (var j = 0; j < this.dss2.length; j++) {
-        this.dss2[j].cs_x = this.xRange.invert(this.dss2[j].x);
-        this.dss2[j].cs_y = this.yRange.invert(this.dss2[j].y);
-    }
-
-};*/
 
 plotit.prototype.toggle_contour = function (flag) {
     if (typeof flag === "undefined")
@@ -987,120 +902,16 @@ plotit.prototype.draw = function () {
     this.contour_plot = new webgl_contour_plot(this.drawto_contour);
     this.contour_plot.set_spectrum_information(this.x_ppm_start, this.x_ppm_step, this.y_ppm_start, this.y_ppm_step, this.n_direct, this.n_indirect);
     this.contour_plot.set_data(this.points, this.polygon_length, this.levels_length,this.overlays,this.colors);
-    /**
-     * NO need to change view. 
-     */
-    this.contour_plot.clearCamera();
-    this.contour_plot.setCamera_ppm(this.xscale[0], this.xscale[1], this.yscale[0], this.yscale[1]);
 };
 
 plotit.prototype.redraw_contour = function ()
 {
+    this.contour_plot.setCamera_ppm(this.xscale[0], this.xscale[1], this.yscale[0], this.yscale[1]);
     this.contour_plot.set_data(this.points, this.polygon_length, this.levels_length,this.overlays,this.colors);
     this.contour_plot.drawScene();
 }
 
-/**
- * Only keep the first overlay. Remove all others. do nothing if there is only one overlay
- */
-plotit.prototype.remove_overlay = function ()
-{
-    if(this.overlays.length===0)
-    {
-        return;
-    }
 
-    /**
-     * only keep the first overlay. That is, first two elements in overlays
-     */
-    this.overlays.splice(1);
-    this.colors.splice(1);
-
-    /**
-     * Last element in overlays is the index of the last level
-     */
-    let last_levels_index=this.overlays[this.overlays.length-1];
-    this.levels_length.splice(last_levels_index);
-
-    /**
-     * last element in levels_length is the index of the last polygon
-     */
-    let last_polygon_index=this.levels_length[this.levels_length.length-1];
-    this.polygon_length.splice(last_polygon_index);
-
-    /**
-     * last element in polygon_length is the index of the last point
-     */
-    let last_point_index=this.polygon_length[this.polygon_length.length-1];
-    this.points=this.points.slice(0,last_point_index*2);
-
-    /**
-     * Redraw the contour plot
-     */
-    this.redraw_contour();
-}
-
-/**
- * 
- * @param {*} new_overlay: an object with the following properties
- * levels_length: array
- * polygon_length: array
- * @param {Float32Array} contour_data: 1D array of points
- */
-plotit.prototype.add_overlay = function (new_overlay,contour_data)
-{
-    /**
-     * If there is no any contour plot, which means experimental data is not loaded yet, return
-     * TODO: wait for the experimental data to be loaded
-     */
-    if(this.overlays.length===0)
-    {
-        return false;
-    }
-    /**
-     * Remove old overlay first
-     */
-    this.remove_overlay();
-
-    /**
-     * Update this.overlays from [20] to [20 40] suppose new_overlay.levels_length.length is 20
-     */
-    this.overlays.push(this.overlays[this.overlays.length-1]+new_overlay.levels_length.length);
-    this.colors.push(new_overlay.color);
-
-    /**
-     * Append new_overlay.levels_length to this.levels_length
-     * [8,13] + [5,7] ==> [8,13,18,20]
-     */
-    let current_levels_length=this.levels_length[this.levels_length.length-1];
-    for(var i=0;i<new_overlay.levels_length.length;i++)
-    {
-        this.levels_length.push(new_overlay.levels_length[i]+current_levels_length);
-    }
-
-    /**
-     * Append new_overlay.polygon_length to this.polygon_length
-     * [8,13] + [5,7] ==> [8,13,18,20]
-    */
-    let current_polygon_length=this.polygon_length[this.polygon_length.length-1];
-    for(var i=0;i<new_overlay.polygon_length.length;i++)
-    {
-        this.polygon_length.push(new_overlay.polygon_length[i]+current_polygon_length);
-    }
-
-    /**
-     * Append new_overlay.points to this.points
-    */
-    this.points=Float32Concat(this.points,contour_data);
-
-
-    /**
-     * Redraw the contour plot
-     */
-    this.redraw_contour();
-
-    return true;
-}
 
 //redraw peaks lines , reference peaks after ref adjust in main JS code. 
 plotit.prototype.doref = function () {
