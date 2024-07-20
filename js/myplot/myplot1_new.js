@@ -217,22 +217,7 @@ plotit.prototype.brushend = function (e) {
         return;
     }
 
-    var radios = document.getElementsByName('radio1');
-
-    for (var i = 0, length = radios.length; i < length; i++) {
-        if (radios[i].checked) {
-            if (radios[i].value === "zoom" || stage >= 2) {
-                this.brushend_zoom(e.selection);
-                break;
-            }
-            else if (radios[i].value === "remove") {
-                this.brushend_remove(e.selection);
-                break;
-            }
-
-        }
-    }
-
+    this.brushend_zoom(e.selection);
     this.vis.select(".brush").call(this.brush.move, null);
 };
 
