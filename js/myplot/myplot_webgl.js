@@ -117,9 +117,10 @@ class webgl_contour_plot {
      * Set buffer data and draw the scene
      * @param {Float32Array} points
      */
-    set_data(points, polygon_length,levels_length,overlays,colors) {
+    set_data(points, polygon_length,levels_length,overlays,colors,spectral_information) {
         this.colors = colors;
         this.overlays = overlays;
+        this.spectral_information = spectral_information;
         this.polygon_length = polygon_length;
         this.levels_length = levels_length;
         this.gl.bufferData(this.gl.ARRAY_BUFFER, points, this.gl.STATIC_DRAW);
@@ -159,6 +160,15 @@ class webgl_contour_plot {
         // Draw the geometry.
         for(var n=0;n<this.overlays.length;n++)
         {
+            /**
+             * setCamera first, using saved this.x_ppm, this.x2_ppm, this.y_ppm, this.y2_ppm
+             * and this.spec_information
+             */
+            let x = (this.x_ppm - this.spectral_information[n].x_ppm_start)/this.spectral_information[n].x_ppm_step;
+            let x2 = (this.x2_ppm - this.spectral_information[n].x_ppm_start)/this.spectral_information[n].x_ppm_step;
+            let y = (this.y_ppm - this.spectral_information[n].y_ppm_start)/this.spectral_information[n].y_ppm_step;
+            let y2 = (this.y2_ppm - this.spectral_information[n].y_ppm_start)/this.spectral_information[n].y_ppm_step;
+            this.setCamera(x, x2, y, y2);
 
             /**
              * Update the matrix according to the translation and scale defined in camera
@@ -242,13 +252,13 @@ class webgl_contour_plot {
 
     /**
      * Set the camera according to ppm
+     * Later in drawScene(), we will use this information to set the camera
      */
     setCamera_ppm(x_ppm,x2_ppm,y_ppm,y2_ppm) {
-        let x = (x_ppm - this.x_ppm_start)/this.x_ppm_step;
-        let x2 = (x2_ppm - this.x_ppm_start)/this.x_ppm_step;
-        let y = (y_ppm - this.y_ppm_start)/this.y_ppm_step;
-        let y2 = (y2_ppm - this.y_ppm_start)/this.y_ppm_step;
-        this.setCamera(x, x2, y, y2);
+        this.x_ppm = x_ppm;
+        this.x2_ppm = x2_ppm;
+        this.y_ppm = y_ppm;
+        this.y2_ppm = y2_ppm;
     }
 
     /**

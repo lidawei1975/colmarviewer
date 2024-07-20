@@ -900,14 +900,13 @@ plotit.prototype.draw = function () {
      * Draw contour on the canvas, which is a background layer
      */
     this.contour_plot = new webgl_contour_plot(this.drawto_contour);
-    this.contour_plot.set_spectrum_information(this.x_ppm_start, this.x_ppm_step, this.y_ppm_start, this.y_ppm_step, this.n_direct, this.n_indirect);
-    this.contour_plot.set_data(this.points, this.polygon_length, this.levels_length,this.overlays,this.colors);
+    this.contour_plot.set_data(this.points, this.polygon_length, this.levels_length,this.overlays,this.colors,this.spectral_information);
 };
 
 plotit.prototype.redraw_contour = function ()
 {
+    this.contour_plot.set_data(this.points, this.polygon_length, this.levels_length,this.overlays,this.colors,this.spectral_information);
     this.contour_plot.setCamera_ppm(this.xscale[0], this.xscale[1], this.yscale[0], this.yscale[1]);
-    this.contour_plot.set_data(this.points, this.polygon_length, this.levels_length,this.overlays,this.colors);
     this.contour_plot.drawScene();
 }
 

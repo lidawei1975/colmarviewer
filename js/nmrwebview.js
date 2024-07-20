@@ -190,7 +190,15 @@ my_contour_worker.onmessage = (e) => {
         main_plot.polygon_length = e.data.polygon_length.slice(0);
         main_plot.levels_length = e.data.levels_length.slice(0);
         main_plot.overlays = [main_plot.levels_length.length];
-        main_plot.colors = [[0.7, 0.7, 0.7, 1.0]]; //dark grey color for the contour plot
+        main_plot.colors = [[0, 0, 1, 1.0]]; //blue
+        main_plot.spectral_information = [{
+            n_direct: hsqc_spectra[0].n_direct,
+            n_indirect: hsqc_spectra[0].n_indirect,
+            x_ppm_start: hsqc_spectra[0].x_ppm_start,
+            x_ppm_step: hsqc_spectra[0].x_ppm_step,
+            y_ppm_start: hsqc_spectra[0].y_ppm_start,
+            y_ppm_step: hsqc_spectra[0].y_ppm_step
+        }];
 
         /**
          * Draw the big plot with the new contour data, which has been updated by above 3 lines
@@ -236,6 +244,18 @@ my_contour_worker.onmessage = (e) => {
          * Append new color to main_plot.colors
          */
         main_plot.colors.push([1,0,0,1]);
+
+        /**
+         * Appned new spectral_information to main_plot.spectral_information
+         */
+        main_plot.spectral_information.push({
+            n_direct: hsqc_spectra[e.data.spectrum_index].n_direct,
+            n_indirect: hsqc_spectra[e.data.spectrum_index].n_indirect,
+            x_ppm_start: hsqc_spectra[e.data.spectrum_index].x_ppm_start,
+            x_ppm_step: hsqc_spectra[e.data.spectrum_index].x_ppm_step,
+            y_ppm_start: hsqc_spectra[e.data.spectrum_index].y_ppm_start,
+            y_ppm_step: hsqc_spectra[e.data.spectrum_index].y_ppm_step
+        });
 
         main_plot.redraw_contour();
 
