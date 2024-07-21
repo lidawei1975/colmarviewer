@@ -111,6 +111,14 @@
             margin: 10px;
             padding: 10px;
         }
+
+        div.resizable {
+            border: 2px solid #40375f;
+            border-radius: 0.5rem;  
+            padding: 20px; 
+            resize: both;
+            overflow: hidden;
+        }
     </style>
 </head>
 
@@ -123,34 +131,21 @@
 
             <h1>Web based two-dimensional NMR spectral Viewer</h1>
 
-            <div id="step1" class="topclass" style="width: 580px; height: 300px">
+            <div id="step1" class="topclass" style="width: 580px; height: 100px">
                 <form id="upload_spectra">
                 <label for="userfile">Spectrum file: </label><input type="file" id="userfile"><br>               
                 <input type="submit" id="button_spectra_process" name="Submit" value="Upload spectrum for processing"></br></p>
                 </form>
             </div>
 
-            <div id="plot" class="topclass" style=" Padding: 10px; float: left">
+            <div id="spectra_list" class="topclass" style="width: 1200px;">
+                <h2>Uploaded Spectra</h2>
+                <ol id="spectra_list_ol" type="1">
+                </ol>
+            </div>
 
-                <form id="contour_levels" onsubmit='event.preventDefault();'>
-                    <span>Contour levels calculation </span>
-                    <label for="noise_level">Noise level</label>
-                    <input type="text" name="noise_level" id="noise_level" value="0" size="5" readonly>
-                    <label for="contour0">Lowest contour level</label>
-                    <input type="text" name="contour0" id="contour0" value="100" size="5">
-                    <button onclick="reduce_contour()">Reduce lowest contour level by scale</button>
-                    <label for="logarithmic_scale">Logarithmic scale</label>
-                    <input type="number" min=1.0 max=2.0 step=0.05 value=1.3 id="logarithmic_scale"name="logarithmic_scale" size="5">
-                    <label for="contour_color">Contour color</label>
-                    <input id="contour_color" type="color" value="#808080" />
-                    <span id="contour_message" class="highlight"></span>
-                </form>
-
-                <span> Contour cutoff for visualization </span>
-                <input type="range" name="contour-slider" id="contour-slider" min="1" value="1" max="25"
-                    style="width:400px;">
-                <span> Current contour level cutoff: </span><span id="contour_level">1</span><br>
-
+            <div id="plot" style=" Padding: 10px; float: left">
+                <span id="contour_message" class="highlight"></span>
                 <strong>Control:</strong>
                 <button onclick="resetzoom()">Reset all Zoom</button>,
                 <button onclick="popzoom()">Zoom Back</button>,
@@ -159,7 +154,7 @@
                
 
 
-                <div id="vis_parent" style="position: relative;">
+                <div id="vis_parent"  class="resizable"  style="position: relative;">
                     <div id="canvas_parent" style="position: absolute; top: 0; left: 0; z-index: 1;">
                         <canvas id="canvas1" style="border:0px;"></canvas>
                     </div>

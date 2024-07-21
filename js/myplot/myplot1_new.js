@@ -119,8 +119,6 @@ plotit.prototype.update = function (input) {
         .attr("width", this.WIDTH - this.MARGINS.right - this.MARGINS.left)
         .attr("height", this.HEIGHT - this.MARGINS.bottom - this.MARGINS.top);
 
-    this.transition_data();
-
 };
 
 //diff with old one, we are using intergral instead of index(height)
@@ -673,30 +671,6 @@ plotit.prototype.legendClick = function (index) {
     });
 };
 
-plotit.prototype.update_contour = function (value) {
-
-    /**
-     * value-1 because the index of contour starts from 0 but the value starts from 1
-     * set_level_lb will call drawScene() to redraw the contour automatically
-     */
-    this.contour_plot.set_level_lb(value - 1); 
-
-    /**
-     * Update cutoff then remove peaks below cutoff
-     * PointData is the original peak list
-     * realdata is the peak list after cutoff
-     */
-    this.cutoff = this.levels[value - 1]*0.99; //0.99 is to prevent numerical round off error
-    this.realdata = [];
-    for (var i = 0; i < this.PointData.length; i++) {
-        if (this.PointData[i].index > this.cutoff)
-            this.realdata.push(this.PointData[i]);
-    }
-
-    this.preparedata();
-    this.update_picked_peaks();
-};
-
 
 
 plotit.prototype.draw_peaks = function () {
@@ -900,12 +874,12 @@ plotit.prototype.draw = function () {
      * Draw contour on the canvas, which is a background layer
      */
     this.contour_plot = new webgl_contour_plot(this.drawto_contour);
-    this.contour_plot.set_data(this.points, this.polygon_length, this.levels_length,this.overlays,this.colors,this.spectral_information);
+    this.contour_plot.set_data(this.points, this.polygon_length, this.levels_length,this.overlays,this.colors,this.spectral_information,this.contour_lbs);
 };
 
 plotit.prototype.redraw_contour = function ()
 {
-    this.contour_plot.set_data(this.points, this.polygon_length, this.levels_length,this.overlays,this.colors,this.spectral_information);
+    this.contour_plot.set_data(this.points, this.polygon_length, this.levels_length,this.overlays,this.colors,this.spectral_information,this.contour_lbs);
     this.contour_plot.setCamera_ppm(this.xscale[0], this.xscale[1], this.yscale[0], this.yscale[1]);
     this.contour_plot.drawScene();
 }

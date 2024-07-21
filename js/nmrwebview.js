@@ -87,6 +87,27 @@ class spectrum {
 var hsqc_spectra = []; //array of hsqc spectra
 
 
+/**
+ * Default color list for the contour plot (15 colors, repeat if more than 15 spectra)
+ */
+var color_list = [
+    [0, 0, 1, 1.0], //blue
+    [1, 0, 0, 1.0], //red
+    [0, 1, 0, 1.0], //green
+    [1, 1, 0, 1.0], //yellow
+    [0, 1, 1, 1.0], //cyan
+    [1, 0, 1, 1.0], //magenta
+    [0, 0, 0, 1.0], //black
+    [0.5, 0.5, 0.5, 1.0], //gray
+    [1, 0.5, 0.5, 1.0], //pink
+    [0.5, 1, 0.5, 1.0], //light green
+    [0.5, 0.5, 1, 1.0], //light blue
+    [1, 0.5, 1, 1.0], //light magenta
+    [1, 1, 0.5, 1.0], //light yellow
+    [0.5, 1, 1, 1.0], //light cyan
+    [0.5, 0.5, 0.5, 1.0], //light gray
+];
+
 $(document).ready(function () {
 
     /**
@@ -94,10 +115,6 @@ $(document).ready(function () {
      */
     oOutput = document.getElementById("infor");
 
-
-    $(window).resize(function () {
-        resize();
-    });
 
     tooldiv = d3.select("body")
         .append("div")
@@ -111,23 +128,20 @@ $(document).ready(function () {
 
 
     /**
-     * Set correct size for the big plot
+     * Resize observer for the big plot
      */
-    resize();
+    plot_div_resize_observer.observe(document.getElementById("vis_parent")); 
+
 
     /**
      * Add event listener to the contour0 input text box
      */
-    document.getElementById("contour0").addEventListener("change", update_contour0_or_logarithmic_scale);
+    // document.getElementById("contour0").addEventListener("change", update_contour0_or_logarithmic_scale);
     /**
      * Add event listener to the logarithmic_scale input text box
      */
-    document.getElementById("logarithmic_scale").addEventListener("change", update_contour0_or_logarithmic_scale);
+    //document.getElementById("logarithmic_scale").addEventListener("change", update_contour0_or_logarithmic_scale);
 
-    /**
-     * Add event listener to contour_color color picker
-     */
-    document.getElementById("contour_color").addEventListener("change", update_contour_color);
 
     /**
      * Form "upload_spectra" processing
@@ -143,6 +157,11 @@ $(document).ready(function () {
         read_file('userfile')
             .then((result_spectrum) => {
 
+                let spectrum_index = hsqc_spectra.length;
+
+                result_spectrum.spectrum_index = spectrum_index;
+                result_spectrum.spectrum_color = color_list[spectrum_index % color_list.length];
+
                 hsqc_spectra.push(result_spectrum);
 
                 /**
@@ -153,21 +172,171 @@ $(document).ready(function () {
                     n_indirect: result_spectrum.n_indirect,
                     levels: result_spectrum.levels,
                     spectrum_type: "hsqc",
-                    spectrum_index: hsqc_spectra.length - 1,
+                    spectrum_index: spectrum_index,
                 };
 
+                /**
+                 * Add the new spectrum to the list of hsqc_spectra
+                 */
+                add_spectrum_to_list(spectrum_index);
+
                 my_contour_worker.postMessage({ response_value: result_spectrum.raw_data, spectrum: hsqc_spectrum_part });
-                set_scale_bigplot();
+                set_scale_bigplot(hsqc_spectra.length - 1);
                 if(hsqc_spectra.length === 1)
                 {
-                    draw_bigplot(hsqc_spectra[0]);
+                    init_plot(hsqc_spectra[0]);
                 }
             });
     });
-
 });
 
 
+var plot_div_resize_observer = new ResizeObserver(entries => {
+    for (let entry of entries) {
+        const cr = entry.contentRect;
+        /** 
+         * resize the SVG element (id: main_plot) to the same size as the div (id: plot_div)
+         */
+        wid=cr.width;
+        height=cr.height;
+
+        document.getElementById('visualization').style.height = height.toString().concat('px');
+        document.getElementById('visualization').style.width = wid.toString().concat('px');
+    
+        /**
+         * same size for svg_parent (parent of visualization), canvas_parent (parent of canvas1), canvas1, 
+         * and vis_parent (parent of visualization and canvas_parent)
+         */
+        document.getElementById('svg_parent').style.height = height.toString().concat('px');
+        document.getElementById('svg_parent').style.width = wid.toString().concat('px');
+        document.getElementById('vis_parent').style.height = height.toString().concat('px');
+        document.getElementById('vis_parent').style.width = wid.toString().concat('px');
+    
+        /**
+         * canvas is shifted 50px to the right, 20 px to the bottom.
+         * It is also shorttened by 20px in width on the right and 50px in height on the bottom.
+         */
+        let canvas_height = height - 70;
+        let canvas_width = wid - 70;
+    
+        document.getElementById('canvas_parent').style.height = canvas_height.toString().concat('px');
+        document.getElementById('canvas_parent').style.width = canvas_width.toString().concat('px');
+        document.getElementById('canvas_parent').style.top = "20px";
+        document.getElementById('canvas_parent').style.left = "50px";
+        document.getElementById('canvas1').style.height = canvas_height.toString().concat('px');
+        document.getElementById('canvas1').style.width = canvas_width.toString().concat('px');
+    
+        /**
+         * Set canvas1 width and height to be the same as its style width and height
+         */
+        document.getElementById('canvas1').setAttribute("height", canvas_height.toString());
+        document.getElementById('canvas1').setAttribute("width", canvas_width.toString());
+    
+        let input = {
+            WIDTH: wid,
+            HEIGHT: height
+        };
+    
+        if ('undefined' !== typeof (main_plot)) {
+            main_plot.update(input);
+        }
+    }
+});
+
+
+function add_spectrum_to_list(index) {
+    let new_spectrum = hsqc_spectra[index];
+    let new_spectrum_div = document.createElement("li");
+    
+    /**
+     * The new DIV will have the following children:
+     * A span element with the spectrum noise level
+     */
+    
+    new_spectrum_div.appendChild(document.createTextNode("Noise level: " + new_spectrum.noise_level.toExponential(2) + " "));
+    
+    /**
+     * A input text element with the lowest contour level for contour calculation, whose ID is "contour0-".concat(index)
+     */
+    let contour0_input_label = document.createElement("label");
+    contour0_input_label.setAttribute("for", "contour0-".concat(index));
+    contour0_input_label.innerText = "Lowest contour level: ";
+    let contour0_input = document.createElement("input");
+    contour0_input.setAttribute("type", "text");
+    contour0_input.setAttribute("id", "contour0-".concat(index));
+    contour0_input.setAttribute("size", "4");
+    new_spectrum_div.appendChild(contour0_input_label);
+    new_spectrum_div.appendChild(contour0_input);
+
+    /**
+     * A input text element with the logarithmic scale for contour calculation, whose ID is "logarithmic_scale-".concat(index)
+     */
+    let logarithmic_scale_input_label = document.createElement("label");
+    logarithmic_scale_input_label.setAttribute("for", "logarithmic_scale-".concat(index));
+    logarithmic_scale_input_label.innerText = "  Logarithmic scale: ";
+    let logarithmic_scale_input = document.createElement("input");
+    logarithmic_scale_input.setAttribute("type", "text");
+    logarithmic_scale_input.setAttribute("id", "logarithmic_scale-".concat(index));
+    logarithmic_scale_input.setAttribute("value", "1.3");
+    logarithmic_scale_input.setAttribute("size", "3");
+    new_spectrum_div.appendChild(logarithmic_scale_input_label);
+    new_spectrum_div.appendChild(logarithmic_scale_input);
+
+    /**
+     * A button element with the text "Reduce contour", with onclick event listener to reduce_contour(index)
+     * Add two spaces around the button
+     */
+    let reduce_contour_button = document.createElement("button");
+    reduce_contour_button.innerText = "Reduce contour";
+    reduce_contour_button.setAttribute("onclick", "reduce_contour(".concat(index, ")"));
+    reduce_contour_button.style.marginLeft = "1em";
+    reduce_contour_button.style.marginRight = "1em";
+    new_spectrum_div.appendChild(reduce_contour_button);
+
+    /**
+     * A color picker element with the color of the contour plot, whose ID is "contour_color-".concat(index)
+     * Set the color of the picker to the color of the spectrum
+     * Also add an event listener to update the color of the contour plot
+     */
+    let contour_color_label = document.createElement("label");
+    contour_color_label.setAttribute("for", "contour_color-".concat(index));
+    contour_color_label.innerText = "Contour color: ";
+    let contour_color_input = document.createElement("input");
+    contour_color_input.setAttribute("type", "color");
+    contour_color_input.setAttribute("value", rgbToHex(new_spectrum.spectrum_color));
+    contour_color_input.setAttribute("id", "contour_color-".concat(index));
+    contour_color_input.addEventListener("change", update_contour_color);
+    new_spectrum_div.appendChild(contour_color_label);
+    new_spectrum_div.appendChild(contour_color_input);
+
+    /**
+     * Add a new line and a slider for the contour level
+     * Add a event listener to update the contour level
+     */
+    new_spectrum_div.appendChild(document.createElement("br"));
+    let contour_slider = document.createElement("input");
+    contour_slider.setAttribute("type", "range");
+    contour_slider.setAttribute("id", "contour-slider-".concat(index));
+    contour_slider.setAttribute("min", "1");
+    contour_slider.setAttribute("max", "20");
+    contour_slider.setAttribute("value", "1");
+    contour_slider.style.width = "70%";
+    contour_slider.addEventListener("input", update_contour_slider);
+    new_spectrum_div.appendChild(contour_slider);
+
+    /**
+     * A span element with the current contour level, whose ID is "contour_level-".concat(index)
+     */
+    let contour_level_span = document.createElement("span");
+    contour_level_span.setAttribute("id", "contour_level-".concat(index));
+    contour_level_span.innerText = new_spectrum.levels[0].toFixed(2);
+    new_spectrum_div.appendChild(contour_level_span);
+
+    /**
+     * Add the new spectrum div to the list of spectra
+     */
+    document.getElementById("spectra_list_ol").appendChild(new_spectrum_div);
+}
 
 my_contour_worker.onmessage = (e) => {
 
@@ -190,7 +359,8 @@ my_contour_worker.onmessage = (e) => {
         main_plot.polygon_length = e.data.polygon_length.slice(0);
         main_plot.levels_length = e.data.levels_length.slice(0);
         main_plot.overlays = [main_plot.levels_length.length];
-        main_plot.colors = [[0, 0, 1, 1.0]]; //blue
+        main_plot.colors = [hsqc_spectra[e.data.spectrum_index].spectrum_color];
+        main_plot.contour_lbs = [0];
         main_plot.spectral_information = [{
             n_direct: hsqc_spectra[0].n_direct,
             n_indirect: hsqc_spectra[0].n_indirect,
@@ -204,7 +374,6 @@ my_contour_worker.onmessage = (e) => {
          * Draw the big plot with the new contour data, which has been updated by above 3 lines
          */
         main_plot.redraw_contour();
-        set_scale_bigplot();
     }
     else if (e.data.spectrum_type === "hsqc") {
         /**
@@ -243,7 +412,12 @@ my_contour_worker.onmessage = (e) => {
         /**
          * Append new color to main_plot.colors
          */
-        main_plot.colors.push([1,0,0,1]);
+        main_plot.colors.push(hsqc_spectra[e.data.spectrum_index].spectrum_color);
+
+        /**
+         * Append new contour_lb to main_plot.contour_lbs
+         */
+        main_plot.contour_lbs.push(0);
 
         /**
          * Appned new spectral_information to main_plot.spectral_information
@@ -303,34 +477,38 @@ my_contour_worker.onmessage = (e) => {
          * Draw the big plot with the new contour data, which has been updated by above 3 lines
          */
         main_plot.redraw_contour();
-        set_scale_bigplot();
 
     }
 
     document.getElementById("contour_message").innerText = "";
 };
 
-
-function set_scale_bigplot() {
-    document.getElementById("contour0").value = hsqc_spectra[0].levels[0].toFixed(2);
-    document.getElementById("contour-slider").max = hsqc_spectra[0].levels.length;
+/**
+ * Update contour0-index to the lowest level of the contour plot of the spectrum with index
+ * Update contour-slider-index to the number of levels of the contour plot of the spectrum with index
+ * @param {int} index spectral index in hsqc_spectra array
+ */
+function set_scale_bigplot(index) {
+    document.getElementById("contour0-".concat(index)).value = hsqc_spectra[index].levels[0].toFixed(2);
+    document.getElementById("contour-slider-".concat(index)).max = hsqc_spectra[index].levels.length;
 }
 
 /**
- * 
+ * This function should be called only once when the first spectrum is loaded
+ * to initialize the big plot
  * @param {obj} input an spectrum object. 
  */
-function draw_bigplot(input) {
+function init_plot(input) {
 
     let wid = parseInt(document.getElementById('body').clientWidth) - 40;
-    let wid2 = wid * 0.65 + 50;
+    let height = wid * 0.65 + 50;
 
-    document.getElementById('visualization').style.height = wid2.toString().concat('px');
+    document.getElementById('visualization').style.height = height.toString().concat('px');
     document.getElementById('visualization').style.width = wid.toString().concat('px');
 
     input.PointData = [];
     input.WIDTH = wid;
-    input.HEIGHT = wid2;
+    input.HEIGHT = height;
     input.MARGINS = { top: 20, right: 20, bottom: 50, left: 50 };
     input.drawto = "#visualization";
     input.drawto_legend = "#legend";
@@ -340,81 +518,10 @@ function draw_bigplot(input) {
 
     main_plot = new plotit(input);
     main_plot.draw();
-    main_plot.draw_peaks();
-
-    d3.select("#contour-slider").on("input", function () {
-        main_plot.update_contour(+this.value);
-        /**
-         * Update the text of contour_level
-         */
-        document.getElementById("contour_level").innerText = hsqc_spectra[0].levels[this.value - 1].toFixed(2);
-    });
-    let tt = document.getElementById("contour-slider").value;
-    document.getElementById("contour_level").max = hsqc_spectra[0].levels.length;
-    document.getElementById("contour_level").innerText = hsqc_spectra[0].levels[tt - 1].toFixed(2);
-    main_plot.update_contour(+tt);
-
-    document.getElementById("noise_level").value  = input.noise_level.toExponential(2);
 };
 
 
 
-/**
- * This function is called when the user resize the big plot by adjusting the window size
- */
-function resize() {
-
-    let wid0 = parseInt(document.getElementById('body').clientWidth) - 20;
-    let wid = wid0 - 20;
-    let wid2 = wid * 0.65 + 50;
-
-    document.getElementById('plot').style.width = wid0.toString().concat('px');
-    /**
-     * Div plot will have auto height to fit the content (legend will change heights, others won't)
-     */
-
-    document.getElementById('visualization').style.height = wid2.toString().concat('px');
-    document.getElementById('visualization').style.width = wid.toString().concat('px');
-
-    /**
-     * same size for svg_parent (parent of visualization), canvas_parent (parent of canvas1), canvas1, 
-     * and vis_parent (parent of visualization and canvas_parent)
-     */
-    document.getElementById('svg_parent').style.height = wid2.toString().concat('px');
-    document.getElementById('svg_parent').style.width = wid.toString().concat('px');
-    document.getElementById('vis_parent').style.height = wid2.toString().concat('px');
-    document.getElementById('vis_parent').style.width = wid.toString().concat('px');
-
-    /**
-     * canvas is shifted 50px to the right, 20 px to the bottom.
-     * It is also shorttened by 20px in width on the right and 50px in height on the bottom.
-     */
-    let canvas_height = wid2 - 70;
-    let canvas_width = wid - 70;
-
-    document.getElementById('canvas_parent').style.height = canvas_height.toString().concat('px');
-    document.getElementById('canvas_parent').style.width = canvas_width.toString().concat('px');
-    document.getElementById('canvas_parent').style.top = "20px";
-    document.getElementById('canvas_parent').style.left = "50px";
-    document.getElementById('canvas1').style.height = canvas_height.toString().concat('px');
-    document.getElementById('canvas1').style.width = canvas_width.toString().concat('px');
-
-    /**
-     * Set canvas1 width and height to be the same as its style width and height
-     */
-    document.getElementById('canvas1').setAttribute("height", canvas_height.toString());
-    document.getElementById('canvas1').setAttribute("width", canvas_width.toString());
-
-    let input = {
-        WIDTH: wid,
-        HEIGHT: wid2
-    };
-
-    if ('undefined' !== typeof (main_plot)) {
-        main_plot.update(input);
-    }
-
-}
 
 
 function resetzoom() {
@@ -514,12 +621,56 @@ function update_contour0_or_logarithmic_scale(e) {
 }
 
 /**
+ * Event listener for slider contour-slider
+ * @param {*} e the slider event
+ */
+function update_contour_slider(e) {
+    /**
+     * Get the index of the spectrum from the id of the slider
+     */
+    let last_dash = e.target.id.lastIndexOf("-");
+    let index = parseInt(e.target.id.substring(last_dash + 1));
+
+    /**
+     * Get new level from the slider value
+     */
+    let level = parseInt(e.target.value);
+
+    /**
+     * Update text of corresponding contour_level
+     */
+    document.getElementById("contour_level-".concat(index)).innerText = hsqc_spectra[index].levels[level - 1].toFixed(2);
+
+    /**
+     * Update the current lowest shown level in main_plot
+     */
+    main_plot.contour_lbs[index] = level - 1;
+    main_plot.redraw_contour();
+}
+
+
+/**
  * Event listener for color picker contour_color
  * @param {*} e 
  */
 function update_contour_color(e) {
-    let color = document.getElementById('contour_color').value;
-    main_plot.colors = [[parseInt(color.substring(1, 3), 16) / 255, parseInt(color.substring(3, 5), 16) / 255, parseInt(color.substring(5, 7), 16) / 255, 1.0]];
+    /**
+     * Get spectral index from the id of the color picker
+     * e.target.id is something like "contour_color-0"
+     */
+    let last_dash = e.target.id.lastIndexOf("-");
+    let index = parseInt(e.target.id.substring(last_dash + 1));
+    let color = e.target.value;
+
+    /**
+     * Update the color of the spectrum
+    */
+    hsqc_spectra[index].spectrum_color = color;
+    
+    /**
+     * Update the color of the contour plot
+     */
+    main_plot.colors[index] = hexToRgb(color);
     main_plot.redraw_contour();
 }
 
@@ -604,7 +755,14 @@ const read_file = (file_id) => {
 } //end of read_file
 
 
+/**
+ * Helper functions.
+ */
 
+/**
+ * Concat two float32 arrays into one
+ * @returns the concatenated array
+ */
 function Float32Concat(first, second)
 {
     var firstLength = first.length,
@@ -614,4 +772,21 @@ function Float32Concat(first, second)
     result.set(second, firstLength);
 
     return result;
+}
+
+/**
+ * Convert an RGB array to a hexadecimal string
+ */
+function rgbToHex(rgb) {
+    return "#" + ((1 << 24) + (Math.round(rgb[0] * 255) << 16) + (Math.round(rgb[1] * 255) << 8) + Math.round(rgb[2] * 255)).toString(16).slice(1);
+}
+
+/**
+ * Convert a hexadecimal string to an RGB array
+ */
+function hexToRgb(hex) {
+    let r = parseInt(hex.substring(1, 3), 16) / 255;
+    let g = parseInt(hex.substring(3, 5), 16) / 255;
+    let b = parseInt(hex.substring(5, 7), 16) / 255;
+    return [r, g, b, 1.0];
 }

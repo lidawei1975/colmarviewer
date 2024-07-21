@@ -10,9 +10,6 @@ class webgl_contour_plot {
         if (!this.gl) {
             alert("No WebGL");
         }
-
-        this.level_lb =0; // lower bound of the contour level
-
         /**
          * camera define zoom and pan of the camera. We don't need rotation for this application
          */
@@ -117,26 +114,17 @@ class webgl_contour_plot {
      * Set buffer data and draw the scene
      * @param {Float32Array} points
      */
-    set_data(points, polygon_length,levels_length,overlays,colors,spectral_information) {
+    set_data(points, polygon_length,levels_length,overlays,colors,spectral_information,contour_lbs) {
         this.colors = colors;
         this.overlays = overlays;
         this.spectral_information = spectral_information;
         this.polygon_length = polygon_length;
         this.levels_length = levels_length;
+        this.contour_lbs = contour_lbs;
         this.gl.bufferData(this.gl.ARRAY_BUFFER, points, this.gl.STATIC_DRAW);
     };
 
-    /**
-     * set_spectrum_information information from the spectrum file
-     */
-    set_spectrum_information(x_ppm_start, x_ppm_step, y_ppm_start, y_ppm_step,n_direct, n_indirect) {
-        this.x_ppm_start = x_ppm_start;
-        this.x_ppm_step = x_ppm_step;
-        this.y_ppm_start = y_ppm_start;
-        this.y_ppm_step = y_ppm_step;
-        this.n_direct = n_direct;
-        this.n_indirect = n_indirect;
-    }
+
 
     /**
      * Draw the scene.
@@ -196,7 +184,7 @@ class webgl_contour_plot {
             }
             let m_end = this.overlays[n];
 
-            for(var m=m_start+this.level_lb;m< m_end-1;m++) //notice -1 because we will use this.levels_length[m+1] below
+            for(var m=m_start+this.contour_lbs[n];m< m_end-1;m++) //notice -1 because we will use this.levels_length[m+1] below
             {
                 let i_start = 0;
                 if(m>0)
@@ -259,14 +247,6 @@ class webgl_contour_plot {
         this.x2_ppm = x2_ppm;
         this.y_ppm = y_ppm;
         this.y2_ppm = y2_ppm;
-    }
-
-    /**
-     * Set the contour level lower bound
-     */
-    set_level_lb(level_lb) {
-        this.level_lb = level_lb;
-        this.drawScene();
     }
 
     /**
