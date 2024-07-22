@@ -108,6 +108,135 @@ var color_list = [
     [0.5, 0.5, 0.5, 1.0], //light gray
 ];
 
+
+class file_drop_processor {
+    /**
+     * 
+     * @param {string} drop_area_id: DIV id of the drop area
+     * @param {string} file_name: array of file names to be extracted from the dropped files
+     * @param {string} file_id: array of file ids the extracted file to be attached to
+     */
+    constructor() {
+        this.supportsFileSystemAccessAPI = 'getAsFileSystemHandle' in DataTransferItem.prototype;
+        this.supportsWebkitGetAsEntry = 'webkitGetAsEntry' in DataTransferItem.prototype;
+    }
+
+    drop_area(drop_area_id) {
+        this.drop_area_id = drop_area_id;
+        return this;
+    }
+
+    file_name(file_name) {
+        this.file_name = file_name;
+        return this;
+    }
+
+    file_id(file_id) {
+        this.file_id = file_id;
+        return this;
+    }
+
+    init() {
+        /**
+         *  Get the element that will be the drop target. 
+         *  Then add the relevant event listeners to it.
+         */
+        this.elem = document.getElementById(this.drop_area_id);
+
+        // Prevent navigation.
+        this.elem.addEventListener('dragover', (e) => {
+            e.preventDefault();
+        });
+
+        // Visually highlight the drop zone.
+        this.elem.addEventListener('dragenter', (e) => {
+            this.elem.style.outline = 'solid red 2px';
+        });
+
+        // Visually un-highlight the drop zone.
+        this.elem.addEventListener('dragleave', (e) => {
+            let rect = this.elem.getBoundingClientRect();
+            // Check the mouseEvent coordinates are outside of the rectangle
+            if (e.clientX > rect.left + rect.width || e.clientX < rect.left
+                || e.clientY > rect.top + rect.height || e.clientY < rect.top) {
+                this.elem.style.outline = '';
+            }
+        });
+        this.elem.addEventListener('drop', this.drop_handler.bind(this));
+        return this;
+    }
+
+    async process_file_attachment(entry) {
+        let file = await entry.getFile();
+
+        /**
+         * Only if the dropped file's extension is as predefined, we will attach it to the corresponding file input
+         */
+        let file_extension = file.name.split('.').pop();    
+        if (this.file_name==file_extension) {
+            let container = new DataTransfer();
+            container.items.add(file);
+            document.getElementById(this.file_id).files = container.files;
+            /**
+             * Simulate the change event
+             */
+            document.getElementById(this.file_id).dispatchEvent(new Event('change'));
+        }
+    }
+
+    async drop_handler(e) {
+        e.preventDefault();
+
+        if (!this.supportsFileSystemAccessAPI && !this.supportsWebkitGetAsEntry) {
+            // Cannot handle directories.
+            return;
+        }
+        // Un-highlight the drop zone.
+        this.elem.style.outline = '';
+
+        // Prepare an array of promises…
+        const fileHandlesPromises = [...e.dataTransfer.items]
+            // …by including only files (where file misleadingly means actual file _or_
+            // directory)…
+            .filter((item) => item.kind === 'file')
+            // …and, depending on previous feature detection…
+            .map((item) =>
+                this.supportsFileSystemAccessAPI
+                    // …either get a modern `FileSystemHandle`…
+                    ? item.getAsFileSystemHandle()
+                    // …or a classic `FileSystemFileEntry`.
+                    : item.webkitGetAsEntry(),
+            );
+
+        // Loop over the array of promises.
+        for await (const handle of fileHandlesPromises) {
+            // This is where we can actually exclusively act on the directories.
+            if (handle.kind === 'directory' || handle.isDirectory) {
+                console.log(`Directory: ${handle.name}`);
+
+                /**
+                 * Get all files in the directory
+                 */
+                for await (const entry of handle.values()) {
+                    if (entry.kind === 'file') {
+                        /**
+                         * If the dropped file is in the list, attach it to the corresponding file input
+                         */
+                        this.process_file_attachment(entry);
+                    }
+                }
+            }
+            /**
+             * If the dropped item is a file, we will try to attach it to the corresponding file input if it is in the list
+             */
+            else if (handle.kind === 'file' || handle.isFile) {
+                this.process_file_attachment(handle);
+            }
+        }
+    }
+};
+
+
 $(document).ready(function () {
 
     /**
@@ -136,6 +265,15 @@ $(document).ready(function () {
      * Resize observer for the big plot
      */
     plot_div_resize_observer.observe(document.getElementById("vis_parent")); 
+
+    /**
+     * Initialize the file drop processor for the hsqc spectra
+     */
+    new file_drop_processor()
+    .drop_area('spectra_list') /** id of dropzone */
+    .file_name("ft2")  /** file extenstion to be searched from upload */
+    .file_id("userfile") /** Corresponding file element IDs */
+    .init();
 
 
     /**
