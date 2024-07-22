@@ -275,13 +275,11 @@ function add_spectrum_to_list(index) {
     contour0_input.setAttribute("type", "text");
     contour0_input.setAttribute("id", "contour0-".concat(index));
     contour0_input.setAttribute("size", "8");
+    contour0_input.setAttribute("min",0.001);
     new_spectrum_div.appendChild(contour0_input_label);
     new_spectrum_div.appendChild(contour0_input);
 
-    /**
-     * A button element with the text "Reduce contour", with onclick event listener to reduce_contour(index)
-     * Add two spaces around the button
-     */
+
     let reduce_contour_button = document.createElement("button");
     /**
      * Create a text node with the text ">" and class rotate90
@@ -292,8 +290,7 @@ function add_spectrum_to_list(index) {
     textdiv.classList.add("rotate90");
 
     reduce_contour_button.appendChild(textdiv);
-    reduce_contour_button.setAttribute("onclick", "reduce_contour(event)");
-    reduce_contour_button.setAttribute("id", index);
+    reduce_contour_button.onclick = function() { reduce_contour(index); };
     reduce_contour_button.style.marginLeft = "1em";
     reduce_contour_button.style.marginRight = "1em";
     /**
@@ -315,6 +312,7 @@ function add_spectrum_to_list(index) {
     logarithmic_scale_input.setAttribute("id", "logarithmic_scale-".concat(index));
     logarithmic_scale_input.setAttribute("value", "1.3");
     logarithmic_scale_input.setAttribute("size", "3");
+    logarithmic_scale_input.setAttribute("min",1.05);
     new_spectrum_div.appendChild(logarithmic_scale_input_label);
     new_spectrum_div.appendChild(logarithmic_scale_input);
 
@@ -323,12 +321,8 @@ function add_spectrum_to_list(index) {
      */
     let update_contour_button = document.createElement("button");
     update_contour_button.innerText = "Recalculate contour";
-    update_contour_button.setAttribute("onclick", "update_contour0_or_logarithmic_scale(event)");
+    update_contour_button.onclick = function() { update_contour0_or_logarithmic_scale(index); };
     update_contour_button.setAttribute("title","Update the contour plot with the new lowest level and logarithmic scale. This process might be slow.");
-    /**
-     * Add a id to the button, which is index, so that we know which spectrum to update
-     */
-    update_contour_button.setAttribute("id", index);
     update_contour_button.style.marginLeft = "1em";
     update_contour_button.style.marginRight = "1em";
     new_spectrum_div.appendChild(update_contour_button);
@@ -393,40 +387,12 @@ my_contour_worker.onmessage = (e) => {
     console.log("Message received from worker, spectral type: " + e.data.spectrum_type);
 
 
+
+
     /**
-     * Type is full and length is 1, this is the only spectrum
+     * Type is full and hsqc_spectra.length < main_plot.levels_length.length, we are adding spectrum
      */
-    if (e.data.spectrum_type === "full" && hsqc_spectra.length === 1) {
-
-        main_plot.points = new Float32Array(e.data.points);
-        main_plot.polygon_length = [e.data.polygon_length.slice(0)];
-        main_plot.levels_length = [e.data.levels_length.slice(0)];
-        main_plot.colors = [hsqc_spectra[e.data.spectrum_index].spectrum_color];
-        main_plot.contour_lbs = [0];
-        main_plot.spectral_information = [{
-            n_direct: hsqc_spectra[0].n_direct,
-            n_indirect: hsqc_spectra[0].n_indirect,
-            x_ppm_start: hsqc_spectra[0].x_ppm_start,
-            x_ppm_step: hsqc_spectra[0].x_ppm_step,
-            y_ppm_start: hsqc_spectra[0].y_ppm_start,
-            y_ppm_step: hsqc_spectra[0].y_ppm_step
-        }];
-
-        /**
-         * We need to keep track of the end of the arrays, so that we know where each spectrum ends and starts
-         */
-        main_plot.points_stop = [main_plot.points.length];
-
-        /**
-         * Draw the big plot with the new contour data, which has been updated above
-         */
-        main_plot.redraw_contour();
-    }
-    /**
-     * Type is full and length is more than 1, spectrum_index === length - 1,
-     * We are adding a new overlay to the main plot
-     */
-    else if (e.data.spectrum_type === "full" && hsqc_spectra.length > 1 && hsqc_spectra.length-1 === e.data.spectrum_index)
+    if (e.data.spectrum_type === "full" && hsqc_spectra.length > main_plot.levels_length.length)
     {
         main_plot.levels_length.push(e.data.levels_length);
         main_plot.polygon_length.push(e.data.polygon_length);
@@ -467,22 +433,144 @@ my_contour_worker.onmessage = (e) => {
     }
 
     /**
-     * Type is full and length is more than 1, spectrum_index < length - 1,
+     * Type is full and  hsqc_spectra.length === main_plot.levels_length.length
      * We are updating an existing overlay to the main plot
      */
-    else if (e.data.spectrum_type === "full" && hsqc_spectra.length > 1 && hsqc_spectra.length-1 > e.data.spectrum_index)
+    else if (e.data.spectrum_type === "full" && hsqc_spectra.length === main_plot.levels_length.length)
     {
         /**
-         * Step 1, Get the size different between the old spectrum's levels_length, polygon_length and points.length and the updated one
+         * Step1, recalculate the points array stops
+         * From spe 0 to spe index, the points array stops are the same
+         * from spe index to spe length-1, the points array stops are shifted by the length of the new overlay - length of the old overlay
          */
-        let old_levels_length_size=main_plot.levels_length_stop[e.data.spectrum_index]-main_plot.levels_length_stop[e.data.spectrum_index-1];
-        let old_polygon_length_size=main_plot.polygon_length_stop[e.data.spectrum_index]-main_plot.polygon_length_stop[e.data.spectrum_index-1];
-        let old_points_size=main_plot.points_stop[e.data.spectrum_index]-main_plot.points_stop[e.data.spectrum_index-1];
+        let old_points_stop = main_plot.points_stop[e.data.spectrum_index];
+        let old_points_stop_prev = 0;
+        if(e.data.spectrum_index>0)
+        {
+            old_points_stop_prev = main_plot.points_stop[e.data.spectrum_index-1];
+        }
+        let old_points_length = old_points_stop - old_points_stop_prev;
+        let new_points_length = e.data.points.length;
 
-        let new_levels_length_size=e.data.levels_length.length;
+        for(let i=e.data.spectrum_index;i<main_plot.points_stop.length;i++)
+        {
+            main_plot.points_stop[i] = main_plot.points_stop[i] - old_points_length + new_points_length;
+        }
 
+        /**
+         * Step 2, update the points array
+         * From spe 0 to spe index, the points array are the same
+         * for spe index, we replace main_plot.points from old_points_stop_pre to old_points_stop with new overlay points
+         */
+        let new_points = main_plot.points.slice(0,old_points_stop_prev);
+        new_points = Float32Concat(new_points,new Float32Array(e.data.points));
+        new_points = Float32Concat(new_points,main_plot.points.slice(old_points_stop));
+        main_plot.points = new_points;
+
+        /**
+         * Step 3, update the levels_length array and polygon_length array
+         */
+        main_plot.levels_length[e.data.spectrum_index] = e.data.levels_length;
+        main_plot.polygon_length[e.data.spectrum_index] = e.data.polygon_length;
+
+        /**
+         * Step 4, update the contour plot
+         */
+        main_plot.redraw_contour();
     }
-   
+    /**
+    * Type is partial, we are updating the contour plot with a new level (at the beginning of the levels array)
+    */
+    else if (e.data.spectrum_type === "partial") {
+        
+        let index = e.data.spectrum_index;
+        
+        /**
+        * For type hsqc-unshift, we will insert e.data.points,polygon_length,levels_length to the beginning of current contour data
+        * Step 1, concat the new points and current points
+        */
+        let new_points = new Float32Array(e.data.points.length + main_plot.points.length);
+        
+        /**
+         * if not the first spectrum
+         */
+        if (index > 0) {
+            /**
+             * Copy main_plot.points upto main_plot.points_stop[index-1] to new_points
+             */
+            new_points.set(main_plot.points.slice(0, main_plot.points_stop[index - 1]), 0);
+            /**
+             * Copy e.data.points to new_points
+             */
+            new_points.set(e.data.points, main_plot.points_stop[index-1]);
+            /**
+             * Copy main_plot.points from main_plot.points_stop[index-1] to the end to new_points
+             */
+            new_points.set(main_plot.points.slice(main_plot.points_stop[index - 1]), main_plot.points_stop[index-1] + e.data.points.length);
+
+            main_plot.points = new_points;
+
+            /**
+             * Update main_plot.points_stop, add e.data.points.length to elements from index to the end
+             */
+            for (let i = index; i < main_plot.points_stop.length; i++) {
+                main_plot.points_stop[i] += e.data.points.length;
+            }
+        }
+        /**
+         * if the first spectrum
+         */
+        else
+        {
+            /**
+             * Copy e.data.points to new_points
+             */
+            new_points.set(e.data.points, 0);
+            /**
+             * Copy main_plot.points to the end to new_points
+             */
+            new_points.set(main_plot.points, e.data.points.length);
+
+            main_plot.points = new_points;
+
+            /**
+             * Update main_plot.points_stop, add e.data.points.length to each element
+             */
+            for(let i=0;i<main_plot.points_stop.length;i++)
+            {
+                main_plot.points_stop[i] += e.data.points.length;
+            }
+        }
+ 
+         /**
+          * Step 2, concat the new polygon_length and current polygon_length 
+          * Before that, add e.data.polygon_length[last_element] to each element of mainplot.polygon_length
+          */
+         let polygon_shift = e.data.polygon_length[e.data.polygon_length.length-1];
+         for(let i=0;i<main_plot.polygon_length[index].length;i++)
+         {
+            main_plot.polygon_length[index][i] += polygon_shift;
+         }
+         main_plot.polygon_length[index] = e.data.polygon_length.concat(main_plot.polygon_length[index]);
+ 
+         /**
+          * Step 3, concat the new levels_length and current levels_length
+          * Before that, add e.data.levels_length[last_element] to each element of mainplot.levels_length
+          */
+         let levels_shift = e.data.levels_length[e.data.levels_length.length-1];
+         for(let i=0;i<main_plot.levels_length[index].length;i++)
+         {
+            main_plot.levels_length[index][i] += levels_shift;
+         }
+         main_plot.levels_length[index] = e.data.levels_length.concat(main_plot.levels_length[index]);
+
+        /**
+         * Step 4, update the contour plot
+         */
+        main_plot.redraw_contour();
+    }
+
+    
 
     document.getElementById("contour_message").innerText = "";
 };
@@ -522,6 +610,17 @@ function init_plot(input) {
 
     main_plot = new plotit(input);
     main_plot.draw();
+
+    /**
+     * INitialize the contour plot with empty data
+     */
+    main_plot.polygon_length = [];
+    main_plot.levels_length = [];
+    main_plot.colors = [];
+    main_plot.contour_lbs = [];
+    main_plot.spectral_information = [];
+    main_plot.points_stop = [];
+    main_plot.points = new Float32Array();
 };
 
 
@@ -552,12 +651,7 @@ function toggle_peak() {
 /**
  * Event listener for button reduce_contour
  */
-function reduce_contour(e) {
-
-    /**
-     * Get spectrum index from the id of the button
-     */
-    let index = e.target.id;
+function reduce_contour(index) {
 
     /**
      * Get current lowest level from input field contour0
@@ -574,40 +668,40 @@ function reduce_contour(e) {
     /**
      * Update the input field contour0
      */
-    document.getElementById('contour0').value = current_level;
+    document.getElementById('contour0-'+index.toFixed(0)).value = current_level;
 
     /**
      * Update hsqc_spectrum.levels (add the new level to the beginning of the array)
      */
-    hsqc_spectra[0].levels.unshift(current_level);
+    hsqc_spectra[index].levels.unshift(current_level);
 
     /**
      * Recalculate the contour plot
      */
     let hsqc_spectrum_part = {
-        n_direct: hsqc_spectrum.n_direct,
-        n_indirect: hsqc_spectrum.n_indirect,
-        levels: [hsqc_spectrum.levels[0]],
+        n_direct: hsqc_spectra[index].n_direct,
+        n_indirect: hsqc_spectra[index].n_indirect,
+        levels: [hsqc_spectra[index].levels[0]],
         spectrum_type: "partial",
-        spectrum_index: 0
+        spectrum_index: index
     };
 
-    my_contour_worker.postMessage({ response_value: hsqc_spectrum.raw_data, spectrum: hsqc_spectrum_part });
+    my_contour_worker.postMessage({ response_value: hsqc_spectra[index].raw_data, spectrum: hsqc_spectrum_part });
 
 
-    let tt = document.getElementById("contour-slider").value;
-    document.getElementById("contour_level").innerText = hsqc_spectrum.levels[tt - 1].toFixed(2);
+    /**
+     * Update slider.
+     */
+    document.getElementById("contour-slider-".concat(index)).max = hsqc_spectra[index].levels.length;
+    document.getElementById("contour-slider-".concat(index)).value = 1;
+    document.getElementById("contour_level-".concat(index)).innerText = hsqc_spectra[index].levels[0].toFixed(2);
 }
 
 /**
  * Event listener for text input field contour0
  */
-function update_contour0_or_logarithmic_scale(e) {
+function update_contour0_or_logarithmic_scale(index) {
 
-    /**
-     * Get spectrum index from the id of the button
-     */
-    let index = parseInt(e.target.id);
 
     let current_level = parseFloat(document.getElementById('contour0-'+index.toFixed(0)).value);
     let scale = parseFloat(document.getElementById('logarithmic_scale-'+index.toFixed(0)).value);
@@ -635,6 +729,13 @@ function update_contour0_or_logarithmic_scale(e) {
     };
 
     my_contour_worker.postMessage({ response_value: hsqc_spectrum.raw_data, spectrum: hsqc_spectrum_part });
+
+    /**
+     * Update slider.
+     */
+    document.getElementById("contour-slider-".concat(index)).max = hsqc_spectrum.levels.length;
+    document.getElementById("contour-slider-".concat(index)).value = 1;
+    document.getElementById("contour_level-".concat(index)).innerText = hsqc_spectrum.levels[0].toFixed(2);
 
 }
 
