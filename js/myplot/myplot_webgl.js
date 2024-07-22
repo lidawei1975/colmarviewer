@@ -114,13 +114,13 @@ class webgl_contour_plot {
      * Set buffer data and draw the scene
      * @param {Float32Array} points
      */
-    set_data(points, polygon_length,levels_length,overlays,colors,spectral_information,contour_lbs) {
+    set_data(points, points_stop,polygon_length,levels_length,colors,spectral_information,contour_lbs) {
         this.colors = colors;
-        this.overlays = overlays;
         this.spectral_information = spectral_information;
         this.polygon_length = polygon_length;
         this.levels_length = levels_length;
         this.contour_lbs = contour_lbs;
+        this.points_stop = points_stop;
         this.gl.bufferData(this.gl.ARRAY_BUFFER, points, this.gl.STATIC_DRAW);
     };
 
@@ -145,8 +145,12 @@ class webgl_contour_plot {
 
 
 
-        // Draw the geometry.
-        for(var n=0;n<this.overlays.length;n++)
+        /**
+         * Draw the contour plot
+         * One spectrum at a time
+         * # of spectra = this.levels_length.length = this.colors.length = this.spectral_information.length = this.contour_lbs.length = this.polygon_length.length
+         */
+        for(var n=0;n<this.levels_length.length;n++)
         {
             /**
              * setCamera first, using saved this.x_ppm, this.x2_ppm, this.y_ppm, this.y2_ppm
@@ -177,31 +181,37 @@ class webgl_contour_plot {
             this.gl.uniformMatrix3fv(this.matrixLocation, false, this.viewProjectionMat);
 
 
-            let m_start =0;
-            if(n>0)
-            {
-                m_start = this.overlays[n-1];
-            }
-            let m_end = this.overlays[n];
-
-            for(var m=m_start+this.contour_lbs[n];m< m_end-1;m++) //notice -1 because we will use this.levels_length[m+1] below
+            /**
+             * Draw the contour plot, one level at a time
+             */
+            for(var m=this.contour_lbs[n]; m < this.levels_length[n].length; m++)
             {
                 let i_start = 0;
                 if(m>0)
                 {
-                    i_start = this.levels_length[m-1];
+                    i_start = this.levels_length[n][m-1];
                 }
-                for (var i = i_start; i < this.levels_length[m]; i++)
+                let i_stop = this.levels_length[n][m];
+                /**
+                 * Draw the contour plot, one polygon at a time
+                 */
+                for (var i = i_start; i < i_stop; i++)
                 {   
                     this.gl.uniform4fv(this.colorLocation, this.colors[n]);
                     var primitiveType = this.gl.LINE_STRIP;
-                    let offset = 0;
+                    let point_start = 0;
                     if(i>0)
                     {
-                        offset = this.polygon_length[i-1];
+                        point_start = this.polygon_length[n][i-1];
                     }
-                    var count = this.polygon_length[i] - offset; 
-                    this.gl.drawArrays(primitiveType, offset, count);
+                    let count = this.polygon_length[n][i] - point_start;
+
+                    let overlay_offset = 0;
+                    if(n>0)
+                    {
+                        overlay_offset = this.points_stop[n-1]/2;
+                    }
+                    this.gl.drawArrays(primitiveType, point_start + overlay_offset, count);
                 }
             }
         }
