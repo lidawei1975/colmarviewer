@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>NMR 2D Spectrum Viewer</title>
+    <style>
+        a:link {
+            color: #000;
+        }
+
+        /* unvisited link */
+        a:visited {
+            color: #000;
+        }
+
+        /* visited link */
+        a:hover {
+            color: #000;
+        }
+
+        /* mouse over link */
+        a:active {
+            color: #000;
+        }
+
+        #container {
+            width: 100%;
+            min-width: 1024px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .error {
+            color: #e74815;
+            margin: 0px 0px 0px 0px;
+        }
+
+        #body {
+            font-family: Arial;
+            border-width: 2px;
+            clear: both;
+            width: 100%;
+            display: block;
+            margin-top: 25px;
+            margin-bottom: 25px;
+        }
+
+        .topclass {
+            float: left;
+            font-size: 16px;
+            background: #fff;
+            border: 3px solid #a1a1a1;
+            padding: 3px 3px;
+            margin: 3px;
+            border-radius: 0.5rem;
+        }
+
+
+        div.tooltip2 {
+            position: absolute;
+            text-align: center;
+            width: 120px;
+            height: 20px;
+            padding: 2px;
+            font: 16px sans-serif;
+            background: lightgray;
+            border: 0px;
+            border-radius: 0.5rem;
+            pointer-events: none;
+        }
+
+
+        .highlight {
+            background-color: #e6f10d;
+            color: blue;
+        }
+
+
+        .fieldset-auto-width {
+            display: inline-block;
+        }
+
+
+        .drop-area {
+            border: 2px dashed #ccc;
+            border-radius: 20px;
+            width: 480px;
+            font-family: sans-serif;
+            margin: 10px auto;
+            padding: 10px;
+        }
+
+        .drop-area-neighbor {
+            border: 2px solid #ccc;
+            border-radius: 10px;
+            width: 480px;
+            font-family: sans-serif;
+            margin: 10px;
+            padding: 10px;
+        }
+
+        div.resizable {
+            border: 2px solid #40375f;
+            border-radius: 0.5rem;  
+            padding: 20px; 
+            resize: both;
+            overflow: hidden;
+        }
+
+        .rotate90 {
+            transform: rotate(90deg);
+        }
+
+    </style>
+</head>
+
+
+<body>
+    <div id="container">
+
+
+        <div id="body">
+
+            <h1>Web based two-dimensional NMR spectral Viewer</h1>
+
+            <div id="step1" class="topclass" style="width: 580px; height: 100px">
+                <form id="upload_spectra">
+                <label for="userfile">Spectrum file: </label><input type="file" id="userfile"><br>               
+                <input type="submit" id="button_spectra_process" name="Submit" value="Upload spectrum for processing"></br></p>
+                </form>
+            </div>
+
+            <div id="spectra_list" class="topclass" style="width: 1200px;">
+                <h2>Uploaded Spectra</h2>
+                <ol id="spectra_list_ol" type="1">
+                </ol>
+            </div>
+
+            <div id="plot" style=" Padding: 10px; float: left">
+                <span id="contour_message" class="highlight"></span>
+                <strong>Control:</strong>
+                <button onclick="resetzoom()">Reset all Zoom</button>,
+                <button onclick="popzoom()">Zoom Back</button>,
+                <button onclick="zoomout()">Zoom out 120%</button>
+                <br>
+               
+
+
+                <div id="vis_parent"  class="resizable"  style="position: relative; width: 1200px; height: 800px;">
+                    <div id="canvas_parent" style="position: absolute; top: 0; left: 0; z-index: 1;">
+                        <canvas id="canvas1" style="border:0px;"></canvas>
+                    </div>
+
+                    <div id="svg_parent" style="position: absolute; bottom: 0; left: 0; z-index: 2;">
+                        <svg id="visualization"></svg>
+                    </div>
+                </div>
+            </div>
+
+            <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
+            <script type="text/javascript" src="js/webgl-utils.js"></script>
+            <script type="text/javascript" src="js/d3.7.min.js"></script>
+            <script type="text/javascript" src="js/m3.js"></script>
+            <script type="text/javascript" src="js/myplot/myplot_webgl.js"></script>
+            <script type="text/javascript" src="js/myplot/myplot1_new.js"></script>
+            <script type="text/javascript" src="js/nmrwebview.js"></script>
+
+        </div>
+    </div>
+</body>
+</html>
