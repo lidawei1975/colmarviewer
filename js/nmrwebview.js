@@ -126,6 +126,17 @@ $(document).ready(function () {
      */
     hsqc_spectra = [];
 
+    /**
+     * Make sure vis_parent div has a padding of 20px
+     * (overwrite css if necessary)
+     */
+    // document.getElementById("vis_parent").style.padding = "20px";
+
+
+    /**
+     * Initialize the big plot
+     */
+    resize_main_plot(1200, 800, 20, 50, 20);
 
     /**
      * Resize observer for the big plot
@@ -193,55 +204,69 @@ $(document).ready(function () {
 
 var plot_div_resize_observer = new ResizeObserver(entries => {
     for (let entry of entries) {
-        const cr = entry.contentRect;
-        /** 
-         * resize the SVG element (id: main_plot) to the same size as the div (id: plot_div)
-         */
-        wid=cr.width;
-        height=cr.height;
 
-        document.getElementById('visualization').style.height = height.toString().concat('px');
-        document.getElementById('visualization').style.width = wid.toString().concat('px');
-    
-        /**
-         * same size for svg_parent (parent of visualization), canvas_parent (parent of canvas1), canvas1, 
-         * and vis_parent (parent of visualization and canvas_parent)
-         */
-        document.getElementById('svg_parent').style.height = height.toString().concat('px');
-        document.getElementById('svg_parent').style.width = wid.toString().concat('px');
-        document.getElementById('vis_parent').style.height = height.toString().concat('px');
-        document.getElementById('vis_parent').style.width = wid.toString().concat('px');
-    
-        /**
-         * canvas is shifted 50px to the right, 20 px to the bottom.
-         * It is also shorttened by 20px in width on the right and 50px in height on the bottom.
-         */
-        let canvas_height = height - 70;
-        let canvas_width = wid - 70;
-    
-        document.getElementById('canvas_parent').style.height = canvas_height.toString().concat('px');
-        document.getElementById('canvas_parent').style.width = canvas_width.toString().concat('px');
-        document.getElementById('canvas_parent').style.top = "20px";
-        document.getElementById('canvas_parent').style.left = "50px";
-        document.getElementById('canvas1').style.height = canvas_height.toString().concat('px');
-        document.getElementById('canvas1').style.width = canvas_width.toString().concat('px');
-    
-        /**
-         * Set canvas1 width and height to be the same as its style width and height
-         */
-        document.getElementById('canvas1').setAttribute("height", canvas_height.toString());
-        document.getElementById('canvas1').setAttribute("width", canvas_width.toString());
-    
-        let input = {
-            WIDTH: wid,
-            HEIGHT: height
-        };
-    
-        if ('undefined' !== typeof (main_plot)) {
-            main_plot.update(input);
-        }
+        const cr = entry.contentRect;
+        let padding = 20;
+        let margin_left = 50;
+        let margin_top = 20;
+
+        resize_main_plot(cr.width,cr.height,padding,margin_left,margin_top);
     }
 });
+
+
+function resize_main_plot(wid, height, padding, margin_left, margin_top)
+{
+    /**
+     * same size for svg_parent (parent of visualization), canvas_parent (parent of canvas1), canvas1, 
+     * and vis_parent (parent of visualization and canvas_parent)
+     */
+    document.getElementById('svg_parent').style.height = height.toString().concat('px');
+    document.getElementById('svg_parent').style.width = wid.toString().concat('px');
+    document.getElementById('svg_parent').style.top = padding.toFixed(0).concat('px');
+    document.getElementById('svg_parent').style.left = padding.toFixed(0).concat('px');
+
+    /**
+     * Set the size of the visualization div to be the same as its parent
+     */
+    document.getElementById('visualization').style.height = height.toString().concat('px');
+    document.getElementById('visualization').style.width = wid.toString().concat('px');
+
+    /**
+     * canvas is shifted 50px to the right, 20 px to the bottom.
+     * It is also shortened by 20px in width on the right and 50px in height on the bottom.
+     */
+    let canvas_height = height - 70;
+    let canvas_width = wid - 70;
+
+    document.getElementById('canvas_parent').style.height = canvas_height.toString().concat('px');
+    document.getElementById('canvas_parent').style.width = canvas_width.toString().concat('px');
+    document.getElementById('canvas_parent').style.top = (padding + margin_top).toFixed(0).concat('px');
+    document.getElementById('canvas_parent').style.left = (padding + margin_left).toFixed(0).concat('px');
+
+
+    /**
+     * Set canvas1 style width and height to be the same as its parent
+     */
+    document.getElementById('canvas1').style.height = canvas_height.toString().concat('px');
+    document.getElementById('canvas1').style.width = canvas_width.toString().concat('px');
+    /**
+     * Set canvas1 width and height to be the same as its style width and height
+     */
+    document.getElementById('canvas1').setAttribute("height", canvas_height.toString());
+    document.getElementById('canvas1').setAttribute("width", canvas_width.toString());
+
+    let input = {
+        WIDTH: wid,
+        HEIGHT: height
+    };
+
+    if ('undefined' !== typeof (main_plot)) {
+        main_plot.update(input);
+    }
+}
+
+
 
 
 function add_spectrum_to_list(index) {
@@ -500,8 +525,8 @@ function set_scale_bigplot(index) {
  */
 function init_plot(input) {
 
-    let wid = parseInt(document.getElementById('body').clientWidth) - 40;
-    let height = wid * 0.65 + 50;
+    let wid = 1200;
+    let height = 800;
 
     document.getElementById('visualization').style.height = height.toString().concat('px');
     document.getElementById('visualization').style.width = wid.toString().concat('px');

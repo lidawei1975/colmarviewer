@@ -1,5 +1,8 @@
-//function text is modified to use intergral instead of index(intensity) 
 
+/**
+ * Constructor for plotit object.
+ * @param {*} input 
+ */
 function plotit(input) {
     this.show_peak = 1;
 
@@ -40,7 +43,10 @@ function plotit(input) {
 
 };
 
-
+/**
+ * Called when user resize the plot
+ * @param {*} input 
+ */
 plotit.prototype.update = function (input) {
 
     var self = this;
@@ -85,10 +91,18 @@ plotit.prototype.update = function (input) {
         .attr("width", this.WIDTH - this.MARGINS.right - this.MARGINS.left)
         .attr("height", this.HEIGHT - this.MARGINS.bottom - this.MARGINS.top);
 
+    /**
+     * Update webgl contour. No need to update view
+     */
+    this.contour_plot.setCamera_ppm(this.xscale[0], this.xscale[1], this.yscale[0], this.yscale[1]);
+    this.contour_plot.drawScene();
+
 };
 
 
-
+/**
+ * When zoom or resize, we need to reset the axis
+ */
 plotit.prototype.reset_axis = function () {
     this.x2.call(this.xAxis);
     this.y2.call(this.yAxis);
@@ -97,7 +111,7 @@ plotit.prototype.reset_axis = function () {
 
 
 /**
- * Oncall function for brushend event
+ * Oncall function for brush end event for zooming
  * @param {event} e 
  */
 plotit.prototype.brushend = function (e) {
@@ -212,13 +226,14 @@ plotit.prototype.zoomout = function () {
      */
     this.contour_plot.setCamera_ppm(this.xscale[0], this.xscale[1], this.yscale[0], this.yscale[1]);
     this.contour_plot.drawScene();
-
     this.reset_axis();
 };
 
 
 
-
+/**
+ * Draw the plot, including the contour plot using webgl
+ */
 
 plotit.prototype.draw = function () {
     var self = this;
