@@ -138,31 +138,34 @@ $(document).ready(function () {
     plot_div_resize_observer.observe(document.getElementById("vis_parent")); 
 
 
-
     /**
-     * Form "upload_spectra" processing
-    */
-    $('form#upload_spectra').submit(function (e) {
-        e.preventDefault();
+     * When use selected a file, read the file and process it
+     */
+    document.getElementById('userfile').addEventListener('change', function () {
+
         /**
-         * We do not upload to any server, just read the file and process it
-         * Get the file from the input field file1.
-         * read_file() is a promise function. On success, it will process the data and return a promise
-         * with resolve(response) where response is the spectrum object
-        */
+         * If no file is selected, do nothing
+         */
+        if (this.files.length === 0) {
+            return;
+        }
+
+
+        /**
+         * if filename end .ft2, it is a spectrum, otherwise, do nothing
+         */
+        if (!this.files[0].name.endsWith(".ft2")) {
+            alert("Please select a .ft2 file");
+            return;
+        }
+
         read_file('userfile')
             .then((result_spectrum) => {
-
                 let spectrum_index = hsqc_spectra.length;
-
                 result_spectrum.spectrum_index = spectrum_index;
                 result_spectrum.spectrum_color = color_list[spectrum_index % color_list.length];
-
                 hsqc_spectra.push(result_spectrum);
 
-                /**
-                 * Define a new object to pass to the worker, it includes only the necessary information from hsqc_spectrum
-                */
                 let hsqc_spectrum_part = {
                     n_direct: result_spectrum.n_direct,
                     n_indirect: result_spectrum.n_indirect,
@@ -171,9 +174,6 @@ $(document).ready(function () {
                     spectrum_index: spectrum_index,
                 };
 
-                /**
-                 * Add the new spectrum to the list of hsqc_spectra
-                 */
                 add_spectrum_to_list(spectrum_index);
 
                 my_contour_worker.postMessage({ response_value: result_spectrum.raw_data, spectrum: hsqc_spectrum_part });
@@ -355,9 +355,11 @@ function add_spectrum_to_list(index) {
     contour_slider.setAttribute("min", "1");
     contour_slider.setAttribute("max", "20");
     contour_slider.setAttribute("value", "1");
-    contour_slider.style.width = "70%";
+    contour_slider.style.width = "50%";
     contour_slider.addEventListener("input", update_contour_slider);
     new_spectrum_div.appendChild(contour_slider);
+
+    
 
     /**
      * A span element with the current contour level, whose ID is "contour_level-".concat(index)
@@ -366,6 +368,11 @@ function add_spectrum_to_list(index) {
     contour_level_span.setAttribute("id", "contour_level-".concat(index));
     contour_level_span.innerText = new_spectrum.levels[0].toFixed(2);
     new_spectrum_div.appendChild(contour_level_span);
+
+    /**
+     * Add filename as a text node
+     */
+    new_spectrum_div.appendChild(document.createTextNode(" " + hsqc_spectra[index].filename));
 
     /**
      * Add the new spectrum div to the list of spectra
@@ -834,6 +841,11 @@ const read_file = (file_id) => {
                 let data_size = arrayBuffer.byteLength / 4 - 512;
 
                 result.raw_data = new Float32Array(arrayBuffer, 512 * 4, data_size);
+                
+                /**
+                 * Keep original file name
+                 */
+                result.filename = file.name;
 
                 /**
                  * Get median of abs(z). If data_size is > 1024*1024, we will sample 1024*1024 points by stride

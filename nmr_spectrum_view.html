@@ -39,7 +39,6 @@
             font-family: Arial;
             border-width: 2px;
             clear: both;
-            width: 100%;
             display: block;
             margin-top: 25px;
             margin-bottom: 25px;
@@ -123,20 +122,13 @@
 
             <h1>Web based two-dimensional NMR spectral Viewer</h1>
 
-            <div id="step1" class="topclass" style="width: 580px; height: 100px">
-                <form id="upload_spectra">
-                <label for="userfile">Spectrum file: </label><input type="file" id="userfile"><br>               
-                <input type="submit" id="button_spectra_process" name="Submit" value="Upload spectrum for processing"></br></p>
-                </form>
-            </div>
-
-            <div id="spectra_list" class="topclass" style="width: 1200px;">
-                <h2>Uploaded Spectra</h2>
+            <div id="spectra_list" class="drop-area" style="width: 1200px;">
+                <label for="userfile">Uploaded Spectra: </label><input type="file" id="userfile"><br>  
                 <ol id="spectra_list_ol" type="1">
                 </ol>
             </div>
 
-            <div id="plot" style=" Padding: 10px; float: left">
+            <div id="plot" style=" Padding: 10px; width: min-content; margin:0 auto;">
                 <span id="contour_message" class="highlight"></span>
                 <strong>Control:</strong>
                 <button onclick="resetzoom()">Reset all Zoom</button>,
