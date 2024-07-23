@@ -133,6 +133,7 @@
                 <button onclick="resetzoom()">Reset all Zoom</button>,
                 <button onclick="popzoom()">Zoom Back</button>,
                 <button onclick="zoomout()">Zoom out 120%</button>
+                <button onclick="download_plot()">Download plot</button>
                 <br><br>
                
                 <div id="vis_parent"  class="resizable"  style="position: relative; width: 1200px; height: 800px;">
@@ -156,6 +157,8 @@
                 
                 </article>
             </div>  
+
+            <div id="snapshot"> </div>
 
             <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
             <script type="text/javascript" src="js/webgl-utils.js"></script>

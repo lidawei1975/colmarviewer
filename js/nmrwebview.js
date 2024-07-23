@@ -1029,11 +1029,6 @@ const read_file = (file_id) => {
     });
 } //end of read_file
 
-
-/**
- * Helper functions.
- */
-
 /**
  * Concat two float32 arrays into one
  * @returns the concatenated array
@@ -1064,4 +1059,64 @@ function hexToRgb(hex) {
     let g = parseInt(hex.substring(3, 5), 16) / 255;
     let b = parseInt(hex.substring(5, 7), 16) / 255;
     return [r, g, b, 1.0];
+}
+
+/**
+ * Convert SVG to PNG code
+ */
+const dataHeader = 'data:image/svg+xml;charset=utf-8';
+
+
+const loadImage = async url => {
+  const $img = document.createElement('img')
+  $img.src = url
+  return new Promise((resolve, reject) => {
+    $img.onload = () => resolve($img)
+    $img.onerror = reject
+  })
+}
+
+const serializeAsXML = $e => (new XMLSerializer()).serializeToString($e);
+const encodeAsUTF8 = s => `${dataHeader},${encodeURIComponent(s)}`;
+
+async function download_plot()
+{
+    const format = 'png';
+
+    const $svg = document.getElementById('visualization'); 
+
+    /**
+     * Generate an Image (from canvas1) 
+     */
+    var contour_image = new Image();
+    contour_image.src = main_plot.contour_plot.drawScene(1);
+
+    /**
+     * Create a canvas element
+     */
+
+    const svgData = encodeAsUTF8(serializeAsXML($svg))
+
+    const img = await loadImage(svgData);
+    
+    const $canvas = document.createElement('canvas')
+    $canvas.width = $svg.clientWidth
+    $canvas.height = $svg.clientHeight
+    $canvas.getContext('2d').fillStyle = "white";
+    $canvas.getContext('2d').fillRect(0, 0, $svg.clientWidth, $svg.clientHeight);
+    $canvas.getContext('2d').drawImage(contour_image,50,20,$svg.clientWidth-70,$svg.clientHeight-70);
+    $canvas.getContext('2d').drawImage(img, 0, 0, $svg.clientWidth, $svg.clientHeight)
+    
+    const dataURL = await $canvas.toDataURL(`image/${format}`, 1.0)
+    
+    const $img = document.createElement('img');
+    $img.src = dataURL;
+
+    /**
+     * Reduce visual size of the image
+     */
+    $img.style.width = "25%";
+    $img.style.height = "25%";
+
+    document.getElementById('snapshot').appendChild($img);
 }

@@ -326,6 +326,11 @@ plotit.prototype.draw = function () {
         });
 
     /**
+     * Debug code. Add a circlr at the center of the plot
+     */
+    this.vis.append("circle").attr("cx", this.WIDTH / 2).attr("cy", this.HEIGHT / 2).attr("r", 2).style("fill", "red");
+
+    /**
      * Draw contour on the canvas, which is a background layer
      */
     this.contour_plot = new webgl_contour_plot(this.drawto_contour);
