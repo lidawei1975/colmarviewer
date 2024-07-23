@@ -20,18 +20,7 @@ class webgl_contour_plot {
             zoom_y: 1,
         };
 
-        /**
-         * view define the view port of the canvas. 
-         * Relative to the canvas size. So full canvas is [0,1,0,1]
-        */
-        this.view = {
-            left: 0,
-            right:1,
-            bottom: 0,
-            top: 1,
-        };
-
-
+       
         /**
          * wheel zoom global variables
          */
@@ -90,7 +79,7 @@ class webgl_contour_plot {
         /**
          * Enable the scissor test.
          */
-        this.gl.enable(this.gl.SCISSOR_TEST);
+        this.gl.disable(this.gl.SCISSOR_TEST);
 
         // Bind the position buffer.
         this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.positionBuffer);
@@ -125,20 +114,13 @@ class webgl_contour_plot {
     };
 
 
-
     /**
      * Draw the scene.
      */
     drawScene() {
-        webglUtils.resizeCanvasToDisplaySize(this.gl.canvas);
 
-        this.gl.viewport(
-            this.view.left * this.gl.canvas.width,
-            this.view.bottom * this.gl.canvas.height, 
-            (this.view.right - this.view.left) * this.gl.canvas.width,
-            (this.view.top - this.view.bottom) * this.gl.canvas.height
-            );
 
+        this.gl.viewport(0, 0, this.gl.canvas.width, this.gl.canvas.height);
 
         // Clear the canvas.
         this.gl.clear(this.gl.COLOR_BUFFER_BIT);

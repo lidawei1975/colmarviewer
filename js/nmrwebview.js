@@ -362,8 +362,8 @@ function resize_main_plot(wid, height, padding, margin_left, margin_top)
     let canvas_height = height - 70;
     let canvas_width = wid - 70;
 
-    document.getElementById('canvas_parent').style.height = canvas_height.toString().concat('px');
-    document.getElementById('canvas_parent').style.width = canvas_width.toString().concat('px');
+    // document.getElementById('canvas_parent').style.height = canvas_height.toString().concat('px');
+    // document.getElementById('canvas_parent').style.width = canvas_width.toString().concat('px');
     document.getElementById('canvas_parent').style.top = (padding + margin_top).toFixed(0).concat('px');
     document.getElementById('canvas_parent').style.left = (padding + margin_left).toFixed(0).concat('px');
 
@@ -371,8 +371,8 @@ function resize_main_plot(wid, height, padding, margin_left, margin_top)
     /**
      * Set canvas1 style width and height to be the same as its parent
      */
-    document.getElementById('canvas1').style.height = canvas_height.toString().concat('px');
-    document.getElementById('canvas1').style.width = canvas_width.toString().concat('px');
+    // document.getElementById('canvas1').style.height = canvas_height.toString().concat('px');
+    // document.getElementById('canvas1').style.width = canvas_width.toString().concat('px');
     /**
      * Set canvas1 width and height to be the same as its style width and height
      */
@@ -737,15 +737,21 @@ function set_scale_bigplot(index) {
  */
 function init_plot(input) {
 
-    let wid = 1200;
-    let height = 800;
+    /**
+     * main_plot need to know the size of the plot with ID visualization
+     */
+    let current_width = document.getElementById("visualization").style.width;
+    let current_height = document.getElementById("visualization").style.height;
 
-    document.getElementById('visualization').style.height = height.toString().concat('px');
-    document.getElementById('visualization').style.width = wid.toString().concat('px');
+    /**
+     * Remove px from the width and height
+     */
+    current_width = current_width.substring(0, current_width.length - 2);
+    current_height = current_height.substring(0, current_height.length - 2);
 
     input.PointData = [];
-    input.WIDTH = wid;
-    input.HEIGHT = height;
+    input.WIDTH = current_width;
+    input.HEIGHT = current_height;
     input.MARGINS = { top: 20, right: 20, bottom: 50, left: 50 };
     input.drawto = "#visualization";
     input.drawto_legend = "#legend";

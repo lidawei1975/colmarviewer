@@ -94,7 +94,7 @@ plotit.prototype.update = function (input) {
     /**
      * Update webgl contour. No need to update view
      */
-    this.contour_plot.setCamera_ppm(this.xscale[0], this.xscale[1], this.yscale[0], this.yscale[1]);
+    // this.contour_plot.setCamera_ppm(this.xscale[0], this.xscale[1], this.yscale[0], this.yscale[1]);
     this.contour_plot.drawScene();
 
 };
