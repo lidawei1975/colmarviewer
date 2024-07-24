@@ -323,7 +323,30 @@ plotit.prototype.draw = function () {
 
 plotit.prototype.redraw_contour = function ()
 {
-    this.contour_plot.set_data(this.points, this.points_stop, this.polygon_length, this.levels_length,this.colors,this.spectral_information,this.contour_lbs);
+    /**
+     * Update webgl contour data.
+     */
+    this.contour_plot.set_data(
+        this.spectral_information, /**spectral information */
+        this.points, /** actual contour line data in Float32array */
+        /**
+         * Positive contour data
+         */
+        this.points_start,
+        this.polygon_length,
+        this.levels_length,
+        this.colors,
+        this.contour_lbs,
+        /**
+         * Negative contour data
+         */
+        this.points_start_negative,
+        this.polygon_length_negative,
+        this.levels_length_negative,
+        this.colors_negative,
+        this.contour_lbs_negative
+        );
+
     this.contour_plot.setCamera_ppm(this.xscale[0], this.xscale[1], this.yscale[0], this.yscale[1]);
     this.contour_plot.drawScene();
 }
