@@ -27,7 +27,6 @@ function plotit(input) {
     this.data1 = [];  //peaks that match compound
     this.data2 = [];  //remove it??
 
-    this.brushend_time = 0.0;
 
     this.left = -1000;
     this.righ = 1000;
@@ -66,7 +65,11 @@ plotit.prototype.update = function (input) {
     /**
      * Update brush extent
      */
-    this.brush_element.selectAll(".overlay").attr("width", this.WIDTH).attr("height", this.HEIGHT);
+    this.brush = d3.brush()
+    .extent([[0, 0], [this.WIDTH, this.HEIGHT]])
+    .on("end", this.brushend.bind(this));
+
+    this.brush_element.call(this.brush);
 
 
     this.lineFunc.x(function (d) { return self.xRange(d[0]); })
@@ -94,7 +97,7 @@ plotit.prototype.update = function (input) {
     /**
      * Update webgl contour. No need to update view
      */
-    this.contour_plot.setCamera_ppm(this.xscale[0], this.xscale[1], this.yscale[0], this.yscale[1]);
+    // this.contour_plot.setCamera_ppm(this.xscale[0], this.xscale[1], this.yscale[0], this.yscale[1]);
     this.contour_plot.drawScene();
 
 };
@@ -123,47 +126,28 @@ plotit.prototype.brushend = function (e) {
         return;
     }
 
-    this.brushend_zoom(e.selection);
-    this.vis.select(".brush").call(this.brush.move, null);
-};
+    let self = this;
 
-
-
-
-plotit.prototype.brushend_zoom = function (selection) {
-
-    var self = this;
+    this.xscales.push(this.xscale);
+    this.yscales.push(this.yscale);
+    this.xscale = [self.xRange.invert(e.selection[0][0]), self.xRange.invert(e.selection[1][0])];
+    this.yscale = [self.yRange.invert(e.selection[1][1]), self.yRange.invert(e.selection[0][1])];
+    /**
+     * scale is in unit of ppm.
+     */
+    this.xRange.domain(this.xscale);
+    this.yRange.domain(this.yscale);
 
     /**
-     * selection is a rectangle. Coordinate unit is pixel and origin is top-left corner
-     * of the vis svg element (xRange and yRange need to take care of margin)
+     * Update webgl contour. No change of view is needed here
      */
-    if (Math.abs(selection[0][0] - selection[1][0]) < 3.0) {
-
-    } else if (Math.abs(selection[0][1] - selection[1][1]) < 3.0) {
-
-    } else {
-        this.xscales.push(this.xscale);
-        this.yscales.push(this.yscale);
-        this.xscale = [self.xRange.invert(selection[0][0]), self.xRange.invert(selection[1][0])];
-        this.yscale = [self.yRange.invert(selection[1][1]), self.yRange.invert(selection[0][1])];
-        /**
-         * scale is in unit of ppm.
-         */
-        this.xRange.domain(this.xscale);
-        this.yRange.domain(this.yscale);
-
-        /**
-         * Update webgl contour. No change of view is needed here
-         */
-        this.contour_plot.setCamera_ppm(this.xscale[0], this.xscale[1], this.yscale[0], this.yscale[1]);
-        this.contour_plot.drawScene();
+    this.contour_plot.setCamera_ppm(this.xscale[0], this.xscale[1], this.yscale[0], this.yscale[1]);
+    this.contour_plot.drawScene();
 
 
-        this.reset_axis();
-        var start = new Date().getTime() + 100;
-        this.brushend_time = start;
-    }
+    this.reset_axis();
+
+    this.vis.select(".brush").call(this.brush.move, null);
 };
 
 
@@ -257,9 +241,6 @@ plotit.prototype.draw = function () {
     this.xAxis = d3.axisBottom(this.xRange);
     this.yAxis = d3.axisLeft(this.yRange);
 
-    this.brush = d3.brush()
-        .extent([[0, 0], [this.WIDTH, this.HEIGHT]])
-        .on("end", this.brushend.bind(this));
 
     this.lineFunc = d3.line()
         .x(function (d) { return self.xRange(d[0]); })
@@ -302,17 +283,24 @@ plotit.prototype.draw = function () {
 
     this.rect = this.vis.append("defs").append("clipPath")
         .attr("id", "clip")
-        .append("rect");
+        .append("rect")
+        .attr("x", this.MARGINS.left)
+        .attr("y", this.MARGINS.top)
+        .attr("width", this.WIDTH - this.MARGINS.right - this.MARGINS.left)
+        .attr("height", this.HEIGHT - this.MARGINS.bottom - this.MARGINS.top);
+
+    this.brush = d3.brush()
+        .extent([[0, 0], [this.WIDTH, this.HEIGHT]])
+        .on("end", this.brushend.bind(this));
 
     this.brush_element = this.vis.append("g")
         .attr("class", "brush")
         .call(this.brush);
 
-    this.rect.attr("x", this.MARGINS.left)
-        .attr("y", this.MARGINS.top)
-        .attr("width", this.WIDTH - this.MARGINS.right - this.MARGINS.left)
-        .attr("height", this.HEIGHT - this.MARGINS.bottom - this.MARGINS.top);
 
+    /**
+     * Tool tip for mouse move
+     */
     this.vis.on("mousemove", function (event) {
         tooldiv.style("opacity", .9);
         var temp = d3.pointer(event);
@@ -325,6 +313,8 @@ plotit.prototype.draw = function () {
             document.activeElement.blur();
         });
 
+
+
     /**
      * Draw contour on the canvas, which is a background layer
      */
@@ -333,7 +323,30 @@ plotit.prototype.draw = function () {
 
 plotit.prototype.redraw_contour = function ()
 {
-    this.contour_plot.set_data(this.points, this.points_stop, this.polygon_length, this.levels_length,this.colors,this.spectral_information,this.contour_lbs);
+    /**
+     * Update webgl contour data.
+     */
+    this.contour_plot.set_data(
+        this.spectral_information, /**spectral information */
+        this.points, /** actual contour line data in Float32array */
+        /**
+         * Positive contour data
+         */
+        this.points_start,
+        this.polygon_length,
+        this.levels_length,
+        this.colors,
+        this.contour_lbs,
+        /**
+         * Negative contour data
+         */
+        this.points_start_negative,
+        this.polygon_length_negative,
+        this.levels_length_negative,
+        this.colors_negative,
+        this.contour_lbs_negative
+        );
+
     this.contour_plot.setCamera_ppm(this.xscale[0], this.xscale[1], this.yscale[0], this.yscale[1]);
     this.contour_plot.drawScene();
 }

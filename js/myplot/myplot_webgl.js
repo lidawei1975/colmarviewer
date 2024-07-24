@@ -20,18 +20,7 @@ class webgl_contour_plot {
             zoom_y: 1,
         };
 
-        /**
-         * view define the view port of the canvas. 
-         * Relative to the canvas size. So full canvas is [0,1,0,1]
-        */
-        this.view = {
-            left: 0,
-            right:1,
-            bottom: 0,
-            top: 1,
-        };
-
-
+       
         /**
          * wheel zoom global variables
          */
@@ -90,7 +79,7 @@ class webgl_contour_plot {
         /**
          * Enable the scissor test.
          */
-        this.gl.enable(this.gl.SCISSOR_TEST);
+        this.gl.disable(this.gl.SCISSOR_TEST);
 
         // Bind the position buffer.
         this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.positionBuffer);
@@ -114,43 +103,46 @@ class webgl_contour_plot {
      * Set buffer data and draw the scene
      * @param {Float32Array} points
      */
-    set_data(points, points_stop,polygon_length,levels_length,colors,spectral_information,contour_lbs) {
-        this.colors = colors;
+    set_data(spectral_information,points, points_start,polygon_length,levels_length,colors,contour_lbs,points_start_n,polygon_length_n,levels_length_n,colors_n,contour_lbs_n) {
+        
         this.spectral_information = spectral_information;
+        
+        this.colors = colors;
         this.polygon_length = polygon_length;
         this.levels_length = levels_length;
         this.contour_lbs = contour_lbs;
-        this.points_stop = points_stop;
+        this.points_start = points_start;
+        
+        this.colors_negative = colors_n;
+        this.polygon_length_negative = polygon_length_n;
+        this.levels_length_negative = levels_length_n;
+        this.contour_lbs_negative = contour_lbs_n;
+        this.points_start_negative = points_start_n;
+
         this.gl.bufferData(this.gl.ARRAY_BUFFER, points, this.gl.STATIC_DRAW);
     };
 
 
-
     /**
      * Draw the scene.
+     * @param {number} flag - 0: draw the contour plot, 1: draw and return the image data
      */
-    drawScene() {
-        webglUtils.resizeCanvasToDisplaySize(this.gl.canvas);
-
-        this.gl.viewport(
-            this.view.left * this.gl.canvas.width,
-            this.view.bottom * this.gl.canvas.height, 
-            (this.view.right - this.view.left) * this.gl.canvas.width,
-            (this.view.top - this.view.bottom) * this.gl.canvas.height
-            );
+    drawScene(flag = 0) {
 
 
-        // Clear the canvas.
+        this.gl.viewport(0, 0, this.gl.canvas.width, this.gl.canvas.height);
+
+        // Clear the canvas. Set background color to white
+        this.gl.clearColor(1, 1, 1, 1);
         this.gl.clear(this.gl.COLOR_BUFFER_BIT);
 
-
-
+        let number_of_spectra = this.levels_length.length;
         /**
          * Draw the contour plot
          * One spectrum at a time
          * # of spectra = this.levels_length.length = this.colors.length = this.spectral_information.length = this.contour_lbs.length = this.polygon_length.length
          */
-        for(var n=0;n<this.levels_length.length;n++)
+        for(var n=0;n<number_of_spectra;n++)
         {
             /**
              * setCamera first, using saved this.x_ppm, this.x2_ppm, this.y_ppm, this.y2_ppm
@@ -182,7 +174,7 @@ class webgl_contour_plot {
 
 
             /**
-             * Draw the contour plot, one level at a time
+             * Draw the positive contour plot, one level at a time
              */
             for(var m=this.contour_lbs[n]; m < this.levels_length[n].length; m++)
             {
@@ -205,15 +197,43 @@ class webgl_contour_plot {
                         point_start = this.polygon_length[n][i-1];
                     }
                     let count = this.polygon_length[n][i] - point_start;
-
-                    let overlay_offset = 0;
-                    if(n>0)
-                    {
-                        overlay_offset = this.points_stop[n-1]/2;
-                    }
+                    let overlay_offset = this.points_start[n]/2;
                     this.gl.drawArrays(primitiveType, point_start + overlay_offset, count);
                 }
             }
+
+            /**
+             * Draw the negative contour plot, one level at a time
+             */
+            for(var m=this.contour_lbs_negative[n]; m < this.levels_length_negative[n].length; m++)
+            {
+                let i_start = 0;
+                if(m>0)
+                {
+                    i_start = this.levels_length_negative[n][m-1];
+                }
+                let i_stop = this.levels_length_negative[n][m];
+                /**
+                 * Draw the contour plot, one polygon at a time
+                 */
+                for (var i = i_start; i < i_stop; i++)
+                {   
+                    this.gl.uniform4fv(this.colorLocation, this.colors_negative[n]);
+                    var primitiveType = this.gl.LINE_STRIP;
+                    let point_start = 0;
+                    if(i>0)
+                    {
+                        point_start = this.polygon_length_negative[n][i-1];
+                    }
+                    let count = this.polygon_length_negative[n][i] - point_start;
+                    let overlay_offset = this.points_start_negative[n]/2;
+                    this.gl.drawArrays(primitiveType, point_start + overlay_offset, count);
+                }
+            }
+        }
+
+        if (flag == 1) {
+            return this.gl.canvas.toDataURL();
         }
     };
  
