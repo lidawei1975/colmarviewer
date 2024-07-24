@@ -1113,10 +1113,12 @@ async function download_plot()
     $img.src = dataURL;
 
     /**
-     * Reduce visual size of the image
+     * Download the image
      */
-    $img.style.width = "25%";
-    $img.style.height = "25%";
+    const a = document.createElement('a');
+    a.href = dataURL;
+    a.download = 'nmr_plot.' + format;
+    a.click();
 
-    document.getElementById('snapshot').appendChild($img);
+    
 }
