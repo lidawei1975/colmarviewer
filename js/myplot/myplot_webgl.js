@@ -203,8 +203,12 @@ class webgl_contour_plot {
             }
 
             /**
-             * Draw the negative contour plot, one level at a time
+             * Draw the negative contour plot, one level at a time only if negative contour is available
              */
+            if(n >= this.contour_lbs_negative.length )
+            {
+                continue;
+            }
             for(var m=this.contour_lbs_negative[n]; m < this.levels_length_negative[n].length; m++)
             {
                 let i_start = 0;

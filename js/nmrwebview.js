@@ -727,6 +727,16 @@ my_contour_worker.onmessage = (e) => {
              */
             main_plot.points_start.push(main_plot.points.length);
             main_plot.points=Float32Concat(main_plot.points, new Float32Array(e.data.points));
+
+            main_plot.spectral_information.push({
+                n_direct: hsqc_spectra[e.data.spectrum_index].n_direct,
+                n_indirect: hsqc_spectra[e.data.spectrum_index].n_indirect,
+                x_ppm_start: hsqc_spectra[e.data.spectrum_index].x_ppm_start,
+                x_ppm_step: hsqc_spectra[e.data.spectrum_index].x_ppm_step,
+                y_ppm_start: hsqc_spectra[e.data.spectrum_index].y_ppm_start,
+                y_ppm_step: hsqc_spectra[e.data.spectrum_index].y_ppm_step
+            });
+            main_plot.redraw_contour();
         }
         else if(e.data.contour_sign === 1)
         {
@@ -745,22 +755,11 @@ my_contour_worker.onmessage = (e) => {
             main_plot.points=Float32Concat(main_plot.points, new Float32Array(e.data.points));
 
             /**
-             * IMPORTANT: We always calculate positive contour first, then negative contour
-             * only when both are calculated, we update the contour plot
-             * Append new spectral_information to main_plot.spectral_information
+             * IMPORTANT: We always calculate positive contour first, then negative contour.
+             * So no need to update spectral_information array again
              */
-            main_plot.spectral_information.push({
-                n_direct: hsqc_spectra[e.data.spectrum_index].n_direct,
-                n_indirect: hsqc_spectra[e.data.spectrum_index].n_indirect,
-                x_ppm_start: hsqc_spectra[e.data.spectrum_index].x_ppm_start,
-                x_ppm_step: hsqc_spectra[e.data.spectrum_index].x_ppm_step,
-                y_ppm_start: hsqc_spectra[e.data.spectrum_index].y_ppm_start,
-                y_ppm_step: hsqc_spectra[e.data.spectrum_index].y_ppm_step
-            });
             main_plot.redraw_contour();
         }
-
-        
     }
 
     /**
