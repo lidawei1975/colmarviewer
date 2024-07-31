@@ -108,6 +108,7 @@ class spectrum {
 
 var hsqc_spectra = []; //array of hsqc spectra
 
+let draggedItem = null;
 
 /**
  * Default color list for the contour plot (15 colors, repeat if more than 15 spectra)
@@ -292,7 +293,7 @@ $(document).ready(function () {
      * Initialize the file drop processor for the hsqc spectra
      */
     new file_drop_processor()
-    .drop_area('spectra_list') /** id of dropzone */
+    .drop_area('file_area') /** id of dropzone */
     .file_name("ft2")  /** file extenstion to be searched from upload */
     .file_id("userfile") /** Corresponding file element IDs */
     .init();
@@ -445,12 +446,111 @@ function resize_main_plot(wid, height, padding, margin_left, margin_top)
     }
 }
 
+/**
+ * Drag and drop spectra to reorder them 
+ */
+const sortableList =
+    document.getElementById("spectra_list_ol");
+
+ 
+sortableList.addEventListener(
+    "dragstart",
+    (e) => {
+        draggedItem = e.target;
+        setTimeout(() => {
+            e.target.style.display =
+                "none";
+        }, 0);
+});
+ 
+sortableList.addEventListener(
+    "dragend",
+    (e) => {
+        setTimeout(() => {
+            e.target.style.display = "";
+            draggedItem = null;
+        }, 0);
+
+        /**
+         * Get the index of the new order
+         */
+        let new_order = [];
+        let list_items = document.querySelectorAll("li");
+        for (let i = 0; i < list_items.length; i++) {
+            let index = parseInt(list_items[i].id.split("-")[1]); //ID is spectrum-index
+            new_order.push(index);
+        }
+        console.log(new_order);
+    });
+ 
+sortableList.addEventListener(
+    "dragover",
+    (e) => {
+        e.preventDefault();
+        const afterElement =
+            getDragAfterElement(
+                sortableList,
+                e.clientY);
+        const currentElement =
+            document.querySelector(
+                ".dragging");
+        if (afterElement == null) {
+            sortableList.appendChild(
+                draggedItem
+            );} 
+        else {
+            sortableList.insertBefore(
+                draggedItem,
+                afterElement
+            );}
+    });
+ 
+const getDragAfterElement = (
+    container, y
+) => {
+    const draggableElements = [
+        ...container.querySelectorAll(
+            "li:not(.dragging)"
+        ),];
+
+    return draggableElements.reduce(
+        (closest, child) => {
+            const box =
+                child.getBoundingClientRect();
+            const offset =
+                y - box.top - box.height / 2;
+            if (
+                offset < 0 &&
+                offset > closest.offset) {
+                return {
+                    offset: offset,
+                    element: child,
+                };
+            }
+            else {
+                return closest;
+            }
+        },
+        {
+            offset: Number.NEGATIVE_INFINITY,
+        }
+    ).element;
+};
+
 
 
 
 function add_spectrum_to_list(index) {
     let new_spectrum = hsqc_spectra[index];
     let new_spectrum_div = document.createElement("li");
+    /**
+     * Make it draggable
+     */
+    new_spectrum_div.draggable = true;
+    /**
+     * Assign a ID to the new spectrum div
+     */
+    new_spectrum_div.id = "spectrum-".concat(index);
     
     /**
      * The new DIV will have the following children:
@@ -587,7 +687,9 @@ function add_spectrum_to_list(index) {
     contour_slider.setAttribute("max", "20");
     contour_slider.setAttribute("value", "1");
     contour_slider.style.width = "10%";
-    contour_slider.addEventListener("input", (e) => { update_contour_slider(e,index,0); });
+    contour_slider.addEventListener("input", (e) => {update_contour_slider(e,index,0); });
+    contour_slider.draggable = true;
+    contour_slider.addEventListener("dragstart", (e) => {e.preventDefault(); e.stopPropagation(); });
     new_spectrum_div.appendChild(contour_slider);
 
     
@@ -698,6 +800,8 @@ function add_spectrum_to_list(index) {
         contour_slider_negative.setAttribute("value", "1");
         contour_slider_negative.style.width = "10%";
         contour_slider_negative.addEventListener("input", (e) => { update_contour_slider(e,index,1); });
+        contour_slider_negative.draggable = true;
+        contour_slider_negative.addEventListener("dragstart", (e) => {e.preventDefault(); e.stopPropagation(); });
         new_spectrum_div.appendChild(contour_slider_negative);
     
         
@@ -1260,7 +1364,6 @@ function update_contour0_or_logarithmic_scale(index,flag) {
  */
 function update_contour_slider(e,index,flag) {
 
-
     /**
      * Get new level from the slider value
      */
@@ -1292,6 +1395,8 @@ function update_contour_slider(e,index,flag) {
     }
 
     main_plot.redraw_contour();
+
+    
 }
 
 
@@ -1330,7 +1435,6 @@ const read_file = (file_id) => {
             var reader = new FileReader();
             reader.onload = function (e_file_read) {
                 var arrayBuffer = e_file_read.target.result;
-                console.log(arrayBuffer.byteLength);
 
                 let result = new spectrum();
 

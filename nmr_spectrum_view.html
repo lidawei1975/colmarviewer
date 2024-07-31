@@ -40,17 +40,6 @@
             margin-right: auto;
         }
 
-        .topclass {
-            float: left;
-            font-size: 16px;
-            background: #fff;
-            border: 3px solid #a1a1a1;
-            padding: 3px 3px;
-            margin: 3px;
-            border-radius: 0.5rem;
-        }
-
-
         div.tooltip2 {
             position: absolute;
             text-align: center;
@@ -123,8 +112,11 @@
 
         <h1>Web based two-dimensional NMR spectra viewer</h1>
 
-        <div id="spectra_list" class="drop-area" style="width: 1200px;">
+        <div id="file_area" class="drop-area" style="width: 1200px;">
             <label for="userfile">Uploaded Spectra: </label><input type="file" id="userfile"><br>
+        </div>
+
+        <div id="spectra_list" style=" Padding: 10px; width: 1200px; margin:0 auto;" class="drop-area-neighbor">
             <ol id="spectra_list_ol" type="1">
             </ol>
         </div>
@@ -136,9 +128,9 @@
             <button onclick="popzoom()">Zoom Back</button>,
             <button onclick="zoomout()">Zoom out 120%</button>
             <button onclick="download_plot()">Download plot</button>
-            <input type="checkbox" id="Horizontal_cross_section" checked>
+            <input type="checkbox" id="Horizontal_cross_section" >
             <label for="Horizontal_cross_section"> Show Horizontal Cross Section </label>
-            <input type="checkbox" id="Vertical_cross_section" checked>
+            <input type="checkbox" id="Vertical_cross_section" >
             <label for="Vertical_cross_section"> Show Vertical Cross Section </label>
             <br><br>
 
