@@ -1009,6 +1009,12 @@ function init_plot(input) {
     input.drawto_peak = "#peaklist";
     input.drawto_contour = "canvas1"; //webgl background as contour plot
 
+    /**
+     * Check whether checkbox Horizontal_cross_section and Vertical_cross_section are checked
+     */
+    input.horizontal = document.getElementById("Horizontal_cross_section").checked;
+    input.vertical = document.getElementById("Vertical_cross_section").checked;
+
 
     main_plot = new plotit(input);
     main_plot.draw();
@@ -1028,6 +1034,17 @@ function init_plot(input) {
     main_plot.points_start = [];
     main_plot.points_start_negative = [];
     main_plot.points = new Float32Array();
+
+    /**
+     * Add event listener to checkbox Horizontal_cross_section and Vertical_cross_section
+     */
+    document.getElementById("Horizontal_cross_section").addEventListener("change", function () {
+        main_plot.horizontal = this.checked;
+    });
+
+    document.getElementById("Vertical_cross_section").addEventListener("change", function () {
+        main_plot.vertical = this.checked;
+    });
 };
 
 
