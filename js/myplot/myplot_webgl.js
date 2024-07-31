@@ -148,10 +148,10 @@ class webgl_contour_plot {
              * setCamera first, using saved this.x_ppm, this.x2_ppm, this.y_ppm, this.y2_ppm
              * and this.spec_information
              */
-            let x = (this.x_ppm - this.spectral_information[n].x_ppm_start)/this.spectral_information[n].x_ppm_step;
-            let x2 = (this.x2_ppm - this.spectral_information[n].x_ppm_start)/this.spectral_information[n].x_ppm_step;
-            let y = (this.y_ppm - this.spectral_information[n].y_ppm_start)/this.spectral_information[n].y_ppm_step;
-            let y2 = (this.y2_ppm - this.spectral_information[n].y_ppm_start)/this.spectral_information[n].y_ppm_step;
+            let x = (this.x_ppm - this.spectral_information[n].x_ppm_start - this.spectral_information[n].x_ppm_ref)/this.spectral_information[n].x_ppm_step;
+            let x2 = (this.x2_ppm - this.spectral_information[n].x_ppm_start - this.spectral_information[n].x_ppm_ref)/this.spectral_information[n].x_ppm_step;
+            let y = (this.y_ppm - this.spectral_information[n].y_ppm_start  - this.spectral_information[n].y_ppm_ref)/this.spectral_information[n].y_ppm_step;
+            let y2 = (this.y2_ppm - this.spectral_information[n].y_ppm_start - this.spectral_information[n].y_ppm_ref)/this.spectral_information[n].y_ppm_step;
             this.setCamera(x, x2, y, y2);
 
             /**

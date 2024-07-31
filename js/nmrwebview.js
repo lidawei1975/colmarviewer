@@ -101,6 +101,8 @@ class spectrum {
         this.y_ppm_start = 120.0; //start ppm of indirect dimension
         this.y_ppm_width = 120.0; //width of indirect dimension
         this.y_ppm_step = -120.0 / 1024; //step of indirect dimension
+        this.x_ppm_ref = 0.0; //reference ppm of direct dimension
+        this.y_ppm_ref = 0.0; //reference ppm of indirect dimension
     }
 };
 
@@ -457,10 +459,36 @@ function add_spectrum_to_list(index) {
     new_spectrum_div.appendChild(document.createTextNode("Noise: " + new_spectrum.noise_level.toExponential(2) + ","));
     /**
      * Add filename as a text node
-     * remove extension
      */
-    let filename = hsqc_spectra[index].filename.split('.').slice(0, -1);
-    new_spectrum_div.appendChild(document.createTextNode(" " + filename + " "));
+    new_spectrum_div.appendChild(document.createTextNode(" File name: " + hsqc_spectra[index].filename + " "));
+    /**
+     * Add two input text element with ID ref1 and ref2, default value is 0 and 0
+     * They also have a label element with text "Ref direct: " and "Ref indirect: "
+     * They also have an onblur event to update the ref_direct and ref_indirect values
+     */
+    let ref_direct_label = document.createElement("label");
+    ref_direct_label.setAttribute("for", "ref1-".concat(index));
+    ref_direct_label.innerText = " Ref direct: ";
+    let ref_direct_input = document.createElement("input");
+    ref_direct_input.setAttribute("type", "text");
+    ref_direct_input.setAttribute("id", "ref1-".concat(index));
+    ref_direct_input.setAttribute("size", "4");
+    ref_direct_input.setAttribute("value", "0.0");
+    ref_direct_input.onblur = function () { adjust_ref(index, 0); };
+    new_spectrum_div.appendChild(ref_direct_label);
+    new_spectrum_div.appendChild(ref_direct_input);
+
+    let ref_indirect_label = document.createElement("label");
+    ref_indirect_label.setAttribute("for", "ref2-".concat(index));
+    ref_indirect_label.innerText = " Ref indirect: ";
+    let ref_indirect_input = document.createElement("input");
+    ref_indirect_input.setAttribute("type", "text");
+    ref_indirect_input.setAttribute("id", "ref2-".concat(index));
+    ref_indirect_input.setAttribute("size", "4");
+    ref_indirect_input.setAttribute("value", "0.0");
+    ref_indirect_input.onblur = function () { adjust_ref(index, 1); };
+    new_spectrum_div.appendChild(ref_indirect_label);
+    new_spectrum_div.appendChild(ref_indirect_input);
     /**
      * Add a line break
      */
@@ -734,7 +762,9 @@ my_contour_worker.onmessage = (e) => {
                 x_ppm_start: hsqc_spectra[e.data.spectrum_index].x_ppm_start,
                 x_ppm_step: hsqc_spectra[e.data.spectrum_index].x_ppm_step,
                 y_ppm_start: hsqc_spectra[e.data.spectrum_index].y_ppm_start,
-                y_ppm_step: hsqc_spectra[e.data.spectrum_index].y_ppm_step
+                y_ppm_step: hsqc_spectra[e.data.spectrum_index].y_ppm_step,
+                x_ppm_ref: hsqc_spectra[e.data.spectrum_index].x_ppm_ref,
+                y_ppm_ref: hsqc_spectra[e.data.spectrum_index].y_ppm_ref,
             });
             main_plot.redraw_contour();
         }
@@ -1024,6 +1054,27 @@ function toggle_peak() {
     main_plot.toggle_peak();
 }
 
+/**
+ * Event listener for onblur event of ref1 and ref2 input fields
+ */
+function adjust_ref(index, flag) {
+    
+    if (flag === 0) {
+        let new_ref = parseFloat(document.getElementById("ref1".concat("-").concat(index)).value);
+        hsqc_spectra[index].x_ppm_ref = new_ref;
+        main_plot.spectral_information[index].x_ppm_ref = new_ref;
+    }
+    else if (flag === 1) {
+        let new_ref = parseFloat(document.getElementById("ref2".concat("-").concat(index)).value);
+        hsqc_spectra[index].y_ppm_ref = new_ref;
+        main_plot.spectral_information[index].y_ppm_ref = new_ref;
+    }
+    /**
+     * Redraw the contour plot
+     */
+    main_plot.redraw_contour();
+}
+
 
 /**
  * Event listener for button reduce_contour
@@ -1291,6 +1342,9 @@ const read_file = (file_id) => {
                  */
                 result.x_ppm_start -= result.x_ppm_width / result.n_direct / 2;
                 result.y_ppm_start -= result.y_ppm_width / result.n_indirect / 2;
+
+                result.x_ppm_ref = 0.0;
+                result.y_ppm_ref = 0.0;
 
 
                 let data_size = arrayBuffer.byteLength / 4 - 512;
