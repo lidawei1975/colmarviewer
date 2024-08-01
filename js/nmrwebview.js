@@ -101,10 +101,14 @@ class spectrum {
         this.y_ppm_start = 120.0; //start ppm of indirect dimension
         this.y_ppm_width = 120.0; //width of indirect dimension
         this.y_ppm_step = -120.0 / 1024; //step of indirect dimension
+        this.x_ppm_ref = 0.0; //reference ppm of direct dimension
+        this.y_ppm_ref = 0.0; //reference ppm of indirect dimension
     }
 };
 
 var hsqc_spectra = []; //array of hsqc spectra
+
+let draggedItem = null;
 
 
 /**
@@ -170,6 +174,12 @@ class file_drop_processor {
 
         // Visually highlight the drop zone.
         this.elem.addEventListener('dragenter', (e) => {
+            /**
+             * If draggedItem is not null, return (user is dragging something else)
+             */
+            if (draggedItem !== null) {
+                return;
+            }
             this.elem.style.outline = 'solid red 2px';
         });
 
@@ -290,7 +300,7 @@ $(document).ready(function () {
      * Initialize the file drop processor for the hsqc spectra
      */
     new file_drop_processor()
-    .drop_area('spectra_list') /** id of dropzone */
+    .drop_area('file_area') /** id of dropzone */
     .file_name("ft2")  /** file extenstion to be searched from upload */
     .file_id("userfile") /** Corresponding file element IDs */
     .init();
@@ -324,7 +334,7 @@ $(document).ready(function () {
                 result_spectrum.spectrum_color = color_list[(spectrum_index*2) % color_list.length];
                 result_spectrum.spectrum_color_negative = color_list[(spectrum_index*2+1) % color_list.length];
                 hsqc_spectra.push(result_spectrum);
-                add_spectrum_to_list(spectrum_index);
+                
 
                 /**
                  * initialize the plot with the first spectrum. This function only run once
@@ -364,15 +374,6 @@ $(document).ready(function () {
                 spectrum_information.contour_sign = 1;
                 spectrum_information.levels = result_spectrum.negative_levels;
                 my_contour_worker.postMessage({ response_value: result_spectrum.raw_data, spectrum: spectrum_information });
-                
-                /**
-                 * initialize slider and text of the lowest contour level visible 
-                 */
-                document.getElementById("contour0-".concat(spectrum_index)).value = hsqc_spectra[spectrum_index].levels[0].toFixed(2);
-                document.getElementById("contour-slider-".concat(spectrum_index)).max = hsqc_spectra[spectrum_index].levels.length;
-                document.getElementById("contour0_negative-".concat(spectrum_index)).value = hsqc_spectra[spectrum_index].negative_levels[0].toFixed(2);
-                document.getElementById("contour-slider_negative-".concat(spectrum_index)).max = hsqc_spectra[spectrum_index].negative_levels.length;
-                
                 
             });
     });
@@ -443,12 +444,127 @@ function resize_main_plot(wid, height, padding, margin_left, margin_top)
     }
 }
 
+/**
+ * Drag and drop spectra to reorder them 
+ */
+const sortableList =
+    document.getElementById("spectra_list_ol");
+
+ 
+sortableList.addEventListener(
+    "dragstart",
+    (e) => {
+        draggedItem = e.target;
+        setTimeout(() => {
+            e.target.style.display =
+                "none";
+        }, 0);
+});
+ 
+sortableList.addEventListener(
+    "dragend",
+    (e) => {
+        setTimeout(() => {
+            e.target.style.display = "";
+            draggedItem = null;
+        }, 0);
+
+        /**
+         * Get the index of the new order
+         */
+        let new_order = [];
+        let list_items = document.querySelectorAll("li");
+        for (let i = 0; i < list_items.length; i++) {
+            let index = parseInt(list_items[i].id.split("-")[1]); //ID is spectrum-index
+            new_order.push(index);
+        }
+        /**
+         * In case new_order.length !== main_plot.spectral_order.length,
+         * we need to wait for the worker to finish the calculation then update the order
+         */
+        let interval_id = setInterval(() => {
+            if (new_order.length === main_plot.spectral_order.length) {
+                clearInterval(interval_id);
+                main_plot.spectral_order = new_order;
+                main_plot.redraw_contour_order();
+            }
+        }, 1000);
+    });
+ 
+sortableList.addEventListener(
+    "dragover",
+    (e) => {
+        e.preventDefault();
+        /**
+         * If draggedItem is null, return (user is dragging something else)
+         */
+        if (draggedItem === null) {
+            return;
+        }
+        const afterElement =
+            getDragAfterElement(
+                sortableList,
+                e.clientY);
+        const currentElement =
+            document.querySelector(
+                ".dragging");
+        if (afterElement == null) {
+            sortableList.appendChild(
+                draggedItem
+            );} 
+        else {
+            sortableList.insertBefore(
+                draggedItem,
+                afterElement
+            );}
+    });
+ 
+const getDragAfterElement = (
+    container, y
+) => {
+    const draggableElements = [
+        ...container.querySelectorAll(
+            "li:not(.dragging)"
+        ),];
+
+    return draggableElements.reduce(
+        (closest, child) => {
+            const box =
+                child.getBoundingClientRect();
+            const offset =
+                y - box.top - box.height / 2;
+            if (
+                offset < 0 &&
+                offset > closest.offset) {
+                return {
+                    offset: offset,
+                    element: child,
+                };
+            }
+            else {
+                return closest;
+            }
+        },
+        {
+            offset: Number.NEGATIVE_INFINITY,
+        }
+    ).element;
+};
+
 
 
 
 function add_spectrum_to_list(index) {
     let new_spectrum = hsqc_spectra[index];
     let new_spectrum_div = document.createElement("li");
+    /**
+     * Make it draggable
+     */
+    new_spectrum_div.draggable = true;
+    /**
+     * Assign a ID to the new spectrum div
+     */
+    new_spectrum_div.id = "spectrum-".concat(index);
     
     /**
      * The new DIV will have the following children:
@@ -457,10 +573,36 @@ function add_spectrum_to_list(index) {
     new_spectrum_div.appendChild(document.createTextNode("Noise: " + new_spectrum.noise_level.toExponential(2) + ","));
     /**
      * Add filename as a text node
-     * remove extension
      */
-    let filename = hsqc_spectra[index].filename.split('.').slice(0, -1);
-    new_spectrum_div.appendChild(document.createTextNode(" " + filename + " "));
+    new_spectrum_div.appendChild(document.createTextNode(" File name: " + hsqc_spectra[index].filename + " "));
+    /**
+     * Add two input text element with ID ref1 and ref2, default value is 0 and 0
+     * They also have a label element with text "Ref direct: " and "Ref indirect: "
+     * They also have an onblur event to update the ref_direct and ref_indirect values
+     */
+    let ref_direct_label = document.createElement("label");
+    ref_direct_label.setAttribute("for", "ref1-".concat(index));
+    ref_direct_label.innerText = " Ref direct: ";
+    let ref_direct_input = document.createElement("input");
+    ref_direct_input.setAttribute("type", "text");
+    ref_direct_input.setAttribute("id", "ref1-".concat(index));
+    ref_direct_input.setAttribute("size", "4");
+    ref_direct_input.setAttribute("value", "0.0");
+    ref_direct_input.onblur = function () { adjust_ref(index, 0); };
+    new_spectrum_div.appendChild(ref_direct_label);
+    new_spectrum_div.appendChild(ref_direct_input);
+
+    let ref_indirect_label = document.createElement("label");
+    ref_indirect_label.setAttribute("for", "ref2-".concat(index));
+    ref_indirect_label.innerText = " Ref indirect: ";
+    let ref_indirect_input = document.createElement("input");
+    ref_indirect_input.setAttribute("type", "text");
+    ref_indirect_input.setAttribute("id", "ref2-".concat(index));
+    ref_indirect_input.setAttribute("size", "4");
+    ref_indirect_input.setAttribute("value", "0.0");
+    ref_indirect_input.onblur = function () { adjust_ref(index, 1); };
+    new_spectrum_div.appendChild(ref_indirect_label);
+    new_spectrum_div.appendChild(ref_indirect_input);
     /**
      * Add a line break
      */
@@ -559,7 +701,9 @@ function add_spectrum_to_list(index) {
     contour_slider.setAttribute("max", "20");
     contour_slider.setAttribute("value", "1");
     contour_slider.style.width = "10%";
-    contour_slider.addEventListener("input", (e) => { update_contour_slider(e,index,0); });
+    contour_slider.addEventListener("input", (e) => {update_contour_slider(e,index,0); });
+    contour_slider.draggable = true;
+    contour_slider.addEventListener("dragstart", (e) => {e.preventDefault(); e.stopPropagation(); });
     new_spectrum_div.appendChild(contour_slider);
 
     
@@ -670,6 +814,8 @@ function add_spectrum_to_list(index) {
         contour_slider_negative.setAttribute("value", "1");
         contour_slider_negative.style.width = "10%";
         contour_slider_negative.addEventListener("input", (e) => { update_contour_slider(e,index,1); });
+        contour_slider_negative.draggable = true;
+        contour_slider_negative.addEventListener("dragstart", (e) => {e.preventDefault(); e.stopPropagation(); });
         new_spectrum_div.appendChild(contour_slider_negative);
     
         
@@ -688,6 +834,16 @@ function add_spectrum_to_list(index) {
      * Add the new spectrum div to the list of spectra
      */
     document.getElementById("spectra_list_ol").appendChild(new_spectrum_div);
+
+
+    /**
+     * initialize slider and text of the lowest contour level visible 
+     */
+    document.getElementById("contour0-".concat(index)).value = hsqc_spectra[index].levels[0].toFixed(2);
+    document.getElementById("contour-slider-".concat(index)).max = hsqc_spectra[index].levels.length;
+    document.getElementById("contour0_negative-".concat(index)).value = hsqc_spectra[index].negative_levels[0].toFixed(2);
+    document.getElementById("contour-slider_negative-".concat(index)).max = hsqc_spectra[index].negative_levels.length;
+
 }
 
 my_contour_worker.onmessage = (e) => {
@@ -727,6 +883,20 @@ my_contour_worker.onmessage = (e) => {
              */
             main_plot.points_start.push(main_plot.points.length);
             main_plot.points=Float32Concat(main_plot.points, new Float32Array(e.data.points));
+
+            main_plot.spectral_information.push({
+                n_direct: hsqc_spectra[e.data.spectrum_index].n_direct,
+                n_indirect: hsqc_spectra[e.data.spectrum_index].n_indirect,
+                x_ppm_start: hsqc_spectra[e.data.spectrum_index].x_ppm_start,
+                x_ppm_step: hsqc_spectra[e.data.spectrum_index].x_ppm_step,
+                y_ppm_start: hsqc_spectra[e.data.spectrum_index].y_ppm_start,
+                y_ppm_step: hsqc_spectra[e.data.spectrum_index].y_ppm_step,
+                x_ppm_ref: hsqc_spectra[e.data.spectrum_index].x_ppm_ref,
+                y_ppm_ref: hsqc_spectra[e.data.spectrum_index].y_ppm_ref,
+            });
+            add_spectrum_to_list(e.data.spectrum_index);
+            main_plot.spectral_order.push(e.data.spectrum_index);
+            main_plot.redraw_contour();
         }
         else if(e.data.contour_sign === 1)
         {
@@ -745,22 +915,11 @@ my_contour_worker.onmessage = (e) => {
             main_plot.points=Float32Concat(main_plot.points, new Float32Array(e.data.points));
 
             /**
-             * IMPORTANT: We always calculate positive contour first, then negative contour
-             * only when both are calculated, we update the contour plot
-             * Append new spectral_information to main_plot.spectral_information
+             * IMPORTANT: We always calculate positive contour first, then negative contour.
+             * So no need to update spectral_information array again
              */
-            main_plot.spectral_information.push({
-                n_direct: hsqc_spectra[e.data.spectrum_index].n_direct,
-                n_indirect: hsqc_spectra[e.data.spectrum_index].n_indirect,
-                x_ppm_start: hsqc_spectra[e.data.spectrum_index].x_ppm_start,
-                x_ppm_step: hsqc_spectra[e.data.spectrum_index].x_ppm_step,
-                y_ppm_start: hsqc_spectra[e.data.spectrum_index].y_ppm_start,
-                y_ppm_step: hsqc_spectra[e.data.spectrum_index].y_ppm_step
-            });
             main_plot.redraw_contour();
         }
-
-        
     }
 
     /**
@@ -980,9 +1139,16 @@ function init_plot(input) {
     input.drawto_peak = "#peaklist";
     input.drawto_contour = "canvas1"; //webgl background as contour plot
 
+    /**
+     * Check whether checkbox Horizontal_cross_section and Vertical_cross_section are checked
+     */
+    input.horizontal = document.getElementById("Horizontal_cross_section").checked;
+    input.vertical = document.getElementById("Vertical_cross_section").checked;
+
 
     main_plot = new plotit(input);
     main_plot.draw();
+
 
     /**
      * INitialize the contour plot with empty data
@@ -996,9 +1162,21 @@ function init_plot(input) {
     main_plot.contour_lbs = [];
     main_plot.contour_lbs_negative = [];
     main_plot.spectral_information = [];
+    main_plot.spectral_order = [];
     main_plot.points_start = [];
     main_plot.points_start_negative = [];
     main_plot.points = new Float32Array();
+
+    /**
+     * Add event listener to checkbox Horizontal_cross_section and Vertical_cross_section
+     */
+    document.getElementById("Horizontal_cross_section").addEventListener("change", function () {
+        main_plot.horizontal = this.checked;
+    });
+
+    document.getElementById("Vertical_cross_section").addEventListener("change", function () {
+        main_plot.vertical = this.checked;
+    });
 };
 
 
@@ -1023,6 +1201,27 @@ function toggle_contour() {
 
 function toggle_peak() {
     main_plot.toggle_peak();
+}
+
+/**
+ * Event listener for onblur event of ref1 and ref2 input fields
+ */
+function adjust_ref(index, flag) {
+    
+    if (flag === 0) {
+        let new_ref = parseFloat(document.getElementById("ref1".concat("-").concat(index)).value);
+        hsqc_spectra[index].x_ppm_ref = new_ref;
+        main_plot.spectral_information[index].x_ppm_ref = new_ref;
+    }
+    else if (flag === 1) {
+        let new_ref = parseFloat(document.getElementById("ref2".concat("-").concat(index)).value);
+        hsqc_spectra[index].y_ppm_ref = new_ref;
+        main_plot.spectral_information[index].y_ppm_ref = new_ref;
+    }
+    /**
+     * Redraw the contour plot
+     */
+    main_plot.redraw_contour();
 }
 
 
@@ -1193,7 +1392,6 @@ function update_contour0_or_logarithmic_scale(index,flag) {
  */
 function update_contour_slider(e,index,flag) {
 
-
     /**
      * Get new level from the slider value
      */
@@ -1225,6 +1423,8 @@ function update_contour_slider(e,index,flag) {
     }
 
     main_plot.redraw_contour();
+
+    
 }
 
 
@@ -1263,7 +1463,6 @@ const read_file = (file_id) => {
             var reader = new FileReader();
             reader.onload = function (e_file_read) {
                 var arrayBuffer = e_file_read.target.result;
-                console.log(arrayBuffer.byteLength);
 
                 let result = new spectrum();
 
@@ -1292,6 +1491,9 @@ const read_file = (file_id) => {
                  */
                 result.x_ppm_start -= result.x_ppm_width / result.n_direct / 2;
                 result.y_ppm_start -= result.y_ppm_width / result.n_indirect / 2;
+
+                result.x_ppm_ref = 0.0;
+                result.y_ppm_ref = 0.0;
 
 
                 let data_size = arrayBuffer.byteLength / 4 - 512;

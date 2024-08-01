@@ -40,17 +40,6 @@
             margin-right: auto;
         }
 
-        .topclass {
-            float: left;
-            font-size: 16px;
-            background: #fff;
-            border: 3px solid #a1a1a1;
-            padding: 3px 3px;
-            margin: 3px;
-            border-radius: 0.5rem;
-        }
-
-
         div.tooltip2 {
             position: absolute;
             text-align: center;
@@ -101,6 +90,8 @@
             padding: 20px;
             resize: both;
             overflow: hidden;
+            min-width: 400px;
+            min-height: 300px;
         }
 
         .rotate90 {
@@ -121,8 +112,13 @@
 
         <h1>Web based two-dimensional NMR spectra viewer</h1>
 
-        <div id="spectra_list" class="drop-area" style="width: 1200px;">
-            <label for="userfile">Uploaded Spectra: </label><input type="file" id="userfile"><br>
+        <div id="file_area" class="drop-area" style="width: 1200px;">
+            <label for="userfile">Uploaded Spectra: </label><input type="file" id="userfile">
+            <label> You can also drag and drop file or folder here.</label>
+        </div>
+
+        <div id="spectra_list" style=" Padding: 10px; width: 1200px; margin:0 auto;" class="drop-area-neighbor">
+            <h4>Uploaded Spectra:</h4>
             <ol id="spectra_list_ol" type="1">
             </ol>
         </div>
@@ -134,6 +130,10 @@
             <button onclick="popzoom()">Zoom Back</button>,
             <button onclick="zoomout()">Zoom out 120%</button>
             <button onclick="download_plot()">Download plot</button>
+            <input type="checkbox" id="Horizontal_cross_section" >
+            <label for="Horizontal_cross_section"> Show Horizontal Cross Section </label>
+            <input type="checkbox" id="Vertical_cross_section" >
+            <label for="Vertical_cross_section"> Show Vertical Cross Section </label>
             <br><br>
 
             <div id="vis_parent" class="resizable" style="position: relative; width: 1200px; height: 800px;">
@@ -166,6 +166,8 @@
                     level, without recalculation. Users can also change the color of each spectrum.</p>
                 <p>4. Users can brush an area in the main plot to zoom in, and use buttons to zoom out, zoom back, or
                     reset all zooms.</p>
+                <p>5. User can drag and drop spectrum to re-order them on the plot</p>
+                <p>6. User can show/hide Horizontal and Vertical cross sections of the first spectrum only. </p>
 
             </article>
         </div>

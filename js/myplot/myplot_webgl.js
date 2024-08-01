@@ -142,16 +142,17 @@ class webgl_contour_plot {
          * One spectrum at a time
          * # of spectra = this.levels_length.length = this.colors.length = this.spectral_information.length = this.contour_lbs.length = this.polygon_length.length
          */
-        for(var n=0;n<number_of_spectra;n++)
+        for(var nn=0;nn<number_of_spectra;nn++)
         {
+            let n = this.spectral_order[nn];
             /**
              * setCamera first, using saved this.x_ppm, this.x2_ppm, this.y_ppm, this.y2_ppm
              * and this.spec_information
              */
-            let x = (this.x_ppm - this.spectral_information[n].x_ppm_start)/this.spectral_information[n].x_ppm_step;
-            let x2 = (this.x2_ppm - this.spectral_information[n].x_ppm_start)/this.spectral_information[n].x_ppm_step;
-            let y = (this.y_ppm - this.spectral_information[n].y_ppm_start)/this.spectral_information[n].y_ppm_step;
-            let y2 = (this.y2_ppm - this.spectral_information[n].y_ppm_start)/this.spectral_information[n].y_ppm_step;
+            let x = (this.x_ppm - this.spectral_information[n].x_ppm_start - this.spectral_information[n].x_ppm_ref)/this.spectral_information[n].x_ppm_step;
+            let x2 = (this.x2_ppm - this.spectral_information[n].x_ppm_start - this.spectral_information[n].x_ppm_ref)/this.spectral_information[n].x_ppm_step;
+            let y = (this.y_ppm - this.spectral_information[n].y_ppm_start  - this.spectral_information[n].y_ppm_ref)/this.spectral_information[n].y_ppm_step;
+            let y2 = (this.y2_ppm - this.spectral_information[n].y_ppm_start - this.spectral_information[n].y_ppm_ref)/this.spectral_information[n].y_ppm_step;
             this.setCamera(x, x2, y, y2);
 
             /**
@@ -203,8 +204,12 @@ class webgl_contour_plot {
             }
 
             /**
-             * Draw the negative contour plot, one level at a time
+             * Draw the negative contour plot, one level at a time only if negative contour is available
              */
+            if(n >= this.contour_lbs_negative.length )
+            {
+                continue;
+            }
             for(var m=this.contour_lbs_negative[n]; m < this.levels_length_negative[n].length; m++)
             {
                 let i_start = 0;
