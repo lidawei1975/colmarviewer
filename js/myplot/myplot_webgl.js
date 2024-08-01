@@ -142,8 +142,9 @@ class webgl_contour_plot {
          * One spectrum at a time
          * # of spectra = this.levels_length.length = this.colors.length = this.spectral_information.length = this.contour_lbs.length = this.polygon_length.length
          */
-        for(var n=0;n<number_of_spectra;n++)
+        for(var nn=0;nn<number_of_spectra;nn++)
         {
+            let n = this.spectral_order[nn];
             /**
              * setCamera first, using saved this.x_ppm, this.x2_ppm, this.y_ppm, this.y2_ppm
              * and this.spec_information

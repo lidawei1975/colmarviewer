@@ -46,6 +46,8 @@ function plotit(input) {
     this.horizontal = input.horizontal ? input.horizontal : false;
     this.vertical = input.vertical ? input.vertical : false;
 
+    this.spectral_order = [];
+
 };
 
 /**
@@ -560,7 +562,18 @@ plotit.prototype.redraw_contour = function ()
         this.contour_lbs_negative
         );
 
+    this.contour_plot.spectral_order = this.spectral_order;
+
     this.contour_plot.setCamera_ppm(this.xscale[0], this.xscale[1], this.yscale[0], this.yscale[1]);
     this.contour_plot.drawScene();
+}
+
+/**
+ * Redraw contour plot with new order of spectra
+ */
+plotit.prototype.redraw_contour_order = function ()
+{
+    this.contour_plot.spectral_order = this.spectral_order;
+    this.contour_plot.drawScene();   
 }
 

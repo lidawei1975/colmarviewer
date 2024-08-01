@@ -110,6 +110,7 @@ var hsqc_spectra = []; //array of hsqc spectra
 
 let draggedItem = null;
 
+
 /**
  * Default color list for the contour plot (15 colors, repeat if more than 15 spectra)
  */
@@ -173,6 +174,12 @@ class file_drop_processor {
 
         // Visually highlight the drop zone.
         this.elem.addEventListener('dragenter', (e) => {
+            /**
+             * If draggedItem is not null, return (user is dragging something else)
+             */
+            if (draggedItem !== null) {
+                return;
+            }
             this.elem.style.outline = 'solid red 2px';
         });
 
@@ -327,7 +334,7 @@ $(document).ready(function () {
                 result_spectrum.spectrum_color = color_list[(spectrum_index*2) % color_list.length];
                 result_spectrum.spectrum_color_negative = color_list[(spectrum_index*2+1) % color_list.length];
                 hsqc_spectra.push(result_spectrum);
-                add_spectrum_to_list(spectrum_index);
+                
 
                 /**
                  * initialize the plot with the first spectrum. This function only run once
@@ -367,15 +374,6 @@ $(document).ready(function () {
                 spectrum_information.contour_sign = 1;
                 spectrum_information.levels = result_spectrum.negative_levels;
                 my_contour_worker.postMessage({ response_value: result_spectrum.raw_data, spectrum: spectrum_information });
-                
-                /**
-                 * initialize slider and text of the lowest contour level visible 
-                 */
-                document.getElementById("contour0-".concat(spectrum_index)).value = hsqc_spectra[spectrum_index].levels[0].toFixed(2);
-                document.getElementById("contour-slider-".concat(spectrum_index)).max = hsqc_spectra[spectrum_index].levels.length;
-                document.getElementById("contour0_negative-".concat(spectrum_index)).value = hsqc_spectra[spectrum_index].negative_levels[0].toFixed(2);
-                document.getElementById("contour-slider_negative-".concat(spectrum_index)).max = hsqc_spectra[spectrum_index].negative_levels.length;
-                
                 
             });
     });
@@ -480,13 +478,29 @@ sortableList.addEventListener(
             let index = parseInt(list_items[i].id.split("-")[1]); //ID is spectrum-index
             new_order.push(index);
         }
-        console.log(new_order);
+        /**
+         * In case new_order.length !== main_plot.spectral_order.length,
+         * we need to wait for the worker to finish the calculation then update the order
+         */
+        let interval_id = setInterval(() => {
+            if (new_order.length === main_plot.spectral_order.length) {
+                clearInterval(interval_id);
+                main_plot.spectral_order = new_order;
+                main_plot.redraw_contour_order();
+            }
+        }, 1000);
     });
  
 sortableList.addEventListener(
     "dragover",
     (e) => {
         e.preventDefault();
+        /**
+         * If draggedItem is null, return (user is dragging something else)
+         */
+        if (draggedItem === null) {
+            return;
+        }
         const afterElement =
             getDragAfterElement(
                 sortableList,
@@ -820,6 +834,16 @@ function add_spectrum_to_list(index) {
      * Add the new spectrum div to the list of spectra
      */
     document.getElementById("spectra_list_ol").appendChild(new_spectrum_div);
+
+
+    /**
+     * initialize slider and text of the lowest contour level visible 
+     */
+    document.getElementById("contour0-".concat(index)).value = hsqc_spectra[index].levels[0].toFixed(2);
+    document.getElementById("contour-slider-".concat(index)).max = hsqc_spectra[index].levels.length;
+    document.getElementById("contour0_negative-".concat(index)).value = hsqc_spectra[index].negative_levels[0].toFixed(2);
+    document.getElementById("contour-slider_negative-".concat(index)).max = hsqc_spectra[index].negative_levels.length;
+
 }
 
 my_contour_worker.onmessage = (e) => {
@@ -870,6 +894,8 @@ my_contour_worker.onmessage = (e) => {
                 x_ppm_ref: hsqc_spectra[e.data.spectrum_index].x_ppm_ref,
                 y_ppm_ref: hsqc_spectra[e.data.spectrum_index].y_ppm_ref,
             });
+            add_spectrum_to_list(e.data.spectrum_index);
+            main_plot.spectral_order.push(e.data.spectrum_index);
             main_plot.redraw_contour();
         }
         else if(e.data.contour_sign === 1)
@@ -1123,6 +1149,7 @@ function init_plot(input) {
     main_plot = new plotit(input);
     main_plot.draw();
 
+
     /**
      * INitialize the contour plot with empty data
      */
@@ -1135,6 +1162,7 @@ function init_plot(input) {
     main_plot.contour_lbs = [];
     main_plot.contour_lbs_negative = [];
     main_plot.spectral_information = [];
+    main_plot.spectral_order = [];
     main_plot.points_start = [];
     main_plot.points_start_negative = [];
     main_plot.points = new Float32Array();
