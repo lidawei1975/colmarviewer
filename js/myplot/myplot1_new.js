@@ -85,8 +85,8 @@ plotit.prototype.update = function (input) {
         .curve(d3.curveBasis);
 
 
-    this.x2.attr('transform', 'translate(0,' + (this.HEIGHT - this.MARGINS.bottom) + ')').call(this.xAxis);
-    this.y2.attr('transform', 'translate(' + (this.MARGINS.left) + ',0)').call(this.yAxis);
+    this.xAxis_svg.attr('transform', 'translate(0,' + (this.HEIGHT - this.MARGINS.bottom) + ')').call(this.xAxis);
+    this.yAxis_svg.attr('transform', 'translate(' + (this.MARGINS.left) + ',0)').call(this.yAxis);
 
 
 
@@ -115,8 +115,16 @@ plotit.prototype.update = function (input) {
  * When zoom or resize, we need to reset the axis
  */
 plotit.prototype.reset_axis = function () {
-    this.x2.call(this.xAxis);
-    this.y2.call(this.yAxis);
+    this.xAxis_svg.call(this.xAxis);
+    this.yAxis_svg.call(this.yAxis);
+    this.vis.selectAll(".xaxis>.tick>text")
+        .each(function () {
+            d3.select(this).style("font-size", "20px");
+        });
+    this.vis.selectAll(".yaxis>.tick>text")
+        .each(function () {
+            d3.select(this).style("font-size", "20px");
+        });
 };
 
 
@@ -260,33 +268,33 @@ plotit.prototype.draw = function () {
     this.vis.selectAll('.yaxis').remove();
 
 
-    this.x2 = this.vis.append('svg:g')
+    this.xAxis_svg = this.vis.append('svg:g')
         .attr('class', 'xaxis')
-        .attr('transform', 'translate(0,' + (this.HEIGHT - this.MARGINS.bottom) + ')')
-        .call(this.xAxis);
+        .attr('transform', 'translate(0,' + (this.HEIGHT - this.MARGINS.bottom) + ')');
 
-
-    this.y2 = this.vis.append('svg:g')
+    this.yAxis_svg = this.vis.append('svg:g')
         .attr('class', 'yaxis')
-        .attr('transform', 'translate(' + (this.MARGINS.left) + ',0)')
-        .call(this.yAxis);
-
+        .attr('transform', 'translate(' + (this.MARGINS.left) + ',0)');
+    
+    this.reset_axis();
 
     this.vis.append("text")
         .attr("class", "xlabel")
         .attr("text-anchor", "center")
         .attr("x", this.WIDTH / 2)
-        .attr("y", this.HEIGHT)
-        .text("Proton Chemical Shift (ppm)");
+        .attr("y", this.HEIGHT - 20)
+        .style("font-size", "22px")
+        .text("Chemical Shift (ppm)");
 
     this.vis.append("text")
         .attr("class", "ylabel")
         .attr("text-anchor", "center")
-        .attr("y", this.HEIGHT / 2)
+        .attr("y", this.HEIGHT / 2 + 5)
         .attr("x", 6)
         .attr("cx", 0).attr("cy", 0)
         .attr("transform", "rotate(-90 12," + this.HEIGHT / 2 + ")")
-        .text("Carbon chemical shift (ppm)");
+        .style("font-size", "22px")
+        .text("Chemical Shift (ppm)");
 
 
     this.rect = this.vis.append("defs").append("clipPath")
