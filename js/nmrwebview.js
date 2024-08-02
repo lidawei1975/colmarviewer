@@ -289,7 +289,7 @@ $(document).ready(function () {
     /**
      * Initialize the big plot
      */
-    resize_main_plot(1200, 800, 20, 50, 20);
+    resize_main_plot(1200, 800, 20, 70, 20);
 
     /**
      * Resize observer for the big plot
@@ -385,7 +385,7 @@ var plot_div_resize_observer = new ResizeObserver(entries => {
 
         const cr = entry.contentRect;
         let padding = 20;
-        let margin_left = 50;
+        let margin_left = 70;
         let margin_top = 20;
 
         resize_main_plot(cr.width,cr.height,padding,margin_left,margin_top);
@@ -414,8 +414,8 @@ function resize_main_plot(wid, height, padding, margin_left, margin_top)
      * canvas is shifted 50px to the right, 20 px to the bottom.
      * It is also shortened by 20px in width on the right and 50px in height on the bottom.
      */
-    let canvas_height = height - 70;
-    let canvas_width = wid - 70;
+    let canvas_height = height - 90;
+    let canvas_width = wid - 90;
 
     // document.getElementById('canvas_parent').style.height = canvas_height.toString().concat('px');
     // document.getElementById('canvas_parent').style.width = canvas_width.toString().concat('px');
@@ -1133,7 +1133,7 @@ function init_plot(input) {
     input.PointData = [];
     input.WIDTH = current_width;
     input.HEIGHT = current_height;
-    input.MARGINS = { top: 20, right: 20, bottom: 50, left: 50 };
+    input.MARGINS = { top: 20, right: 20, bottom: 70, left: 70 };
     input.drawto = "#visualization";
     input.drawto_legend = "#legend";
     input.drawto_peak = "#peaklist";
@@ -1643,7 +1643,7 @@ async function download_plot()
     $canvas.height = $svg.clientHeight
     $canvas.getContext('2d').fillStyle = "white";
     $canvas.getContext('2d').fillRect(0, 0, $svg.clientWidth, $svg.clientHeight);
-    $canvas.getContext('2d').drawImage(contour_image,50,20,$svg.clientWidth-70,$svg.clientHeight-70);
+    $canvas.getContext('2d').drawImage(contour_image,70,20,$svg.clientWidth-90,$svg.clientHeight-90);
     $canvas.getContext('2d').drawImage(img, 0, 0, $svg.clientWidth, $svg.clientHeight)
     
     const dataURL = await $canvas.toDataURL(`image/${format}`, 1.0)

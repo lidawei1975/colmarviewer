@@ -85,8 +85,8 @@ plotit.prototype.update = function (input) {
         .curve(d3.curveBasis);
 
 
-    this.x2.attr('transform', 'translate(0,' + (this.HEIGHT - this.MARGINS.bottom) + ')').call(this.xAxis);
-    this.y2.attr('transform', 'translate(' + (this.MARGINS.left) + ',0)').call(this.yAxis);
+    this.xAxis_svg.attr('transform', 'translate(0,' + (this.HEIGHT - this.MARGINS.bottom) + ')').call(this.xAxis);
+    this.yAxis_svg.attr('transform', 'translate(' + (this.MARGINS.left) + ',0)').call(this.yAxis);
 
 
 
@@ -115,8 +115,16 @@ plotit.prototype.update = function (input) {
  * When zoom or resize, we need to reset the axis
  */
 plotit.prototype.reset_axis = function () {
-    this.x2.call(this.xAxis);
-    this.y2.call(this.yAxis);
+    this.xAxis_svg.call(this.xAxis);
+    this.yAxis_svg.call(this.yAxis);
+    this.vis.selectAll(".xaxis>.tick>text")
+        .each(function () {
+            d3.select(this).style("font-size", "20px");
+        });
+    this.vis.selectAll(".yaxis>.tick>text")
+        .each(function () {
+            d3.select(this).style("font-size", "20px");
+        });
 };
 
 
@@ -260,33 +268,33 @@ plotit.prototype.draw = function () {
     this.vis.selectAll('.yaxis').remove();
 
 
-    this.x2 = this.vis.append('svg:g')
+    this.xAxis_svg = this.vis.append('svg:g')
         .attr('class', 'xaxis')
-        .attr('transform', 'translate(0,' + (this.HEIGHT - this.MARGINS.bottom) + ')')
-        .call(this.xAxis);
+        .attr('transform', 'translate(0,' + (this.HEIGHT - this.MARGINS.bottom) + ')');
 
-
-    this.y2 = this.vis.append('svg:g')
+    this.yAxis_svg = this.vis.append('svg:g')
         .attr('class', 'yaxis')
-        .attr('transform', 'translate(' + (this.MARGINS.left) + ',0)')
-        .call(this.yAxis);
-
+        .attr('transform', 'translate(' + (this.MARGINS.left) + ',0)');
+    
+    this.reset_axis();
 
     this.vis.append("text")
         .attr("class", "xlabel")
         .attr("text-anchor", "center")
         .attr("x", this.WIDTH / 2)
-        .attr("y", this.HEIGHT)
-        .text("Proton Chemical Shift (ppm)");
+        .attr("y", this.HEIGHT - 20)
+        .style("font-size", "22px")
+        .text("Chemical Shift (ppm)");
 
     this.vis.append("text")
         .attr("class", "ylabel")
         .attr("text-anchor", "center")
-        .attr("y", this.HEIGHT / 2)
+        .attr("y", this.HEIGHT / 2 + 5)
         .attr("x", 6)
         .attr("cx", 0).attr("cy", 0)
         .attr("transform", "rotate(-90 12," + this.HEIGHT / 2 + ")")
-        .text("Carbon chemical shift (ppm)");
+        .style("font-size", "22px")
+        .text("Chemical Shift (ppm)");
 
 
     this.rect = this.vis.append("defs").append("clipPath")
@@ -378,26 +386,22 @@ plotit.prototype.draw = function () {
                 /**
                  * Combine data_ppm and data_height to form an array of 2 numbers, called data
                  */
+                let data_abs_max = 0.0;
                 let data = [];
                 for(let i = 0; i < data_ppm.length; i++) {
                     data.push([data_ppm[i], data_height[i]]);
+                    if(Math.abs(data_height[i]) > data_abs_max) {
+                        data_abs_max = Math.abs(data_height[i]);
+                    }
                 }
 
                 /**
-                 * Draw a line plot of the data, using same xRange
-                 * yRange is a new range, which is 100 pixels above the current y position, corresponding to max data_height 
-                 * and 100*scale pixels above the current y position, where scale = min_data_height/max_data_height
+                 * Define a y range for the cross section line plot
+                 * 0: at current coordinates[1]
+                 * [-data_abs_max,data_abs_max]: at current [coordinates[1] + 200, coordinates[1] - 200]
+                 * Remember that yRange is from top to bottom, +200 is below, -200 is above in the plot
                  */
-                let data_max = d3.max(data_height);
-                let data_min = d3.min(data_height);
-                /**
-                 * Set data_min to 0 if data_min is positive
-                 */
-                if(data_min > 0) {
-                    data_min = 0;
-                }
-
-                let cross_section_yRange = d3.scaleLinear().range([coordinates[1]-100*data_min/data_max,coordinates[1]-100]).domain([data_min, data_max]);
+                let cross_section_yRange = d3.scaleLinear().range([coordinates[1]+200,coordinates[1]-200]).domain([-data_abs_max, data_abs_max]);
 
                 let lineFunc = d3.line()
                     .x(function (d) { 
@@ -473,26 +477,21 @@ plotit.prototype.draw = function () {
                 /**
                  * Combine data_ppm and data_height to form an array of 2 numbers, called data
                  */
+                let data_abs_max = 0.0;
                 let data = [];
                 for(let i = 0; i < data_ppm.length; i++) {
                     data.push([data_ppm[i], data_height[i]]);
+                    if(Math.abs(data_height[i]) > data_abs_max) {
+                        data_abs_max = Math.abs(data_height[i]);
+                    }
                 }
 
                 /**
-                 * Draw a line plot of the data, using same yRange
-                 * xRange is a new range, which is 100 pixels above the current x position, corresponding to max data_height
-                 * and 100*scale pixels above the current x position, where scale = min_data_height/max_data_height
+                 * Define a x range for the cross section line plot
+                 * 0: at current coordinates[0]
+                 * [-max_abs_data,max_abs_data]: at current [coordinates[0] -200, coordinates[0] + 200]
                  */
-                let data_max = d3.max(data_height);
-                let data_min = d3.min(data_height);
-                /**
-                 * Set data_min to 0 if data_min is positive
-                 */
-                if(data_min > 0) {
-                    data_min = 0;
-                }
-
-                let cross_section_xRange = d3.scaleLinear().range([coordinates[0]+100*data_min/data_max,coordinates[0]+100]).domain([data_min, data_max]);
+                let cross_section_xRange = d3.scaleLinear().range([coordinates[0]-200,coordinates[0]+200]).domain([-data_abs_max, data_abs_max]);
 
                 let lineFunc = d3.line()
                     .x(function (d) { 
