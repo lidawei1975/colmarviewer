@@ -386,26 +386,22 @@ plotit.prototype.draw = function () {
                 /**
                  * Combine data_ppm and data_height to form an array of 2 numbers, called data
                  */
+                let data_abs_max = 0.0;
                 let data = [];
                 for(let i = 0; i < data_ppm.length; i++) {
                     data.push([data_ppm[i], data_height[i]]);
+                    if(Math.abs(data_height[i]) > data_abs_max) {
+                        data_abs_max = Math.abs(data_height[i]);
+                    }
                 }
 
                 /**
-                 * Draw a line plot of the data, using same xRange
-                 * yRange is a new range, which is 100 pixels above the current y position, corresponding to max data_height 
-                 * and 100*scale pixels above the current y position, where scale = min_data_height/max_data_height
+                 * Define a y range for the cross section line plot
+                 * 0: at current coordinates[1]
+                 * [-data_abs_max,data_abs_max]: at current [coordinates[1] + 200, coordinates[1] - 200]
+                 * Remember that yRange is from top to bottom, +200 is below, -200 is above in the plot
                  */
-                let data_max = d3.max(data_height);
-                let data_min = d3.min(data_height);
-                /**
-                 * Set data_min to 0 if data_min is positive
-                 */
-                if(data_min > 0) {
-                    data_min = 0;
-                }
-
-                let cross_section_yRange = d3.scaleLinear().range([coordinates[1]-100*data_min/data_max,coordinates[1]-100]).domain([data_min, data_max]);
+                let cross_section_yRange = d3.scaleLinear().range([coordinates[1]+200,coordinates[1]-200]).domain([-data_abs_max, data_abs_max]);
 
                 let lineFunc = d3.line()
                     .x(function (d) { 
@@ -481,26 +477,21 @@ plotit.prototype.draw = function () {
                 /**
                  * Combine data_ppm and data_height to form an array of 2 numbers, called data
                  */
+                let data_abs_max = 0.0;
                 let data = [];
                 for(let i = 0; i < data_ppm.length; i++) {
                     data.push([data_ppm[i], data_height[i]]);
+                    if(Math.abs(data_height[i]) > data_abs_max) {
+                        data_abs_max = Math.abs(data_height[i]);
+                    }
                 }
 
                 /**
-                 * Draw a line plot of the data, using same yRange
-                 * xRange is a new range, which is 100 pixels above the current x position, corresponding to max data_height
-                 * and 100*scale pixels above the current x position, where scale = min_data_height/max_data_height
+                 * Define a x range for the cross section line plot
+                 * 0: at current coordinates[0]
+                 * [-max_abs_data,max_abs_data]: at current [coordinates[0] -200, coordinates[0] + 200]
                  */
-                let data_max = d3.max(data_height);
-                let data_min = d3.min(data_height);
-                /**
-                 * Set data_min to 0 if data_min is positive
-                 */
-                if(data_min > 0) {
-                    data_min = 0;
-                }
-
-                let cross_section_xRange = d3.scaleLinear().range([coordinates[0]+100*data_min/data_max,coordinates[0]+100]).domain([data_min, data_max]);
+                let cross_section_xRange = d3.scaleLinear().range([coordinates[0]-200,coordinates[0]+200]).domain([-data_abs_max, data_abs_max]);
 
                 let lineFunc = d3.line()
                     .x(function (d) { 
