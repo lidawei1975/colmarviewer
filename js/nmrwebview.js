@@ -73,6 +73,8 @@ var main_plot; //hsqc plot object
 var stage = 1; // Because we have only one stage in this program, we set it to 1 (shared code with other programs, which may have more than one stage)
 var tooldiv; //tooltip div
 
+var wasm_instance; //wasm instance
+
 /**
  * Define a spectrum class to hold all spectrum information
  * Example of levels_length, polygon_length and points
@@ -304,6 +306,20 @@ $(document).ready(function () {
     .file_name("ft2")  /** file extenstion to be searched from upload */
     .file_id("userfile") /** Corresponding file element IDs */
     .init();
+
+    document.getElementById('userfile2').addEventListener('change', function () {
+        let file = this.files[0];
+        let reader = new FileReader();
+        reader.readAsArrayBuffer(file);
+
+        reader.onload = function () {
+            let wasm_buffer = reader.result;
+            WebAssembly.compile(wasm_buffer).then(x => {
+                wasm = x;
+                wasm_instance = new WebAssembly.Instance(wasm);
+            });
+        };
+    });
 
 
     /**
@@ -1664,6 +1680,11 @@ async function download_plot()
     a.href = dataURL;
     a.download = 'nmr_plot.' + format;
     a.click();
+}
 
-    
+
+function run_wasm()
+{
+    let x=wasm_instance.exports.my_add(22, 12);
+    console.log(x);
 }
