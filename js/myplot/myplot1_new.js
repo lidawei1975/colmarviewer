@@ -343,8 +343,8 @@ plotit.prototype.draw = function () {
             let coordinates = [event.offsetX,event.offsetY];
             let x_ppm = self.xRange.invert(coordinates[0]);
             let y_ppm = self.yRange.invert(coordinates[1]);
-            let y_pos = Math.floor((y_ppm - hsqc_spectra[spe_index].y_ppm_start)/hsqc_spectra[spe_index].y_ppm_step);
-            let x_pos = Math.floor((x_ppm - hsqc_spectra[spe_index].x_ppm_start)/hsqc_spectra[spe_index].x_ppm_step);
+            let y_pos = Math.floor((y_ppm - hsqc_spectra[spe_index].y_ppm_ref - hsqc_spectra[spe_index].y_ppm_start)/hsqc_spectra[spe_index].y_ppm_step);
+            let x_pos = Math.floor((x_ppm - hsqc_spectra[spe_index].x_ppm_ref - hsqc_spectra[spe_index].x_ppm_start)/hsqc_spectra[spe_index].x_ppm_step);
             let data_height = 0.0; //default value if out of range
             if(x_pos>=0 && x_pos<hsqc_spectra[spe_index].n_direct && y_pos>=0 && y_pos<hsqc_spectra[spe_index].n_indirect) {
                 data_height = hsqc_spectra[spe_index].raw_data[y_pos *  hsqc_spectra[spe_index].n_direct + x_pos];
@@ -372,16 +372,16 @@ plotit.prototype.draw = function () {
                  * However, currect_vis_x_ppm_start and currect_vis_x_ppm_end must both 
                  * be within the range of hsqc_spectra[spe_index].x_ppm_start to hsqc_spectra[spe_index].x_ppm_start + hsqc_spectra[spe_index].x_ppm_step * hsqc_spectra[spe_index].n_direct
                  */
-                if(currect_vis_x_ppm_start > hsqc_spectra[spe_index].x_ppm_start) {
-                    currect_vis_x_ppm_start = hsqc_spectra[spe_index].x_ppm_start;
+                if(currect_vis_x_ppm_start > hsqc_spectra[spe_index].x_ppm_start + hsqc_spectra[spe_index].x_ppm_ref) {
+                    currect_vis_x_ppm_start = hsqc_spectra[spe_index].x_ppm_start + hsqc_spectra[spe_index].x_ppm_ref;
                 }
-                if(currect_vis_x_ppm_end < hsqc_spectra[spe_index].x_ppm_start + hsqc_spectra[spe_index].x_ppm_step * hsqc_spectra[spe_index].n_direct) {
-                    currect_vis_x_ppm_end = hsqc_spectra[spe_index].x_ppm_start + hsqc_spectra[spe_index].x_ppm_step * hsqc_spectra[spe_index].n_direct;
+                if(currect_vis_x_ppm_end < hsqc_spectra[spe_index].x_ppm_start +hsqc_spectra[spe_index].x_ppm_ref + hsqc_spectra[spe_index].x_ppm_step * hsqc_spectra[spe_index].n_direct) {
+                    currect_vis_x_ppm_end = hsqc_spectra[spe_index].x_ppm_start+hsqc_spectra[spe_index].x_ppm_ref + hsqc_spectra[spe_index].x_ppm_step * hsqc_spectra[spe_index].n_direct;
                 }
 
-                let x_pos_start = Math.floor((currect_vis_x_ppm_start -  hsqc_spectra[spe_index].x_ppm_start)/ hsqc_spectra[spe_index].x_ppm_step);
-                let x_pos_end = Math.floor((currect_vis_x_ppm_end - hsqc_spectra[spe_index].x_ppm_start)/hsqc_spectra[spe_index].x_ppm_step);
-                let y_pos = Math.floor((y_ppm - hsqc_spectra[spe_index].y_ppm_start)/hsqc_spectra[spe_index].y_ppm_step);
+                let x_pos_start = Math.floor((currect_vis_x_ppm_start - hsqc_spectra[spe_index].x_ppm_ref - hsqc_spectra[spe_index].x_ppm_start)/ hsqc_spectra[spe_index].x_ppm_step);
+                let x_pos_end = Math.floor((currect_vis_x_ppm_end - hsqc_spectra[spe_index].x_ppm_ref - hsqc_spectra[spe_index].x_ppm_start)/hsqc_spectra[spe_index].x_ppm_step);
+                let y_pos = Math.floor((y_ppm - hsqc_spectra[spe_index].y_ppm_ref - hsqc_spectra[spe_index].y_ppm_start)/hsqc_spectra[spe_index].y_ppm_step);
 
                 /**
                  * if y_pos is out of range, do nothing and return
@@ -400,7 +400,7 @@ plotit.prototype.draw = function () {
                  */
                 let data_ppm = [];
                 for(let i = x_pos_start; i < x_pos_end; i++) {
-                    data_ppm.push(hsqc_spectra[spe_index].x_ppm_start + i * hsqc_spectra[spe_index].x_ppm_step);
+                    data_ppm.push(hsqc_spectra[spe_index].x_ppm_start + hsqc_spectra[spe_index].x_ppm_ref + i * hsqc_spectra[spe_index].x_ppm_step);
                 }
                 /**
                  * Combine data_ppm and data_height to form an array of 2 numbers, called data
@@ -456,16 +456,16 @@ plotit.prototype.draw = function () {
                  * However, currect_vis_y_ppm_start and currect_vis_y_ppm_end must both 
                  * be within the range of hsqc_spectra[spe_index].y_ppm_start to hsqc_spectra[spe_index].y_ppm_start + hsqc_spectra[spe_index].y_ppm_step * hsqc_spectra[spe_index].n_indirect
                  */
-                if(currect_vis_y_ppm_start > hsqc_spectra[spe_index].y_ppm_start) {
-                    currect_vis_y_ppm_start = hsqc_spectra[spe_index].y_ppm_start;
+                if(currect_vis_y_ppm_start > hsqc_spectra[spe_index].y_ppm_start + hsqc_spectra[spe_index].y_ppm_ref) {
+                    currect_vis_y_ppm_start = hsqc_spectra[spe_index].y_ppm_start + hsqc_spectra[spe_index].y_ppm_ref;
                 }
-                if(currect_vis_y_ppm_end < hsqc_spectra[spe_index].y_ppm_start + hsqc_spectra[spe_index].y_ppm_step * hsqc_spectra[spe_index].n_indirect) {
-                    currect_vis_y_ppm_end = hsqc_spectra[spe_index].y_ppm_start + hsqc_spectra[spe_index].y_ppm_step * hsqc_spectra[spe_index].n_indirect;
+                if(currect_vis_y_ppm_end < hsqc_spectra[spe_index].y_ppm_start + hsqc_spectra[spe_index].y_ppm_ref + hsqc_spectra[spe_index].y_ppm_step * hsqc_spectra[spe_index].n_indirect) {
+                    currect_vis_y_ppm_end = hsqc_spectra[spe_index].y_ppm_start + hsqc_spectra[spe_index].y_ppm_ref + hsqc_spectra[spe_index].y_ppm_step * hsqc_spectra[spe_index].n_indirect;
                 }
 
-                let y_pos_start = Math.floor((currect_vis_y_ppm_start -  hsqc_spectra[spe_index].y_ppm_start)/ hsqc_spectra[spe_index].y_ppm_step);
-                let y_pos_end = Math.floor((currect_vis_y_ppm_end - hsqc_spectra[spe_index].y_ppm_start)/hsqc_spectra[spe_index].y_ppm_step);
-                let x_pos = Math.floor((x_ppm - hsqc_spectra[spe_index].x_ppm_start)/hsqc_spectra[spe_index].x_ppm_step);
+                let y_pos_start = Math.floor((currect_vis_y_ppm_start - hsqc_spectra[spe_index].y_ppm_ref -  hsqc_spectra[spe_index].y_ppm_start)/ hsqc_spectra[spe_index].y_ppm_step);
+                let y_pos_end = Math.floor((currect_vis_y_ppm_end - hsqc_spectra[spe_index].y_ppm_ref - hsqc_spectra[spe_index].y_ppm_start)/hsqc_spectra[spe_index].y_ppm_step);
+                let x_pos = Math.floor((x_ppm - hsqc_spectra[spe_index].x_ppm_ref - hsqc_spectra[spe_index].x_ppm_start)/hsqc_spectra[spe_index].x_ppm_step);
 
                 /**
                  * if x_pos is out of range, do nothing and return
@@ -491,7 +491,7 @@ plotit.prototype.draw = function () {
                  */
                 let data_ppm = [];
                 for(let i = y_pos_start; i < y_pos_end; i++) {
-                    data_ppm.push(hsqc_spectra[spe_index].y_ppm_start + i * hsqc_spectra[spe_index].y_ppm_step);
+                    data_ppm.push(hsqc_spectra[spe_index].y_ppm_start + hsqc_spectra[spe_index].y_ppm_ref + i * hsqc_spectra[spe_index].y_ppm_step);
                 }
                 /**
                  * Combine data_ppm and data_height to form an array of 2 numbers, called data
