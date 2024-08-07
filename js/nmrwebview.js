@@ -71,7 +71,7 @@ const my_contour_worker = new Worker(workerSourceURL);
 
 var main_plot; //hsqc plot object
 var stage = 1; // Because we have only one stage in this program, we set it to 1 (shared code with other programs, which may have more than one stage)
-
+var tooldiv; //tooltip div
 
 /**
  * Define a spectrum class to hold all spectrum information
@@ -274,11 +274,11 @@ $(document).ready(function () {
      */
     oOutput = document.getElementById("infor");
 
-
-    tooldiv = d3.select("body")
-        .append("div")
-        .attr("class", "tooltip2")
-        .style("opacity", 0);
+    /**
+     * Tooltip div. Set the opacity to 0
+     */
+    tooldiv = document.getElementById("information_bar");
+    tooldiv.style.opacity = 0;
 
     /**
      * clear hsqc_spectra array

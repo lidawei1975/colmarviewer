@@ -329,13 +329,21 @@ plotit.prototype.draw = function () {
             /**
              * Show tool tip
              */
-            tooldiv.style("opacity", 1.0);
+            tooldiv.style.opacity = 1.0;
             let coordinates = [event.offsetX,event.offsetY];
             let x_ppm = self.xRange.invert(coordinates[0]);
             let y_ppm = self.yRange.invert(coordinates[1]);
-            tooldiv.html(x_ppm.toFixed(3) + " " + y_ppm.toFixed(2) + " ")
-                .style("left", (event.pageX + 12) + "px")
-                .style("top", (event.pageY + 12) + "px");
+            let y_pos = Math.floor((y_ppm - hsqc_spectra[0].y_ppm_start)/hsqc_spectra[0].y_ppm_step);
+            let x_pos = Math.floor((x_ppm - hsqc_spectra[0].x_ppm_start)/hsqc_spectra[0].x_ppm_step);
+            let data_height = hsqc_spectra[0].raw_data[y_pos *  hsqc_spectra[0].n_direct + x_pos];
+            /**
+             * Show current ppm at the top-right corner of the plot in a span element with id "infor" (child of tooldiv)
+             */
+            document.getElementById("infor").innerHTML 
+                = "x_ppm: " + x_ppm.toFixed(3) 
+                + ", y_ppm: " + y_ppm.toFixed(2)
+                + ", Intensity: " + data_height.toExponential(2);
+            
 
             if(self.horizontal) {
                 /**
@@ -514,7 +522,7 @@ plotit.prototype.draw = function () {
         }, 200);
     })
         .on("mouseleave", function (d) {
-            tooldiv.style("opacity", 0.0);
+            tooldiv.style.opacity = 0.0;
             document.activeElement.blur();
             /**
              * Remove the cross section line plot. 

@@ -40,7 +40,7 @@
             margin-right: auto;
         }
 
-        div.tooltip2 {
+        div.tooltip {
             position: absolute;
             text-align: center;
             width: 120px;
@@ -137,11 +137,14 @@
             <br><br>
 
             <div id="vis_parent" class="resizable" style="position: relative; width: 1200px; height: 800px;">
-                <div id="canvas_parent" style="position: absolute; top: 0; left: 0; z-index: 1;">
+                <div id="information_bar" class="tooltip" style="position: absolute; top: 0px; right: 90px; z-index: 3;">
+                        <span id="infor">Information</span>
+                    </div>
+                <div id="canvas_parent" style="position: absolute; top: 0px; left: 0px; z-index: 1;">
                     <canvas id="canvas1" style="border:0px;"></canvas>
                 </div>
 
-                <div id="svg_parent" style="position: absolute; bottom: 0; left: 0; z-index: 2;">
+                <div id="svg_parent" style="position: absolute; bottom: 0px; left: 0px; z-index: 2;">
                     <svg id="visualization"></svg>
                 </div>
             </div>
