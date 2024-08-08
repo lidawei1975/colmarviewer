@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<body>  
+    <input type="file" id="userfile">   
+
+    <script src="./a.out.js"></script>
+    <script>
+    Module.onRuntimeInitialized = async () => {
+        const api = {
+        version: Module.cwrap("version", "number", []),
+        };
+        console.log(api.version());
+    };
+    </script>
+</body>

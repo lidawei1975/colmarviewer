@@ -1685,6 +1685,7 @@ async function download_plot()
 
 function run_wasm()
 {
-    let x=wasm_instance.exports.my_add(22, 12);
+    // let x=wasm_instance.exports.my_add(22, 12);
+    let x=wasm_instance.exports.version();
     console.log(x);
 }
