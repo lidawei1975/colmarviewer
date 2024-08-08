@@ -326,23 +326,42 @@ plotit.prototype.draw = function () {
          * Show tool tip only when mouse stops moving for 100ms
          */
         self.timeout = setTimeout(function() {
+
+            if(self.spectral_order.length == 0) {
+                /**
+                 * No spectral data, do nothing
+                 */
+                return;
+            }
+
+            let spe_index = self.spectral_order[0];
+
             /**
              * Show tool tip
              */
-            tooldiv.style("opacity", 1.0);
+            tooldiv.style.opacity = 1.0;
             let coordinates = [event.offsetX,event.offsetY];
             let x_ppm = self.xRange.invert(coordinates[0]);
             let y_ppm = self.yRange.invert(coordinates[1]);
-            tooldiv.html(x_ppm.toFixed(3) + " " + y_ppm.toFixed(2) + " ")
-                .style("left", (event.pageX + 12) + "px")
-                .style("top", (event.pageY + 12) + "px");
+            let y_pos = Math.floor((y_ppm - hsqc_spectra[spe_index].y_ppm_ref - hsqc_spectra[spe_index].y_ppm_start)/hsqc_spectra[spe_index].y_ppm_step);
+            let x_pos = Math.floor((x_ppm - hsqc_spectra[spe_index].x_ppm_ref - hsqc_spectra[spe_index].x_ppm_start)/hsqc_spectra[spe_index].x_ppm_step);
+            let data_height = 0.0; //default value if out of range
+            if(x_pos>=0 && x_pos<hsqc_spectra[spe_index].n_direct && y_pos>=0 && y_pos<hsqc_spectra[spe_index].n_indirect) {
+                data_height = hsqc_spectra[spe_index].raw_data[y_pos *  hsqc_spectra[spe_index].n_direct + x_pos];
+            }
+            /**
+             * Show current ppm at the top-right corner of the plot in a span element with id "infor" (child of tooldiv)
+             */
+            document.getElementById("infor").innerHTML 
+                = "x_ppm: " + x_ppm.toFixed(3) + ", y_ppm: " + y_ppm.toFixed(2)+ ", Intensity: " + data_height.toExponential(2);
+            
 
             if(self.horizontal) {
                 /**
                  * Show cross section along x-axis (direct dimension).
-                 * 1. Find the closest point in the data hsqc_spectra[0].raw_data (1D Float32 array with size hsqc_spectra[0].n_direct*hsqc_spectra[0].n_indirect)
-                 * Along direct dimension, ppm are from hsqc_spectra[0].x_ppm_start to hsqc_spectra[0].x_ppm_start + hsqc_spectra[0].x_ppm_step * hsqc_spectra[0].n_direct
-                 * Along indirect dimension, ppm are from hsqc_spectra[0].y_ppm_start to hsqc_spectra[0].y_ppm_start + hsqc_spectra[0].y_ppm_step * hsqc_spectra[0].n_indirect
+                 * 1. Find the closest point in the data hsqc_spectra[spe_index].raw_data (1D Float32 array with size hsqc_spectra[spe_index].n_direct*hsqc_spectra[spe_index].n_indirect)
+                 * Along direct dimension, ppm are from hsqc_spectra[spe_index].x_ppm_start to hsqc_spectra[spe_index].x_ppm_start + hsqc_spectra[spe_index].x_ppm_step * hsqc_spectra[spe_index].n_direct
+                 * Along indirect dimension, ppm are from hsqc_spectra[spe_index].y_ppm_start to hsqc_spectra[spe_index].y_ppm_start + hsqc_spectra[spe_index].y_ppm_step * hsqc_spectra[spe_index].n_indirect
                  * So, x_ppm ==> x_ppm_start + x_ppm_step * x_pos, y_ppm ==> y_ppm_start + y_ppm_step * y_pos.
                  * So, x_pos = (x_ppm - x_ppm_start)/x_ppm_step, y_pos = (y_ppm - y_ppm_start)/y_ppm_step
                  */
@@ -351,37 +370,37 @@ plotit.prototype.draw = function () {
 
                 /**
                  * However, currect_vis_x_ppm_start and currect_vis_x_ppm_end must both 
-                 * be within the range of hsqc_spectra[0].x_ppm_start to hsqc_spectra[0].x_ppm_start + hsqc_spectra[0].x_ppm_step * hsqc_spectra[0].n_direct
+                 * be within the range of hsqc_spectra[spe_index].x_ppm_start to hsqc_spectra[spe_index].x_ppm_start + hsqc_spectra[spe_index].x_ppm_step * hsqc_spectra[spe_index].n_direct
                  */
-                if(currect_vis_x_ppm_start > hsqc_spectra[0].x_ppm_start) {
-                    currect_vis_x_ppm_start = hsqc_spectra[0].x_ppm_start;
+                if(currect_vis_x_ppm_start > hsqc_spectra[spe_index].x_ppm_start + hsqc_spectra[spe_index].x_ppm_ref) {
+                    currect_vis_x_ppm_start = hsqc_spectra[spe_index].x_ppm_start + hsqc_spectra[spe_index].x_ppm_ref;
                 }
-                if(currect_vis_x_ppm_end < hsqc_spectra[0].x_ppm_start + hsqc_spectra[0].x_ppm_step * hsqc_spectra[0].n_direct) {
-                    currect_vis_x_ppm_end = hsqc_spectra[0].x_ppm_start + hsqc_spectra[0].x_ppm_step * hsqc_spectra[0].n_direct;
+                if(currect_vis_x_ppm_end < hsqc_spectra[spe_index].x_ppm_start +hsqc_spectra[spe_index].x_ppm_ref + hsqc_spectra[spe_index].x_ppm_step * hsqc_spectra[spe_index].n_direct) {
+                    currect_vis_x_ppm_end = hsqc_spectra[spe_index].x_ppm_start+hsqc_spectra[spe_index].x_ppm_ref + hsqc_spectra[spe_index].x_ppm_step * hsqc_spectra[spe_index].n_direct;
                 }
 
-                let x_pos_start = Math.floor((currect_vis_x_ppm_start -  hsqc_spectra[0].x_ppm_start)/ hsqc_spectra[0].x_ppm_step);
-                let x_pos_end = Math.floor((currect_vis_x_ppm_end - hsqc_spectra[0].x_ppm_start)/hsqc_spectra[0].x_ppm_step);
-                let y_pos = Math.floor((y_ppm - hsqc_spectra[0].y_ppm_start)/hsqc_spectra[0].y_ppm_step);
+                let x_pos_start = Math.floor((currect_vis_x_ppm_start - hsqc_spectra[spe_index].x_ppm_ref - hsqc_spectra[spe_index].x_ppm_start)/ hsqc_spectra[spe_index].x_ppm_step);
+                let x_pos_end = Math.floor((currect_vis_x_ppm_end - hsqc_spectra[spe_index].x_ppm_ref - hsqc_spectra[spe_index].x_ppm_start)/hsqc_spectra[spe_index].x_ppm_step);
+                let y_pos = Math.floor((y_ppm - hsqc_spectra[spe_index].y_ppm_ref - hsqc_spectra[spe_index].y_ppm_start)/hsqc_spectra[spe_index].y_ppm_step);
 
                 /**
                  * if y_pos is out of range, do nothing and return
                  */
-                if(y_pos < 0 || y_pos >= hsqc_spectra[0].n_indirect) {
+                if(y_pos < 0 || y_pos >= hsqc_spectra[spe_index].n_indirect) {
                     return;
                 }
 
                 /**
-                 * Get the data from hsqc_spectra[0].raw_data, at row y_pos, from column x_pos_start to x_pos_end
+                 * Get the data from hsqc_spectra[spe_index].raw_data, at row y_pos, from column x_pos_start to x_pos_end
                  */
-                let data_height = hsqc_spectra[0].raw_data.slice(y_pos *  hsqc_spectra[0].n_direct + x_pos_start, y_pos *  hsqc_spectra[0].n_direct + x_pos_end);
+                let data_height = hsqc_spectra[spe_index].raw_data.slice(y_pos *  hsqc_spectra[spe_index].n_direct + x_pos_start, y_pos *  hsqc_spectra[spe_index].n_direct + x_pos_end);
                 /**
-                 * Get ppm values for the data, which is an array stats from hsqc_spectra[0].x_ppm_start + x_pos_start * hsqc_spectra[0].x_ppm_step
-                 * to hsqc_spectra[0].x_ppm_start + x_pos_end * hsqc_spectra[0].x_ppm_step
+                 * Get ppm values for the data, which is an array stats from hsqc_spectra[spe_index].x_ppm_start + x_pos_start * hsqc_spectra[spe_index].x_ppm_step
+                 * to hsqc_spectra[spe_index].x_ppm_start + x_pos_end * hsqc_spectra[spe_index].x_ppm_step
                  */
                 let data_ppm = [];
                 for(let i = x_pos_start; i < x_pos_end; i++) {
-                    data_ppm.push(hsqc_spectra[0].x_ppm_start + i * hsqc_spectra[0].x_ppm_step);
+                    data_ppm.push(hsqc_spectra[spe_index].x_ppm_start + hsqc_spectra[spe_index].x_ppm_ref + i * hsqc_spectra[spe_index].x_ppm_step);
                 }
                 /**
                  * Combine data_ppm and data_height to form an array of 2 numbers, called data
@@ -424,9 +443,9 @@ plotit.prototype.draw = function () {
             if(self.vertical) {
                 /**
                  * Show cross section along y-axis (indirect dimension).
-                 * 1. Find the closest point in the data hsqc_spectra[0].raw_data (1D Float32 array with size hsqc_spectra[0].n_direct*hsqc_spectra[0].n_indirect)
-                 * Along direct dimension, ppm are from hsqc_spectra[0].x_ppm_start to hsqc_spectra[0].x_ppm_start + hsqc_spectra[0].x_ppm_step * hsqc_spectra[0].n_direct
-                 * Along indirect dimension, ppm are from hsqc_spectra[0].y_ppm_start to hsqc_spectra[0].y_ppm_start + hsqc_spectra[0].y_ppm_step * hsqc_spectra[0].n_indirect
+                 * 1. Find the closest point in the data hsqc_spectra[spe_index].raw_data (1D Float32 array with size hsqc_spectra[spe_index].n_direct*hsqc_spectra[spe_index].n_indirect)
+                 * Along direct dimension, ppm are from hsqc_spectra[spe_index].x_ppm_start to hsqc_spectra[spe_index].x_ppm_start + hsqc_spectra[spe_index].x_ppm_step * hsqc_spectra[spe_index].n_direct
+                 * Along indirect dimension, ppm are from hsqc_spectra[spe_index].y_ppm_start to hsqc_spectra[spe_index].y_ppm_start + hsqc_spectra[spe_index].y_ppm_step * hsqc_spectra[spe_index].n_indirect
                  * So, x_ppm ==> x_ppm_start + x_ppm_step * x_pos, y_ppm ==> y_ppm_start + y_ppm_step * y_pos.
                  * So, x_pos = (x_ppm - x_ppm_start)/x_ppm_step, y_pos = (y_ppm - y_ppm_start)/y_ppm_step
                  */
@@ -435,44 +454,44 @@ plotit.prototype.draw = function () {
 
                 /**
                  * However, currect_vis_y_ppm_start and currect_vis_y_ppm_end must both 
-                 * be within the range of hsqc_spectra[0].y_ppm_start to hsqc_spectra[0].y_ppm_start + hsqc_spectra[0].y_ppm_step * hsqc_spectra[0].n_indirect
+                 * be within the range of hsqc_spectra[spe_index].y_ppm_start to hsqc_spectra[spe_index].y_ppm_start + hsqc_spectra[spe_index].y_ppm_step * hsqc_spectra[spe_index].n_indirect
                  */
-                if(currect_vis_y_ppm_start > hsqc_spectra[0].y_ppm_start) {
-                    currect_vis_y_ppm_start = hsqc_spectra[0].y_ppm_start;
+                if(currect_vis_y_ppm_start > hsqc_spectra[spe_index].y_ppm_start + hsqc_spectra[spe_index].y_ppm_ref) {
+                    currect_vis_y_ppm_start = hsqc_spectra[spe_index].y_ppm_start + hsqc_spectra[spe_index].y_ppm_ref;
                 }
-                if(currect_vis_y_ppm_end < hsqc_spectra[0].y_ppm_start + hsqc_spectra[0].y_ppm_step * hsqc_spectra[0].n_indirect) {
-                    currect_vis_y_ppm_end = hsqc_spectra[0].y_ppm_start + hsqc_spectra[0].y_ppm_step * hsqc_spectra[0].n_indirect;
+                if(currect_vis_y_ppm_end < hsqc_spectra[spe_index].y_ppm_start + hsqc_spectra[spe_index].y_ppm_ref + hsqc_spectra[spe_index].y_ppm_step * hsqc_spectra[spe_index].n_indirect) {
+                    currect_vis_y_ppm_end = hsqc_spectra[spe_index].y_ppm_start + hsqc_spectra[spe_index].y_ppm_ref + hsqc_spectra[spe_index].y_ppm_step * hsqc_spectra[spe_index].n_indirect;
                 }
 
-                let y_pos_start = Math.floor((currect_vis_y_ppm_start -  hsqc_spectra[0].y_ppm_start)/ hsqc_spectra[0].y_ppm_step);
-                let y_pos_end = Math.floor((currect_vis_y_ppm_end - hsqc_spectra[0].y_ppm_start)/hsqc_spectra[0].y_ppm_step);
-                let x_pos = Math.floor((x_ppm - hsqc_spectra[0].x_ppm_start)/hsqc_spectra[0].x_ppm_step);
+                let y_pos_start = Math.floor((currect_vis_y_ppm_start - hsqc_spectra[spe_index].y_ppm_ref -  hsqc_spectra[spe_index].y_ppm_start)/ hsqc_spectra[spe_index].y_ppm_step);
+                let y_pos_end = Math.floor((currect_vis_y_ppm_end - hsqc_spectra[spe_index].y_ppm_ref - hsqc_spectra[spe_index].y_ppm_start)/hsqc_spectra[spe_index].y_ppm_step);
+                let x_pos = Math.floor((x_ppm - hsqc_spectra[spe_index].x_ppm_ref - hsqc_spectra[spe_index].x_ppm_start)/hsqc_spectra[spe_index].x_ppm_step);
 
                 /**
                  * if x_pos is out of range, do nothing and return
                  */
-                if(x_pos < 0 || x_pos >= hsqc_spectra[0].n_direct) {
+                if(x_pos < 0 || x_pos >= hsqc_spectra[spe_index].n_direct) {
                     return;
                 }
 
                 /**
-                 * Get the data from hsqc_spectra[0].raw_data, at column x_pos, from row y_pos_start to y_pos_end
-                 * Along direct dimension, ppm are from hsqc_spectra[0].x_ppm_start to hsqc_spectra[0].x_ppm_start + hsqc_spectra[0].x_ppm_step * hsqc_spectra[0].n_direct
-                 * Along indirect dimension, ppm are from hsqc_spectra[0].y_ppm_start to hsqc_spectra[0].y_ppm_start + hsqc_spectra[0].y_ppm_step * hsqc_spectra[0].n_indirect
+                 * Get the data from hsqc_spectra[spe_index].raw_data, at column x_pos, from row y_pos_start to y_pos_end
+                 * Along direct dimension, ppm are from hsqc_spectra[spe_index].x_ppm_start to hsqc_spectra[spe_index].x_ppm_start + hsqc_spectra[spe_index].x_ppm_step * hsqc_spectra[spe_index].n_direct
+                 * Along indirect dimension, ppm are from hsqc_spectra[spe_index].y_ppm_start to hsqc_spectra[spe_index].y_ppm_start + hsqc_spectra[spe_index].y_ppm_step * hsqc_spectra[spe_index].n_indirect
                  * So, x_ppm ==> x_ppm_start + x_ppm_step * x_pos, y_ppm ==> y_ppm_start + y_ppm_step * y_pos.
                  * So, x_pos = (x_ppm - x_ppm_start)/x_ppm_step, y_pos = (y_ppm - y_ppm_start)/y_ppm_step
                  */
                 let data_height = [];
                 for(let i = y_pos_start; i < y_pos_end; i++) {
-                    data_height.push(hsqc_spectra[0].raw_data[i *  hsqc_spectra[0].n_direct + x_pos]);
+                    data_height.push(hsqc_spectra[spe_index].raw_data[i *  hsqc_spectra[spe_index].n_direct + x_pos]);
                 }
                 /**
-                 * Get ppm values for the data, which is an array stats from hsqc_spectra[0].y_ppm_start + y_pos_start * hsqc_spectra[0].y_ppm_step
-                 * to hsqc_spectra[0].y_ppm_start + y_pos_end * hsqc_spectra[0].y_ppm_step
+                 * Get ppm values for the data, which is an array stats from hsqc_spectra[spe_index].y_ppm_start + y_pos_start * hsqc_spectra[spe_index].y_ppm_step
+                 * to hsqc_spectra[spe_index].y_ppm_start + y_pos_end * hsqc_spectra[spe_index].y_ppm_step
                  */
                 let data_ppm = [];
                 for(let i = y_pos_start; i < y_pos_end; i++) {
-                    data_ppm.push(hsqc_spectra[0].y_ppm_start + i * hsqc_spectra[0].y_ppm_step);
+                    data_ppm.push(hsqc_spectra[spe_index].y_ppm_start + hsqc_spectra[spe_index].y_ppm_ref + i * hsqc_spectra[spe_index].y_ppm_step);
                 }
                 /**
                  * Combine data_ppm and data_height to form an array of 2 numbers, called data
@@ -514,7 +533,7 @@ plotit.prototype.draw = function () {
         }, 200);
     })
         .on("mouseleave", function (d) {
-            tooldiv.style("opacity", 0.0);
+            tooldiv.style.opacity = 0.0;
             document.activeElement.blur();
             /**
              * Remove the cross section line plot. 

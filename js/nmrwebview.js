@@ -71,7 +71,7 @@ const my_contour_worker = new Worker(workerSourceURL);
 
 var main_plot; //hsqc plot object
 var stage = 1; // Because we have only one stage in this program, we set it to 1 (shared code with other programs, which may have more than one stage)
-
+var tooldiv; //tooltip div
 
 /**
  * Define a spectrum class to hold all spectrum information
@@ -274,11 +274,11 @@ $(document).ready(function () {
      */
     oOutput = document.getElementById("infor");
 
-
-    tooldiv = d3.select("body")
-        .append("div")
-        .attr("class", "tooltip2")
-        .style("opacity", 0);
+    /**
+     * Tooltip div. Set the opacity to 0
+     */
+    tooldiv = document.getElementById("information_bar");
+    tooldiv.style.opacity = 0;
 
     /**
      * clear hsqc_spectra array
@@ -454,9 +454,12 @@ const sortableList =
 sortableList.addEventListener(
     "dragstart",
     (e) => {
-        draggedItem = e.target;
+        /**
+         * We will move the parent element of the dragged item
+         */
+        draggedItem = e.target.parentElement;
         setTimeout(() => {
-            e.target.style.display =
+            e.target.parentElement.style.display =
                 "none";
         }, 0);
 });
@@ -465,7 +468,7 @@ sortableList.addEventListener(
     "dragend",
     (e) => {
         setTimeout(() => {
-            e.target.style.display = "";
+            e.target.parentElement.style.display = "";
             draggedItem = null;
         }, 0);
 
@@ -505,9 +508,8 @@ sortableList.addEventListener(
             getDragAfterElement(
                 sortableList,
                 e.clientY);
-        const currentElement =
-            document.querySelector(
-                ".dragging");
+        // const currentElement =document.querySelector(".dragging").parentElement;
+
         if (afterElement == null) {
             sortableList.appendChild(
                 draggedItem
@@ -557,14 +559,21 @@ const getDragAfterElement = (
 function add_spectrum_to_list(index) {
     let new_spectrum = hsqc_spectra[index];
     let new_spectrum_div = document.createElement("li");
-    /**
-     * Make it draggable
-     */
-    new_spectrum_div.draggable = true;
+
     /**
      * Assign a ID to the new spectrum div
      */
     new_spectrum_div.id = "spectrum-".concat(index);
+
+    /**
+     * Add a draggable div to the new spectrum div
+     */
+    let draggable_span = document.createElement("span");
+    draggable_span.draggable = true;
+    draggable_span.classList.add("draggable");
+    draggable_span.appendChild(document.createTextNode("\u2630 Drag me. "));
+    draggable_span.style.cursor = "move";
+    new_spectrum_div.appendChild(draggable_span);
     
     /**
      * The new DIV will have the following children:
@@ -574,7 +583,8 @@ function add_spectrum_to_list(index) {
     /**
      * Add filename as a text node
      */
-    new_spectrum_div.appendChild(document.createTextNode(" File name: " + hsqc_spectra[index].filename + " "));
+    let fname_text = document.createTextNode(" File name: " + hsqc_spectra[index].filename + " ");
+    new_spectrum_div.appendChild(fname_text);
     /**
      * Add two input text element with ID ref1 and ref2, default value is 0 and 0
      * They also have a label element with text "Ref direct: " and "Ref indirect: "
@@ -702,8 +712,6 @@ function add_spectrum_to_list(index) {
     contour_slider.setAttribute("value", "1");
     contour_slider.style.width = "10%";
     contour_slider.addEventListener("input", (e) => {update_contour_slider(e,index,0); });
-    contour_slider.draggable = true;
-    contour_slider.addEventListener("dragstart", (e) => {e.preventDefault(); e.stopPropagation(); });
     new_spectrum_div.appendChild(contour_slider);
 
     
@@ -814,8 +822,6 @@ function add_spectrum_to_list(index) {
         contour_slider_negative.setAttribute("value", "1");
         contour_slider_negative.style.width = "10%";
         contour_slider_negative.addEventListener("input", (e) => { update_contour_slider(e,index,1); });
-        contour_slider_negative.draggable = true;
-        contour_slider_negative.addEventListener("dragstart", (e) => {e.preventDefault(); e.stopPropagation(); });
         new_spectrum_div.appendChild(contour_slider_negative);
     
         
