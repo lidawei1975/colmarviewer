@@ -345,6 +345,13 @@ $(document).ready(function () {
 
         read_file('userfile')
             .then((result_spectrum) => {
+
+                if(typeof result_spectrum.error !== "undefined")
+                {
+                    alert(result_spectrum.error);
+                    return;
+                }
+
                 let spectrum_index = hsqc_spectra.length;
                 result_spectrum.spectrum_index = spectrum_index;
                 result_spectrum.spectrum_color = color_list[(spectrum_index*2) % color_list.length];
@@ -1494,12 +1501,81 @@ const read_file = (file_id) => {
                 result.n_direct = result.header[99]; //size of direct dimension of the input spectrum
 
                 result.tp = result.header[221];
-                result.sw1 = result.header[100];
-                result.sw2 = result.header[229];
-                result.frq1 = result.header[119];
-                result.frq2 = result.header[218];
-                result.ref1 = result.header[101];
-                result.ref2 = result.header[249];
+
+                /**
+                 * if transposed, set result.error and return
+                 */
+                if (result.tp !== 0) {
+                    result.error="Transposed data, please un-transpose the data before loading";
+                    resolve(result);
+                }
+
+                /**
+                 * Datatype of the direct and indirect dimension
+                 * 0: complex
+                 * 1: real
+                 */
+                result.datatype_direct = result.header[55];
+                result.datatype_indirect = result.header[56];
+
+                /**
+                 * We only read real at this moment
+                 */
+                if (result.datatype_direct !== 1 || result.datatype_indirect !== 1) {
+                    result.error="Only real data is supported";
+                    resolve(result);
+                }
+
+                result.direct_ndx = result.header[24]; //must be 2
+                result.indirect_ndx = result.header[25]; //must be 1 or 3
+                /**
+                 * direct_ndx must be 1, otherwise set error and return
+                 */
+                if (result.direct_ndx !== 2) {
+                    result.error="Direct dimension must be the second dimension";
+                    resolve(result);
+                }
+                /**
+                 * indirect_ndx must be 1 or 3, otherwise set error and return
+                 */
+                if (result.indirect_ndx !== 1 && result.indirect_ndx !== 3) {
+                    result.error="Indirect dimension must be the first or third dimension";
+                    resolve(result);
+                }
+
+                /**
+                 * result.sw, result.frq,result.ref are the spectral width, frequency and reference of the direct dimension
+                 * All are array of length 4
+                 */
+                result.sw = [];
+                result.frq = [];
+                result.ref = [];
+
+                result.sw[0] = result.header[229];
+                result.sw[1] = result.header[100];
+                result.sw[2] = result.header[11];
+                result.sw[3] = result.header[29];
+
+                result.frq[0] = result.header[218];
+                result.frq[1] = result.header[119];
+                result.frq[2] = result.header[10];
+                result.frq[3] = result.header[28];
+
+                result.ref[0] = result.header[249];
+                result.ref[1] = result.header[101];
+                result.ref[2] = result.header[12];
+                result.ref[3] = result.header[30];
+
+                /**
+                 * Get ppm_start, ppm_width, ppm_step for both direct and indirect dimensions
+                 */
+                result.sw1 = result.sw[result.direct_ndx-1];
+                result.sw2 = result.sw[result.indirect_ndx-1];
+                result.frq1 = result.frq[result.direct_ndx-1];
+                result.frq2 = result.frq[result.indirect_ndx-1];
+                result.ref1 = result.ref[result.direct_ndx-1];
+                result.ref2 = result.ref[result.indirect_ndx-1];
+
 
                 result.x_ppm_start = (result.ref1 + result.sw1) / result.frq1;
                 result.x_ppm_width = result.sw1 / result.frq1;
