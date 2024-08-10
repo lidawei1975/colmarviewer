@@ -73,7 +73,7 @@ var main_plot; //hsqc plot object
 var stage = 1; // Because we have only one stage in this program, we set it to 1 (shared code with other programs, which may have more than one stage)
 var tooldiv; //tooltip div
 
-var wasm_instance; //wasm instance
+var api; //wasm api object
 
 /**
  * Define a spectrum class to hold all spectrum information
@@ -287,6 +287,11 @@ $(document).ready(function () {
      */
     hsqc_spectra = [];
 
+    api = {
+        version: Module.cwrap("version", "number", []),
+        deep: Module.cwrap("deep", "number", []),
+    };
+
 
     /**
      * Initialize the big plot
@@ -306,21 +311,6 @@ $(document).ready(function () {
     .file_name("ft2")  /** file extenstion to be searched from upload */
     .file_id("userfile") /** Corresponding file element IDs */
     .init();
-
-    document.getElementById('userfile2').addEventListener('change', function () {
-        let file = this.files[0];
-        let reader = new FileReader();
-        reader.readAsArrayBuffer(file);
-
-        reader.onload = function () {
-            let wasm_buffer = reader.result;
-            WebAssembly.compile(wasm_buffer).then(x => {
-                wasm = x;
-                wasm_instance = new WebAssembly.Instance(wasm);
-            });
-        };
-    });
-
 
     /**
      * When use selected a file, read the file and process it
@@ -1490,8 +1480,11 @@ const read_file = (file_id) => {
         let file = document.getElementById(file_id).files[0];
         if (file) {
             var reader = new FileReader();
-            reader.onload = function (e_file_read) {
-                var arrayBuffer = e_file_read.target.result;
+            reader.onload = function () {
+                var arrayBuffer = reader.result;
+
+                var data = new Uint8Array(reader.result);
+                Module['FS_createDataFile']('/', 'test.ft2', data, true, true, true);
 
                 let result = new spectrum();
 
@@ -1761,7 +1754,29 @@ async function download_plot()
 
 function run_wasm()
 {
-    // let x=wasm_instance.exports.my_add(22, 12);
-    let x=wasm_instance.exports.version();
-    console.log(x);
+    /**
+     * test the wasm module works.
+     * Call api.version() to get the version of the module, which should be 4
+     */
+    let version = api.version();
+    if(version!=4)
+    {
+        alert("Error: wasm module version is not 4");
+        return;
+    }
+
+    /**
+     * Run the peak picking algorithm, which will generate peaks.json in the wasm virtual file system
+     */
+    api.deep();
+    opts={
+        encoding: 'utf8',
+    }
+    /**
+     * Read peaks.json from the wasm virtual file system and decode it to get the peak list
+     */
+    let r=FS.readFile('peaks.json',opts);
+    let peaks=JSON.parse(r);
+
+    main_plot.add_picked_peaks(peaks.picked_peaks);
 }

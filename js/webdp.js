@@ -112,17 +112,20 @@ if (ENVIRONMENT_IS_NODE) {
                 return new Uint8Array(xhr.response)
             }
         }
-        readAsync = (url, onload, onerror) => {
-            var input = document.getElementById("userfile");
-            input.onchange = e => {
-                var file = e.target.files[0];
-                var reader = new FileReader();
-                reader.onload = () => {
-                    onload(reader.result);
-                };
-                reader.onerror = onerror;
-                reader.readAsArrayBuffer(file);
+        readAsync = (url,onload,onerror)=>{
+            var xhr = new XMLHttpRequest;
+            xhr.open("GET", url, true);
+            xhr.responseType = "arraybuffer";
+            xhr.onload = ()=>{
+                if (xhr.status == 200 || xhr.status == 0 && xhr.response) {
+                    onload(xhr.response);
+                    return
+                }
+                onerror()
             }
+            ;
+            xhr.onerror = onerror;
+            xhr.send(null)
         }
     }
 } else {
@@ -368,7 +371,7 @@ function createExportWrapper(name, nargs) {
     }
 }
 var wasmBinaryFile;
-wasmBinaryFile = "a.out.wasm";
+wasmBinaryFile = "webdp.wasm";
 if (!isDataURI(wasmBinaryFile)) {
     wasmBinaryFile = locateFile(wasmBinaryFile)
 }
@@ -4090,4 +4093,4 @@ if (Module["preInit"]) {
         Module["preInit"].pop()()
     }
 }
-
+run();

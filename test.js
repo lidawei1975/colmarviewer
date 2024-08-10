@@ -35,7 +35,8 @@ function backup_code() {
     opts={
         encoding: 'utf8',
     }
-    let r=FS.readFile('peaks.tab',opts);
+    let r=FS.readFile('peaks.json',opts);
+    let peaks=JSON.parse(r);
 
 
 

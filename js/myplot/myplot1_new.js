@@ -115,6 +115,9 @@ plotit.prototype.update = function (input) {
  * When zoom or resize, we need to reset the axis
  */
 plotit.prototype.reset_axis = function () {
+
+    let self = this;
+
     this.xAxis_svg.call(this.xAxis);
     this.yAxis_svg.call(this.yAxis);
     this.vis.selectAll(".xaxis>.tick>text")
@@ -124,6 +127,17 @@ plotit.prototype.reset_axis = function () {
     this.vis.selectAll(".yaxis>.tick>text")
         .each(function () {
             d3.select(this).style("font-size", "20px");
+        });
+
+    /**
+     * Reset the position of peaks
+     */
+    this.vis.selectAll('.peak')
+        .attr('cx', function (d) {
+            return self.xRange(d.cs_x);
+        })
+        .attr('cy', function (d) {
+            return self.yRange(d.cs_y);
         });
 };
 
@@ -595,3 +609,34 @@ plotit.prototype.redraw_contour_order = function ()
     this.contour_plot.drawScene();   
 }
 
+/**
+ * Draw peaks on the plot
+ */
+plotit.prototype.add_picked_peaks = function (peaks) {
+    let self = this;
+
+    self.peaks = peaks;
+
+    /**
+     * Remove all peaks if there is any
+     */
+    self.vis.selectAll('.peak').remove();
+
+    /**
+     * Draw peaks
+     */
+    self.vis.selectAll('.peak')
+        .data(peaks)
+        .enter()
+        .append('circle')
+        .attr('class', 'peak')
+        .attr('cx', function (d) {
+            return self.xRange(d.cs_x);
+        })
+        .attr('cy', function (d) {
+            return self.yRange(d.cs_y);
+        })
+        .attr('r', 5)
+        .attr('stroke', 'red')
+        .attr('stroke-width', 1);
+}
