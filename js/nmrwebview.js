@@ -647,6 +647,15 @@ function add_spectrum_to_list(index) {
      */
     let fname_text = document.createTextNode(" File name: " + hsqc_spectra[index].filename + " ");
     new_spectrum_div.appendChild(fname_text);
+
+    /**
+     * Add a download button to download the spectrum
+     */
+    let download_button = document.createElement("button");
+    download_button.innerText = "Download frequency domain spectrum";
+    download_button.onclick = function () { download_spectrum(index); };
+    new_spectrum_div.appendChild(download_button);
+
     /**
      * Add two input text element with ID ref1 and ref2, default value is 0 and 0
      * They also have a label element with text "Ref direct: " and "Ref indirect: "
@@ -680,7 +689,6 @@ function add_spectrum_to_list(index) {
      */
     new_spectrum_div.appendChild(document.createElement("br"));
     
-
 
     /**
      * Positive contour levels first
@@ -1744,6 +1752,25 @@ function process_ft_file(arrayBuffer,file_name) {
 
     return result;
 }
+
+/**
+ * Download spectrum
+ *
+ */
+ function download_spectrum(index) {
+    let filename = hsqc_spectra[index].filename;
+
+    /**
+     * generate a blob, which is hsqc_spectra[index].header + hsqc_spectra[index].raw_data
+     */
+    let data = Float32Concat(hsqc_spectra[index].header, hsqc_spectra[index].raw_data);
+    let blob = new Blob([data], { type: 'application/octet-stream' });
+    let url = URL.createObjectURL(blob);
+    let a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+ }
 
 /**
  * Add a new spectrum to the list and update the contour plot
