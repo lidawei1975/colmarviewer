@@ -112,8 +112,19 @@
 
         <h1>Web based two-dimensional NMR spectra viewer</h1>
 
+        <div id="fid_file_area" class="drop-area" style="width: 1200px;">
+            <form id="fid_file_form" action="" enctype="multipart/form-data">
+            <h4>Upload Bruker time domain data for processing:</h4>
+            <label for="fid_file">fid file (required, usually called fid or ser): </label><input type="file" name="fid_file" id="fid_file" multiple><br>
+            <label for="acquisition_file">acqus file (required, usually called acqus): </label><input type="file" name="acquisition_file" id="acquisition_file"><br>
+            <label for="acquisition_file2">acqus2 file (required, usually called acqu2s): </label><input type="file" name="acquisition_file2" id="acquisition_file2"><br>
+            <input type="submit" id="button_fid_process" name="Submit" value="Upload fid file for processing"></br>
+            </form>
+        </div>
+
         <div id="file_area" class="drop-area" style="width: 1200px;">
-            <label for="userfile">Uploaded Spectra: </label><input type="file" id="userfile">
+            <h4>Or upload frequency domain spectra:</h4>
+            <label for="userfile">Frequency domain spectral file (.ft2) </label><input type="file" id="userfile">
             <label> You can also drag and drop spectral file(s) or folder here.</label>
         </div>
 
