@@ -1,79 +1,22 @@
-function MyWorker() {
-
-    importScripts('https://d3js.org/d3.v7.min.js');
-
-    onmessage = (e) => {
-        postMessage({ message: "Calculating " + e.data.spectrum.spectrum_type });
-        let workerResult = {};
-        process_spectrum_data(e.data.response_value, e.data.spectrum, workerResult);
-        postMessage(workerResult);
-    };
 
 
-    function process_spectrum_data(response_value, spectrum, workerResult) {
 
-        /**
-         * if spectrum.contour_sign === 1 (negative contour), we need to *-1 to the levels and the response_value
-         * BUG is d3.contours() does not work with negative values properly !!
-         */
-        if (spectrum.contour_sign === 1) {
-            for (let i = 0; i < spectrum.levels.length; i++) {
-                spectrum.levels[i] = -spectrum.levels[i];
-            }
-            for (let i = 0; i < response_value.length; i++) {
-                response_value[i] = -response_value[i];
-            }
-        }
+const my_contour_worker = new Worker('./js/contour.js');
 
-
-        let polygons = d3.contours().size([spectrum.n_direct, spectrum.n_indirect]).thresholds(spectrum.levels)(response_value);
-        let polygon_2d = [];
-
-
-        workerResult.polygon_length = [];
-        workerResult.levels_length = [];
-
-
-        for (let m = 0; m < polygons.length; m++) {
-            for (let i = 0; i < polygons[m].coordinates.length; i++) {
-                for (let j = 0; j < polygons[m].coordinates[i].length; j++) {
-                    let coors2 = polygons[m].coordinates[i][j];
-                    polygon_2d = polygon_2d.concat(coors2);
-                    workerResult.polygon_length.push(polygon_2d.length);
-                }
-            }
-            workerResult.levels_length.push(workerResult.polygon_length.length);
-        }
-        
-       
-
-
-        let polygon_1d = new Array(polygon_2d.length * 2);
-
-        for (let i = 0; i < polygon_2d.length; i++) {
-            polygon_1d[i * 2] = polygon_2d[i][0];
-            polygon_1d[i * 2 + 1] = polygon_2d[i][1];
-        }
-        workerResult.points = new Float32Array(polygon_1d);
-
-        workerResult.spectrum_type = spectrum.spectrum_type;
-        workerResult.spectrum_index = spectrum.spectrum_index;
-        workerResult.contour_sign = spectrum.contour_sign;
-    }
-
-}
-
-const fn = MyWorker.toString();
-const fnBody = fn.substring(fn.indexOf('{') + 1, fn.lastIndexOf('}'));
-const workerSourceURL = URL.createObjectURL(new Blob([fnBody]));
-const my_contour_worker = new Worker(workerSourceURL);
+const webassembly_worker = new Worker('./js/webass.js');
 
 
 var main_plot; //hsqc plot object
 var stage = 1; // Because we have only one stage in this program, we set it to 1 (shared code with other programs, which may have more than one stage)
 var tooldiv; //tooltip div
 
-var api; //wasm api object
+
+/**
+ * DOM div for the processing message
+ */
+var oProcessing;
+var oOutput;
+
 
 /**
  * Define a spectrum class to hold all spectrum information
@@ -283,6 +226,30 @@ class file_drop_processor {
     }
 };
 
+const read_file = (file_id) => {
+    return new Promise((resolve, reject) => {
+
+        let file = document.getElementById(file_id).files[0];
+        if (file) {
+            var reader = new FileReader();
+            reader.onload = function () {
+
+                var data = new Uint8Array(reader.result);
+                /**
+                 * We will use the file_id as the file name. 
+                 * Save them to the virtual file system for webassembly to read
+                 */
+                // Module['FS_createDataFile']('/', file_id, data, true, true, true);
+                return resolve(data);
+            };
+            reader.onerror = function (e) {
+                reject("Error reading file");
+            };
+            reader.readAsArrayBuffer(file);
+        }
+    });
+}
+
 
 $(document).ready(function () {
 
@@ -290,6 +257,7 @@ $(document).ready(function () {
      * This is the main information output area
      */
     oOutput = document.getElementById("infor");
+    oProcessing = document.getElementById("fid_process_message");
 
     /**
      * Tooltip div. Set the opacity to 0
@@ -302,11 +270,20 @@ $(document).ready(function () {
      */
     hsqc_spectra = [];
 
-    api = {
-        version: Module.cwrap("version", "number", []),
-        deep: Module.cwrap("deep", "number", []),
-        fid_phase: Module.cwrap("fid_phase", "number", []),
-    };
+    // api = {
+    //     version: Module.cwrap("version", "number", []),
+    //     deep: Module.cwrap("deep", "number", []),
+    //     fid_phase: Module.cwrap("fid_phase", "number", []),
+    // };
+
+
+    // Module.print = function (text) {
+    //     console.log("hehe"+text);
+    // }
+
+    // out = function (text) {
+    //     oProcessing.innerHTML = text;
+    // }
 
 
     /**
@@ -379,8 +356,6 @@ $(document).ready(function () {
         e.preventDefault();
 
         let promises = [read_file('acquisition_file'), read_file('acquisition_file2'), read_file('fid_file')];
-
-
         Promise.all(promises)
             .then((result) => {
 
@@ -392,55 +367,25 @@ $(document).ready(function () {
                 document.getElementById('fid_file').value = "";
 
                 /**
-                 * Call the fid_phase function in the wasm module to process the time domain spectra
-                 * it will generated the frequency domain spectra as test.ft2
+                 * Result is an array of Uint8Array
                  */
-                api.fid_phase();
-                    
-               
-                /**
-                 * Read peaks.json from the wasm virtual file system and decode it to get the peak list
-                 */
-                opts={
-                    encoding: 'binary',
-                }
-                let t=FS.readFile('test.ft2',opts);
+                webassembly_worker.postMessage({file_data: result});
 
-                /**
-                 * Remove file after reading
-                 */
-                FS.unlink('test.ft2');
-                FS.unlink('acquisition_file');
-                FS.unlink('acquisition_file2');
-                FS.unlink('fid_file');
-
-                /**
-                 * Convert to array buffer
-                 */
-                let arrayBuffer = new Uint8Array(t).buffer;
-
-                /**
-                 * Debug, save to local file
-                 */
-                // let blob = new Blob([arrayBuffer], { type: 'application/octet-stream' });
-                // let url = URL.createObjectURL(blob);
-                // let a = document.createElement('a');
-                // a.href = url;
-                // a.download = 'test.ft2';
-                // a.click();
-
-                let result_spectrum = process_ft_file(arrayBuffer,'from_fid.ft2');
-
-                draw_spectrum(result_spectrum);
 
             })
-            .catch((error) => {
-                console.log(error);
-            });
+            .catch((err) => {
+                console.log(err);
+            });      
     });
 
 });
 
+
+webassembly_worker.onmessage = function (e) {
+    let arrayBuffer = new Uint8Array(e.data.file_data).buffer;
+    let result_spectrum = process_ft_file(arrayBuffer,"from_fid.ft2");
+    draw_spectrum(result_spectrum);
+};
 
 var plot_div_resize_observer = new ResizeObserver(entries => {
     for (let entry of entries) {
@@ -1532,31 +1477,7 @@ function update_contour_color(e,index,flag) {
     main_plot.redraw_contour();
 }
 
-const read_file = (file_id) => {
-    return new Promise((resolve, reject) => {
 
-        let file = document.getElementById(file_id).files[0];
-        if (file) {
-            var reader = new FileReader();
-            reader.onload = function () {
-                var arrayBuffer = reader.result;
-
-                var data = new Uint8Array(reader.result);
-                /**
-                 * We will use the file_id as the file name. 
-                 * Save them to the virtual file system for webassembly to read
-                 */
-                Module['FS_createDataFile']('/', file_id, data, true, true, true);
-                    
-                return resolve();
-            };
-            reader.onerror = function (e) {
-                reject("Error reading file");
-            };
-            reader.readAsArrayBuffer(file);
-        }      
-    });
-}
 
 const read_file_and_process_ft2 = (file_id) => {
     return new Promise((resolve, reject) => {
@@ -1929,28 +1850,17 @@ async function download_plot()
 function run_wasm()
 {
     /**
-     * test the wasm module works.
-     * Call api.version() to get the version of the module, which should be 4
-     */
-    let version = api.version();
-    if(version!=4)
-    {
-        alert("Error: wasm module version is not 4");
-        return;
-    }
-
-    /**
      * Run the peak picking algorithm, which will generate peaks.json in the wasm virtual file system
      */
-    api.deep();
-    opts={
-        encoding: 'utf8',
-    }
-    /**
-     * Read peaks.json from the wasm virtual file system and decode it to get the peak list
-     */
-    let r=FS.readFile('peaks.json',opts);
-    let peaks=JSON.parse(r);
+    // api.deep();
+    // opts={
+    //     encoding: 'utf8',
+    // }
+    // /**
+    //  * Read peaks.json from the wasm virtual file system and decode it to get the peak list
+    //  */
+    // let r=FS.readFile('peaks.json',opts);
+    // let peaks=JSON.parse(r);
 
-    main_plot.add_picked_peaks(peaks.picked_peaks);
+    // main_plot.add_picked_peaks(peaks.picked_peaks);
 }
