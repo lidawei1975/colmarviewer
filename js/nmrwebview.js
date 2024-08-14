@@ -1,77 +1,35 @@
-function MyWorker() {
 
-    importScripts('https://d3js.org/d3.v7.min.js');
+/**
+ * Make sure we can load WebWorker
+*/
 
-    onmessage = (e) => {
-        postMessage({ message: "Calculating " + e.data.spectrum.spectrum_type });
-        let workerResult = {};
-        process_spectrum_data(e.data.response_value, e.data.spectrum, workerResult);
-        postMessage(workerResult);
-    };
+var my_contour_worker, webassembly_worker;
 
-
-    function process_spectrum_data(response_value, spectrum, workerResult) {
-
-        /**
-         * if spectrum.contour_sign === 1 (negative contour), we need to *-1 to the levels and the response_value
-         * BUG is d3.contours() does not work with negative values properly !!
-         */
-        if (spectrum.contour_sign === 1) {
-            for (let i = 0; i < spectrum.levels.length; i++) {
-                spectrum.levels[i] = -spectrum.levels[i];
-            }
-            for (let i = 0; i < response_value.length; i++) {
-                response_value[i] = -response_value[i];
-            }
-        }
-
-
-        let polygons = d3.contours().size([spectrum.n_direct, spectrum.n_indirect]).thresholds(spectrum.levels)(response_value);
-        let polygon_2d = [];
-
-
-        workerResult.polygon_length = [];
-        workerResult.levels_length = [];
-
-
-        for (let m = 0; m < polygons.length; m++) {
-            for (let i = 0; i < polygons[m].coordinates.length; i++) {
-                for (let j = 0; j < polygons[m].coordinates[i].length; j++) {
-                    let coors2 = polygons[m].coordinates[i][j];
-                    polygon_2d = polygon_2d.concat(coors2);
-                    workerResult.polygon_length.push(polygon_2d.length);
-                }
-            }
-            workerResult.levels_length.push(workerResult.polygon_length.length);
-        }
-        
-       
-
-
-        let polygon_1d = new Array(polygon_2d.length * 2);
-
-        for (let i = 0; i < polygon_2d.length; i++) {
-            polygon_1d[i * 2] = polygon_2d[i][0];
-            polygon_1d[i * 2 + 1] = polygon_2d[i][1];
-        }
-        workerResult.points = new Float32Array(polygon_1d);
-
-        workerResult.spectrum_type = spectrum.spectrum_type;
-        workerResult.spectrum_index = spectrum.spectrum_index;
-        workerResult.contour_sign = spectrum.contour_sign;
-    }
-
+try {
+    my_contour_worker = new Worker('./js/contour.js');
+    webassembly_worker = new Worker('./js/webass.js');
 }
-
-const fn = MyWorker.toString();
-const fnBody = fn.substring(fn.indexOf('{') + 1, fn.lastIndexOf('}'));
-const workerSourceURL = URL.createObjectURL(new Blob([fnBody]));
-const my_contour_worker = new Worker(workerSourceURL);
+catch (err) {
+    console.log(err);
+    if (typeof (my_contour_worker) === "undefined" || typeof (webassembly_worker) === "undefined") {
+        alert("Failed to load WebWorker, probably due to browser incompatibility. Please use a modern browser, if you run this program locally, please read last paragraph of instructions");
+    }
+}
 
 
 var main_plot; //hsqc plot object
 var stage = 1; // Because we have only one stage in this program, we set it to 1 (shared code with other programs, which may have more than one stage)
 var tooldiv; //tooltip div
+
+
+/**
+ * DOM div for the processing message
+ */
+var oOutput;
+
+var processing_message_title ="";
+var processing_message = [];
+
 
 /**
  * Define a spectrum class to hold all spectrum information
@@ -137,8 +95,8 @@ class file_drop_processor {
     /**
      * 
      * @param {string} drop_area_id: DIV id of the drop area
-     * @param {string} file_name: array of file names to be extracted from the dropped files
-     * @param {string} file_id: array of file ids the extracted file to be attached to
+     * @param {array} files_name: array of file names to be extracted from the dropped files
+     * @param {array} files_id: array of file ids the extracted file to be attached to
      */
     constructor() {
         this.supportsFileSystemAccessAPI = 'getAsFileSystemHandle' in DataTransferItem.prototype;
@@ -150,13 +108,18 @@ class file_drop_processor {
         return this;
     }
 
-    file_name(file_name) {
-        this.file_name = file_name;
+    files_name(files_name) {
+        this.files_name = files_name;
         return this;
     }
 
-    file_id(file_id) {
-        this.file_id = file_id;
+    file_extension(file_extension) {
+        this.file_extension = file_extension;
+        return this;
+    }
+
+    files_id(files_id) {
+        this.files_id = files_id;
         return this;
     }
 
@@ -174,12 +137,6 @@ class file_drop_processor {
 
         // Visually highlight the drop zone.
         this.elem.addEventListener('dragenter', (e) => {
-            /**
-             * If draggedItem is not null, return (user is dragging something else)
-             */
-            if (draggedItem !== null) {
-                return;
-            }
             this.elem.style.outline = 'solid red 2px';
         });
 
@@ -200,18 +157,34 @@ class file_drop_processor {
         let file = await entry.getFile();
 
         /**
+         * Only if the dropped file is  in the list
+         */
+        if (this.files_name.includes(file.name)) {
+            let container = new DataTransfer();
+            container.items.add(file);
+            let file_id = this.files_id[this.files_name.indexOf(file.name)];
+            document.getElementById(file_id).files = container.files;
+            /**
+             * If we can match file, will not try to match extension
+             */
+            return;
+        }
+
+        /**
          * Only if the dropped file's extension is as predefined, we will attach it to the corresponding file input
          */
         let file_extension = file.name.split('.').pop();    
-        if (this.file_name==file_extension) {
+        if (this.file_extension==file_extension) {
             let container = new DataTransfer();
             container.items.add(file);
-            document.getElementById(this.file_id).files = container.files;
+            let file_id = this.files_id[this.file_extension.indexOf(file_extension)];
+            document.getElementById(file_id).files = container.files;
             /**
              * Simulate the change event
              */
-            document.getElementById(this.file_id).dispatchEvent(new Event('change'));
+            document.getElementById(file_id).dispatchEvent(new Event('change'));
         }
+
     }
 
     async drop_handler(e) {
@@ -266,6 +239,30 @@ class file_drop_processor {
     }
 };
 
+const read_file = (file_id) => {
+    return new Promise((resolve, reject) => {
+
+        let file = document.getElementById(file_id).files[0];
+        if (file) {
+            var reader = new FileReader();
+            reader.onload = function () {
+
+                var data = new Uint8Array(reader.result);
+                /**
+                 * We will use the file_id as the file name. 
+                 * Save them to the virtual file system for webassembly to read
+                 */
+                // Module['FS_createDataFile']('/', file_id, data, true, true, true);
+                return resolve(data);
+            };
+            reader.onerror = function (e) {
+                reject("Error reading file");
+            };
+            reader.readAsArrayBuffer(file);
+        }
+    });
+}
+
 
 $(document).ready(function () {
 
@@ -285,6 +282,21 @@ $(document).ready(function () {
      */
     hsqc_spectra = [];
 
+    // api = {
+    //     version: Module.cwrap("version", "number", []),
+    //     deep: Module.cwrap("deep", "number", []),
+    //     fid_phase: Module.cwrap("fid_phase", "number", []),
+    // };
+
+
+    // Module.print = function (text) {
+    //     console.log("hehe"+text);
+    // }
+
+    // out = function (text) {
+    //     oProcessing.innerHTML = text;
+    // }
+
 
     /**
      * Initialize the big plot
@@ -297,14 +309,23 @@ $(document).ready(function () {
     plot_div_resize_observer.observe(document.getElementById("vis_parent")); 
 
     /**
-     * Initialize the file drop processor for the hsqc spectra
+     * Initialize the file drop processor for the frequency domain spectra
      */
     new file_drop_processor()
     .drop_area('file_area') /** id of dropzone */
-    .file_name("ft2")  /** file extenstion to be searched from upload */
-    .file_id("userfile") /** Corresponding file element IDs */
+    .files_name([]) /** file names to be searched from upload. It is empty because we will use file_extension*/
+    .file_extension("ft2")  /** file extenstion to be searched from upload */
+    .files_id(["userfile"]) /** Corresponding file element IDs */
     .init();
 
+    /**
+     * INitialize the file drop processor for the time domain spectra
+     */
+    new file_drop_processor()
+    .drop_area('fid_file_area') /** id of dropzone */
+    .files_name(["acqu2s", "acqus", "ser", "fid"])  /** file names to be searched from upload */
+    .files_id(["acquisition_file2", "acquisition_file", "fid_file", "fid_file"]) /** Corresponding file element IDs */
+    .init();
 
     /**
      * When use selected a file, read the file and process it
@@ -327,65 +348,92 @@ $(document).ready(function () {
             return;
         }
 
-        read_file('userfile')
+        read_file_and_process_ft2('userfile')
             .then((result_spectrum) => {
 
-                if(typeof result_spectrum.error !== "undefined")
-                {
-                    alert(result_spectrum.error);
-                    return;
-                }
-
-                let spectrum_index = hsqc_spectra.length;
-                result_spectrum.spectrum_index = spectrum_index;
-                result_spectrum.spectrum_color = color_list[(spectrum_index*2) % color_list.length];
-                result_spectrum.spectrum_color_negative = color_list[(spectrum_index*2+1) % color_list.length];
-                hsqc_spectra.push(result_spectrum);
-                
-
-                /**
-                 * initialize the plot with the first spectrum. This function only run once
-                 */
-                if(hsqc_spectra.length === 1)
-                {
-                    init_plot(hsqc_spectra[0]);
-                }
-
-                /**
-                 * Positive contour calculation for the spectrum
-                 */
-                let spectrum_information = {
-                    /**
-                     * n_direct,n_indirect, and levels are required for contour calculation
-                     */
-                    n_direct: result_spectrum.n_direct,
-                    n_indirect: result_spectrum.n_indirect,
-                    levels: result_spectrum.levels,
-
-                    /**
-                     * These are flags to be send back to the main thread
-                     * so that the main thread know which part to update
-                     * @var spectrum_type: "full": all contour levels or "partial": new level added at the beginning
-                     * @var spectrum_index: index of the spectrum in the hsqc_spectra array
-                     * @var contour_sign: 0: positive contour, 1: negative contour
-                     */
-                    spectrum_type: "full",
-                    spectrum_index: spectrum_index,
-                    contour_sign: 0
-                };
-                my_contour_worker.postMessage({ response_value: result_spectrum.raw_data, spectrum: spectrum_information });
-
-                /**
-                 * Negative contour calculation for the spectrum
-                 */
-                spectrum_information.contour_sign = 1;
-                spectrum_information.levels = result_spectrum.negative_levels;
-                my_contour_worker.postMessage({ response_value: result_spectrum.raw_data, spectrum: spectrum_information });
-                
+                draw_spectrum(result_spectrum);
+  
             });
     });
+
+
+    /**
+     * When user click submit button, read the time domain spectra and process it
+     */
+    document.getElementById('fid_file_form').addEventListener('submit', function (e) {
+
+        /**
+         * Step 1: save th file to virtual file system. Use promise to wait for all the files to be saved
+         */
+        e.preventDefault();
+
+        let promises = [read_file('acquisition_file'), read_file('acquisition_file2'), read_file('fid_file')];
+        Promise.all(promises)
+            .then((result) => {
+
+                /**
+                 * Clear file input
+                 */
+                document.getElementById('acquisition_file').value = "";
+                document.getElementById('acquisition_file2').value = "";
+                document.getElementById('fid_file').value = "";
+
+                /**
+                 * Result is an array of Uint8Array
+                 */
+                processing_message_title = "Processing time domain spectra";
+                webassembly_worker.postMessage({file_data: result});
+
+
+            })
+            .catch((err) => {
+                console.log(err);
+            });      
+    });
+
 });
 
+
+webassembly_worker.onmessage = function (e) {
+
+    /**
+     * if result is stdout, it is the processing message
+     */
+    if (e.data.stdout) {
+
+        /**
+         * Keep a queue of 6 messages
+         */
+        processing_message.push(e.data.stdout);
+        if (processing_message.length > 6) {
+            processing_message.shift();
+        }
+
+        show_message(processing_message_title,processing_message);
+    }
+
+    /**
+     * If result is peaks
+     */
+    if (e.data.peaks) {
+        main_plot.add_picked_peaks(e.data.peaks.picked_peaks);
+        processing_message_title = [];
+        processing_message = [];
+        show_message("",[]); //clear the processing message
+    }
+
+    /**
+     * If result is file_data, it is the frequency domain spectrum
+     */
+    if (e.data.file_data) {
+        let arrayBuffer = new Uint8Array(e.data.file_data).buffer;
+        let result_spectrum = process_ft_file(arrayBuffer,"from_fid.ft2");
+        draw_spectrum(result_spectrum);
+        processing_message_title = [];
+        processing_message = [];
+        show_message("",[]); //clear the processing message`
+    }
+};
 
 var plot_div_resize_observer = new ResizeObserver(entries => {
     for (let entry of entries) {
@@ -592,6 +640,15 @@ function add_spectrum_to_list(index) {
      */
     let fname_text = document.createTextNode(" File name: " + hsqc_spectra[index].filename + " ");
     new_spectrum_div.appendChild(fname_text);
+
+    /**
+     * Add a download button to download the spectrum
+     */
+    let download_button = document.createElement("button");
+    download_button.innerText = "Download frequency domain spectrum";
+    download_button.onclick = function () { download_spectrum(index); };
+    new_spectrum_div.appendChild(download_button);
+
     /**
      * Add two input text element with ID ref1 and ref2, default value is 0 and 0
      * They also have a label element with text "Ref direct: " and "Ref indirect: "
@@ -625,7 +682,6 @@ function add_spectrum_to_list(index) {
      */
     new_spectrum_div.appendChild(document.createElement("br"));
     
-
 
     /**
      * Positive contour levels first
@@ -1469,174 +1525,20 @@ function update_contour_color(e,index,flag) {
     main_plot.redraw_contour();
 }
 
-const read_file = (file_id) => {
+
+
+const read_file_and_process_ft2 = (file_id) => {
     return new Promise((resolve, reject) => {
         let file = document.getElementById(file_id).files[0];
         if (file) {
             var reader = new FileReader();
-            reader.onload = function (e_file_read) {
-                var arrayBuffer = e_file_read.target.result;
+            reader.onload = function () {
+                var arrayBuffer = reader.result;
 
-                let result = new spectrum();
+                // var data = new Uint8Array(reader.result);
+                // Module['FS_createDataFile']('/', 'test.ft2', data, true, true, true);
 
-                result.header = new Float32Array(arrayBuffer, 0, 512);
-
-                result.n_indirect = result.header[219]; //size of indirect dimension of the input spectrum
-                result.n_direct = result.header[99]; //size of direct dimension of the input spectrum
-
-                result.tp = result.header[221];
-
-                /**
-                 * if transposed, set result.error and return
-                 */
-                if (result.tp !== 0) {
-                    result.error="Transposed data, please un-transpose the data before loading";
-                    resolve(result);
-                }
-
-                /**
-                 * Datatype of the direct and indirect dimension
-                 * 0: complex
-                 * 1: real
-                 */
-                result.datatype_direct = result.header[55];
-                result.datatype_indirect = result.header[56];
-
-                /**
-                 * We only read real at this moment
-                 */
-                if (result.datatype_direct !== 1 || result.datatype_indirect !== 1) {
-                    result.error="Only real data is supported";
-                    resolve(result);
-                }
-
-                result.direct_ndx = result.header[24]; //must be 2
-                result.indirect_ndx = result.header[25]; //must be 1 or 3
-                /**
-                 * direct_ndx must be 1, otherwise set error and return
-                 */
-                if (result.direct_ndx !== 2) {
-                    result.error="Direct dimension must be the second dimension";
-                    resolve(result);
-                }
-                /**
-                 * indirect_ndx must be 1 or 3, otherwise set error and return
-                 */
-                if (result.indirect_ndx !== 1 && result.indirect_ndx !== 3) {
-                    result.error="Indirect dimension must be the first or third dimension";
-                    resolve(result);
-                }
-
-                /**
-                 * result.sw, result.frq,result.ref are the spectral width, frequency and reference of the direct dimension
-                 * All are array of length 4
-                 */
-                result.sw = [];
-                result.frq = [];
-                result.ref = [];
-
-                result.sw[0] = result.header[229];
-                result.sw[1] = result.header[100];
-                result.sw[2] = result.header[11];
-                result.sw[3] = result.header[29];
-
-                result.frq[0] = result.header[218];
-                result.frq[1] = result.header[119];
-                result.frq[2] = result.header[10];
-                result.frq[3] = result.header[28];
-
-                result.ref[0] = result.header[249];
-                result.ref[1] = result.header[101];
-                result.ref[2] = result.header[12];
-                result.ref[3] = result.header[30];
-
-                /**
-                 * Get ppm_start, ppm_width, ppm_step for both direct and indirect dimensions
-                 */
-                result.sw1 = result.sw[result.direct_ndx-1];
-                result.sw2 = result.sw[result.indirect_ndx-1];
-                result.frq1 = result.frq[result.direct_ndx-1];
-                result.frq2 = result.frq[result.indirect_ndx-1];
-                result.ref1 = result.ref[result.direct_ndx-1];
-                result.ref2 = result.ref[result.indirect_ndx-1];
-
-
-                result.x_ppm_start = (result.ref1 + result.sw1) / result.frq1;
-                result.x_ppm_width = result.sw1 / result.frq1;
-                result.y_ppm_start = (result.ref2 + result.sw2) / result.frq2;
-                result.y_ppm_width = result.sw2 / result.frq2;
-                result.x_ppm_step = -result.x_ppm_width / result.n_direct;
-                result.y_ppm_step = -result.y_ppm_width / result.n_indirect;
-
-                /**
-                 * shift by half of the bin size because the contour plot is defined by the center of each bin
-                 */
-                result.x_ppm_start -= result.x_ppm_width / result.n_direct / 2;
-                result.y_ppm_start -= result.y_ppm_width / result.n_indirect / 2;
-
-                result.x_ppm_ref = 0.0;
-                result.y_ppm_ref = 0.0;
-
-
-                let data_size = arrayBuffer.byteLength / 4 - 512;
-
-                result.raw_data = new Float32Array(arrayBuffer, 512 * 4, data_size);
-                
-                /**
-                 * Keep original file name
-                 */
-                result.filename = file.name;
-
-                /**
-                 * Get median of abs(z). If data_size is > 1024*1024, we will sample 1024*1024 points by stride
-                 */
-                let stride = 1;
-                if (data_size > 1024 * 1024) {
-                    stride = Math.floor(data_size / (1024 * 1024));
-                }
-                let z_abs = new Float32Array(data_size / stride);
-                let z  = new Float32Array(data_size / stride);
-                for (var i = 0; i < data_size; i += stride) {
-                    z_abs[Math.floor(i / stride)] = Math.abs(result.raw_data[i]);
-                    z[Math.floor(i / stride)] = result.raw_data[i];
-                }
-                z_abs.sort();
-                z.sort();
-                result.noise_level = z_abs[Math.floor(z_abs.length / 2)];
-                
-
-                /**
-                 * Get max and min of z (z is sorted)
-                 */
-                result.spectral_max = z[z.length - 1];
-                result.spectral_min = z[0];
-
-                /**
-                 * Calculate positive contour levels 
-                 */
-                result.levels = new Array(40);
-                result.levels[0] = 5.5 * result.noise_level;
-                for (let i = 1; i < result.levels.length; i++) {
-                    result.levels[i] = 1.3 * result.levels[i - 1];
-                    if (result.levels[i] > result.spectral_max) {
-                        result.levels = result.levels.slice(0, i);
-                        break;
-                    }
-                }
-
-                /**
-                 * Calculate negative contour levels
-                 */
-                result.negative_levels = new Array(40);
-                result.negative_levels[0] = -5.5 * result.noise_level;
-                for (let i = 1; i < result.negative_levels.length; i++) {
-                    result.negative_levels[i] = 1.3 * result.negative_levels[i - 1];
-                    if (result.negative_levels[i] < result.spectral_min) {
-                        result.negative_levels = result.negative_levels.slice(0, i);
-                        break;
-                    }
-                }
-
+                let result = process_ft_file(arrayBuffer, file.name);
                 resolve(result);
             };
             reader.onerror = function (e) {
@@ -1648,7 +1550,257 @@ const read_file = (file_id) => {
             reject("No file selected");
         }
     });
-} //end of read_file
+} //end of read_file_and_process_ft2
+
+/**
+ * Process the raw file data of a 2D FT spectrum
+ * @param {arrayBuffer} arrayBuffer: raw file data
+ * @returns hsqc_spectra object
+ */
+function process_ft_file(arrayBuffer,file_name) {
+
+    let result = new spectrum();
+
+    result.header = new Float32Array(arrayBuffer, 0, 512);
+
+    result.n_indirect = result.header[219]; //size of indirect dimension of the input spectrum
+    result.n_direct = result.header[99]; //size of direct dimension of the input spectrum
+
+    result.tp = result.header[221];
+
+    /**
+     * if transposed, set result.error and return
+     */
+    if (result.tp !== 0) {
+        result.error = "Transposed data, please un-transpose the data before loading";
+        return result;
+    }
+
+    /**
+     * Datatype of the direct and indirect dimension
+     * 0: complex
+     * 1: real
+     */
+    result.datatype_direct = result.header[55];
+    result.datatype_indirect = result.header[56];
+
+    /**
+     * We only read real at this moment
+     */
+    if (result.datatype_direct !== 1 || result.datatype_indirect !== 1) {
+        result.error = "Only real data is supported";
+        return result;
+    }
+
+    result.direct_ndx = result.header[24]; //must be 2
+    result.indirect_ndx = result.header[25]; //must be 1 or 3
+    /**
+     * direct_ndx must be 1, otherwise set error and return
+     */
+    if (result.direct_ndx !== 2) {
+        result.error = "Direct dimension must be the second dimension";
+        return result;
+    }
+    /**
+     * indirect_ndx must be 1 or 3, otherwise set error and return
+     */
+    if (result.indirect_ndx !== 1 && result.indirect_ndx !== 3) {
+        result.error = "Indirect dimension must be the first or third dimension";
+        return result;
+    }
+
+    /**
+     * result.sw, result.frq,result.ref are the spectral width, frequency and reference of the direct dimension
+     * All are array of length 4
+     */
+    result.sw = [];
+    result.frq = [];
+    result.ref = [];
+
+    result.sw[0] = result.header[229];
+    result.sw[1] = result.header[100];
+    result.sw[2] = result.header[11];
+    result.sw[3] = result.header[29];
+
+    result.frq[0] = result.header[218];
+    result.frq[1] = result.header[119];
+    result.frq[2] = result.header[10];
+    result.frq[3] = result.header[28];
+
+    result.ref[0] = result.header[249];
+    result.ref[1] = result.header[101];
+    result.ref[2] = result.header[12];
+    result.ref[3] = result.header[30];
+
+    /**
+     * Get ppm_start, ppm_width, ppm_step for both direct and indirect dimensions
+     */
+    result.sw1 = result.sw[result.direct_ndx - 1];
+    result.sw2 = result.sw[result.indirect_ndx - 1];
+    result.frq1 = result.frq[result.direct_ndx - 1];
+    result.frq2 = result.frq[result.indirect_ndx - 1];
+    result.ref1 = result.ref[result.direct_ndx - 1];
+    result.ref2 = result.ref[result.indirect_ndx - 1];
+
+
+    result.x_ppm_start = (result.ref1 + result.sw1) / result.frq1;
+    result.x_ppm_width = result.sw1 / result.frq1;
+    result.y_ppm_start = (result.ref2 + result.sw2) / result.frq2;
+    result.y_ppm_width = result.sw2 / result.frq2;
+    result.x_ppm_step = -result.x_ppm_width / result.n_direct;
+    result.y_ppm_step = -result.y_ppm_width / result.n_indirect;
+
+    /**
+     * shift by half of the bin size because the contour plot is defined by the center of each bin
+     */
+    result.x_ppm_start -= result.x_ppm_width / result.n_direct / 2;
+    result.y_ppm_start -= result.y_ppm_width / result.n_indirect / 2;
+
+    result.x_ppm_ref = 0.0;
+    result.y_ppm_ref = 0.0;
+
+
+    let data_size = arrayBuffer.byteLength / 4 - 512;
+
+    result.raw_data = new Float32Array(arrayBuffer, 512 * 4, data_size);
+
+    /**
+     * Keep original file name
+     */
+    result.filename = file_name;
+
+    /**
+     * Get median of abs(z). If data_size is > 1024*1024, we will sample 1024*1024 points by stride
+     */
+    let stride = 1;
+    if (data_size > 1024 * 1024) {
+        stride = Math.floor(data_size / (1024 * 1024));
+    }
+    let z_abs = new Float32Array(data_size / stride);
+    let z = new Float32Array(data_size / stride);
+    for (var i = 0; i < data_size; i += stride) {
+        z_abs[Math.floor(i / stride)] = Math.abs(result.raw_data[i]);
+        z[Math.floor(i / stride)] = result.raw_data[i];
+    }
+    z_abs.sort();
+    z.sort();
+    result.noise_level = z_abs[Math.floor(z_abs.length / 2)];
+
+
+    /**
+     * Get max and min of z (z is sorted)
+     */
+    result.spectral_max = z[z.length - 1];
+    result.spectral_min = z[0];
+
+    /**
+     * Calculate positive contour levels 
+     */
+    result.levels = new Array(40);
+    result.levels[0] = 5.5 * result.noise_level;
+    for (let i = 1; i < result.levels.length; i++) {
+        result.levels[i] = 1.3 * result.levels[i - 1];
+        if (result.levels[i] > result.spectral_max) {
+            result.levels = result.levels.slice(0, i);
+            break;
+        }
+    }
+
+    /**
+     * Calculate negative contour levels
+     */
+    result.negative_levels = new Array(40);
+    result.negative_levels[0] = -5.5 * result.noise_level;
+    for (let i = 1; i < result.negative_levels.length; i++) {
+        result.negative_levels[i] = 1.3 * result.negative_levels[i - 1];
+        if (result.negative_levels[i] < result.spectral_min) {
+            result.negative_levels = result.negative_levels.slice(0, i);
+            break;
+        }
+    }
+
+    return result;
+}
+
+/**
+ * Download spectrum
+ *
+ */
+ function download_spectrum(index) {
+    let filename = hsqc_spectra[index].filename;
+
+    /**
+     * generate a blob, which is hsqc_spectra[index].header + hsqc_spectra[index].raw_data
+     */
+    let data = Float32Concat(hsqc_spectra[index].header, hsqc_spectra[index].raw_data);
+    let blob = new Blob([data], { type: 'application/octet-stream' });
+    let url = URL.createObjectURL(blob);
+    let a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+ }
+
+/**
+ * Add a new spectrum to the list and update the contour plot
+ * @param {*} result_spectrum: an object of hsqc_spectrum
+ * @returns 
+ */
+function draw_spectrum(result_spectrum)
+{
+    if(typeof result_spectrum.error !== "undefined")
+    {
+        alert(result_spectrum.error);
+        return;
+    }
+
+    let spectrum_index = hsqc_spectra.length;
+    result_spectrum.spectrum_index = spectrum_index;
+    result_spectrum.spectrum_color = color_list[(spectrum_index*2) % color_list.length];
+    result_spectrum.spectrum_color_negative = color_list[(spectrum_index*2+1) % color_list.length];
+    hsqc_spectra.push(result_spectrum);
+    
+
+    /**
+     * initialize the plot with the first spectrum. This function only run once
+     */
+    if(hsqc_spectra.length === 1)
+    {
+        init_plot(hsqc_spectra[0]);
+    }
+
+    /**
+     * Positive contour calculation for the spectrum
+     */
+    let spectrum_information = {
+        /**
+         * n_direct,n_indirect, and levels are required for contour calculation
+         */
+        n_direct: result_spectrum.n_direct,
+        n_indirect: result_spectrum.n_indirect,
+        levels: result_spectrum.levels,
+
+        /**
+         * These are flags to be send back to the main thread
+         * so that the main thread know which part to update
+         * @var spectrum_type: "full": all contour levels or "partial": new level added at the beginning
+         * @var spectrum_index: index of the spectrum in the hsqc_spectra array
+         * @var contour_sign: 0: positive contour, 1: negative contour
+         */
+        spectrum_type: "full",
+        spectrum_index: spectrum_index,
+        contour_sign: 0
+    };
+    my_contour_worker.postMessage({ response_value: result_spectrum.raw_data, spectrum: spectrum_information });
+
+    /**
+     * Negative contour calculation for the spectrum
+     */
+    spectrum_information.contour_sign = 1;
+    spectrum_information.levels = result_spectrum.negative_levels;
+    my_contour_worker.postMessage({ response_value: result_spectrum.raw_data, spectrum: spectrum_information });
+  
+}
 
 /**
  * Concat two float32 arrays into one
@@ -1740,6 +1892,44 @@ async function download_plot()
     a.href = dataURL;
     a.download = 'nmr_plot.' + format;
     a.click();
+}
 
-    
+
+function run_deep(spectrum_index)
+{
+    /**
+     * Combine hsqc_spectra[0].raw_data and hsqc_spectra[0].header into one Float32Array
+     */
+    let data = Float32Concat(hsqc_spectra[spectrum_index].header, hsqc_spectra[spectrum_index].raw_data);
+    /**
+     * Convert to Uint8Array to be transferred to the worker
+     */
+    let data_uint8 = new Uint8Array(data.buffer);
+
+    processing_message_title = "Run DEEP Picker";
+    webassembly_worker.postMessage({spectrum_data: data_uint8});
+
+}
+
+/**
+ * Show a message on a floating div with id fixed65146
+ * @param {string} message_title 
+ * @param {array} message_content 
+ */
+function show_message(message_title,message_content)
+{
+
+    let h3=document.createElement("h3");
+    h3.innerHTML = message_title;
+    document.getElementById("fixed65146").innerHTML = "";
+    document.getElementById("fixed65146").appendChild(h3);
+
+
+    for(let i=0;i<message_content.length;i++)
+    {
+        let p = document.createElement("p");
+        p.innerHTML = message_content[i];
+        document.getElementById("fixed65146").appendChild(p);
+    }
+
 }
