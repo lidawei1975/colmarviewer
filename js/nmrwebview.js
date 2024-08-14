@@ -1,9 +1,20 @@
 
+/**
+ * Make sure we can load WebWorker
+*/
 
+var my_contour_worker, webassembly_worker;
 
-const my_contour_worker = new Worker('./js/contour.js');
-
-const webassembly_worker = new Worker('./js/webass.js');
+try {
+    my_contour_worker = new Worker('./js/contour.js');
+    webassembly_worker = new Worker('./js/webass.js');
+}
+catch (err) {
+    console.log(err);
+    if (typeof (my_contour_worker) === "undefined" || typeof (webassembly_worker) === "undefined") {
+        alert("Failed to load WebWorker, probably due to browser incompatibility. Please use a modern browser, if you run this program locally, please read last paragraph of instructions");
+    }
+}
 
 
 var main_plot; //hsqc plot object
@@ -1895,7 +1906,7 @@ function run_deep(spectrum_index)
      */
     let data_uint8 = new Uint8Array(data.buffer);
 
-    processing_message_title = "Processing time domain spectra";
+    processing_message_title = "Run DEEP Picker";
     webassembly_worker.postMessage({spectrum_data: data_uint8});
 
 }
