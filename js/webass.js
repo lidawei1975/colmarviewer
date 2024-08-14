@@ -11,6 +11,14 @@ const api = {
     fid_phase: Module.cwrap("fid_phase", "number", []),
 };
 
+/**
+ * Redirect the stdout and stderr to postMessage
+ */
+Module['print'] = function (text) {
+    postMessage({ stdout: text });
+};
+out = Module['print'];
+
 onmessage = function (e) {
     console.log('Message received from main script');
 
@@ -43,6 +51,32 @@ onmessage = function (e) {
         console.log('File data read from virtual file system, type of file_data:', typeof file_data, ' and length:', file_data.length);
         FS.unlink('test.ft2');
         postMessage({ file_data: file_data });
+    }
+
+    /**
+     * If the message contains spectrum_data, call deep function
+     */
+    if (e.data.spectrum_data)
+    {
+        console.log('Spectrum data received');
+        /**
+         * Save the spectrum data to the virtual file system
+         */
+        Module['FS_createDataFile']('/', 'test.ft2', e.data.spectrum_data, true, true, true);
+        console.log('Spectrum data saved to virtual file system');
+        /**
+         * Run deep function
+         */
+        api.deep();
+        console.log('Finished running web assembly code');
+        /**
+         * Remove the input file from the virtual file system
+         * Read file peaks.json, parse it and send it back to the main script
+         */
+        FS.unlink('test.ft2');
+        let r=FS.readFile('peaks.json', {encoding: 'utf8'});
+        let peaks=JSON.parse(r);
+        postMessage({ peaks: peaks });
     }
 }
 

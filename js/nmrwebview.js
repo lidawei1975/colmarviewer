@@ -14,8 +14,10 @@ var tooldiv; //tooltip div
 /**
  * DOM div for the processing message
  */
-var oProcessing;
 var oOutput;
+
+var processing_message_title ="";
+var processing_message = [];
 
 
 /**
@@ -257,7 +259,6 @@ $(document).ready(function () {
      * This is the main information output area
      */
     oOutput = document.getElementById("infor");
-    oProcessing = document.getElementById("fid_process_message");
 
     /**
      * Tooltip div. Set the opacity to 0
@@ -369,6 +370,7 @@ $(document).ready(function () {
                 /**
                  * Result is an array of Uint8Array
                  */
+                processing_message_title = "Processing time domain spectra";
                 webassembly_worker.postMessage({file_data: result});
 
 
@@ -382,9 +384,44 @@ $(document).ready(function () {
 
 
 webassembly_worker.onmessage = function (e) {
-    let arrayBuffer = new Uint8Array(e.data.file_data).buffer;
-    let result_spectrum = process_ft_file(arrayBuffer,"from_fid.ft2");
-    draw_spectrum(result_spectrum);
+
+    /**
+     * if result is stdout, it is the processing message
+     */
+    if (e.data.stdout) {
+
+        /**
+         * Keep a queue of 6 messages
+         */
+        processing_message.push(e.data.stdout);
+        if (processing_message.length > 6) {
+            processing_message.shift();
+        }
+
+        show_message(processing_message_title,processing_message);
+    }
+
+    /**
+     * If result is peaks
+     */
+    if (e.data.peaks) {
+        main_plot.add_picked_peaks(e.data.peaks.picked_peaks);
+        processing_message_title = [];
+        processing_message = [];
+        show_message("",[]); //clear the processing message
+    }
+
+    /**
+     * If result is file_data, it is the frequency domain spectrum
+     */
+    if (e.data.file_data) {
+        let arrayBuffer = new Uint8Array(e.data.file_data).buffer;
+        let result_spectrum = process_ft_file(arrayBuffer,"from_fid.ft2");
+        draw_spectrum(result_spectrum);
+        processing_message_title = [];
+        processing_message = [];
+        show_message("",[]); //clear the processing message`
+    }
 };
 
 var plot_div_resize_observer = new ResizeObserver(entries => {
@@ -1847,20 +1884,41 @@ async function download_plot()
 }
 
 
-function run_wasm()
+function run_deep(spectrum_index)
 {
     /**
-     * Run the peak picking algorithm, which will generate peaks.json in the wasm virtual file system
+     * Combine hsqc_spectra[0].raw_data and hsqc_spectra[0].header into one Float32Array
      */
-    // api.deep();
-    // opts={
-    //     encoding: 'utf8',
-    // }
-    // /**
-    //  * Read peaks.json from the wasm virtual file system and decode it to get the peak list
-    //  */
-    // let r=FS.readFile('peaks.json',opts);
-    // let peaks=JSON.parse(r);
+    let data = Float32Concat(hsqc_spectra[spectrum_index].header, hsqc_spectra[spectrum_index].raw_data);
+    /**
+     * Convert to Uint8Array to be transferred to the worker
+     */
+    let data_uint8 = new Uint8Array(data.buffer);
 
-    // main_plot.add_picked_peaks(peaks.picked_peaks);
+    processing_message_title = "Processing time domain spectra";
+    webassembly_worker.postMessage({spectrum_data: data_uint8});
+
+}
+
+/**
+ * Show a message on a floating div with id fixed65146
+ * @param {string} message_title 
+ * @param {array} message_content 
+ */
+function show_message(message_title,message_content)
+{
+
+    let h3=document.createElement("h3");
+    h3.innerHTML = message_title;
+    document.getElementById("fixed65146").innerHTML = "";
+    document.getElementById("fixed65146").appendChild(h3);
+
+
+    for(let i=0;i<message_content.length;i++)
+    {
+        let p = document.createElement("p");
+        p.innerHTML = message_content[i];
+        document.getElementById("fixed65146").appendChild(p);
+    }
+
 }
