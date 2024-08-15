@@ -636,6 +636,7 @@ plotit.prototype.add_picked_peaks = function (peaks) {
         .attr('cy', function (d) {
             return self.yRange(d.cs_y);
         })
+        .attr("clip-path", "url(#clip)")
         .attr('r', 5)
         .attr('stroke', 'red')
         .attr('fill', 'none')
