@@ -1,0 +1,114 @@
+
+        a:link {
+            color: #000;
+        }
+
+        /* unvisited link */
+        a:visited {
+            color: #000;
+        }
+
+        /* visited link */
+        a:hover {
+            color: #000;
+        }
+
+        /* mouse over link */
+        a:active {
+            color: #000;
+        }
+
+
+        h1, h2 {
+            text-align: center;
+        }
+
+        #body {
+            font-family: Arial;
+            border-width: 2px;
+            clear: both;
+            display: block;
+            margin-top: 25px;
+            margin-bottom: 25px;
+            min-width: 1024px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        div.tooltip {
+            position: absolute;
+            text-align: center;
+            width: 120px;
+            height: 20px;
+            padding: 2px;
+            font: 16px sans-serif;
+            background: lightgray;
+            border: 0px;
+            border-radius: 0.5rem;
+            pointer-events: none;
+            z-index: 100; /* Place the tooltip above all other elements */
+        }
+
+
+        .highlight {
+            background-color: #e6f10d;
+            color: blue;
+        }
+
+
+        .fieldset-auto-width {
+            display: inline-block;
+        }
+
+
+        .drop-area {
+            border: 2px dashed #ccc;
+            border-radius: 20px;
+            width: 480px;
+            font-family: sans-serif;
+            margin: 10px auto;
+            padding: 10px;
+        }
+
+        .drop-area-neighbor {
+            border: 2px solid #ccc;
+            border-radius: 10px;
+            width: 480px;
+            font-family: sans-serif;
+            margin: 10px;
+            padding: 10px;
+        }
+
+        div.resizable {
+            border: 2px solid #40375f;
+            border-radius: 0.5rem;
+            padding: 20px;
+            resize: both;
+            overflow: hidden;
+            min-width: 400px;
+            min-height: 300px;
+        }
+
+        .rotate90 {
+            transform: rotate(90deg);
+        }
+
+        ol>li {
+            margin-top: 1em;
+        }
+
+        button {
+            margin: 5px;
+        }
+
+        #fixed65146 {
+            position: fixed;
+            font-size: x-large;
+            left: 400px;
+            top: 400px;
+            color: red;
+            background-color: yellow;
+            opacity: 0.6;
+            z-index: 2000;
+        }
+
