@@ -623,7 +623,7 @@ plotit.prototype.add_picked_peaks = function (peaks) {
     self.vis.selectAll('.peak').remove();
 
     /**
-     * Draw peaks
+     * Draw peaks, red circles without fill
      */
     self.vis.selectAll('.peak')
         .data(peaks)
@@ -638,5 +638,15 @@ plotit.prototype.add_picked_peaks = function (peaks) {
         })
         .attr('r', 5)
         .attr('stroke', 'red')
+        .attr('fill', 'none')
         .attr('stroke-width', 1);
-}
+};
+
+/**
+ * Remove peaks
+ */
+plotit.prototype.remove_picked_peaks = function () {
+    let self = this;
+    self.peaks = [];
+    self.vis.selectAll('.peak').remove();
+};

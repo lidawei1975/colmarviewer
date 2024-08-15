@@ -416,10 +416,19 @@ webassembly_worker.onmessage = function (e) {
      * If result is peaks
      */
     if (e.data.peaks) {
-        main_plot.add_picked_peaks(e.data.peaks.picked_peaks);
+        hsqc_spectra[e.data.spectrum_index].peaks = e.data.peaks;
         processing_message_title = [];
         processing_message = [];
         show_message("",[]); //clear the processing message
+        /**
+         * Enable the download peaks button
+         */
+        document.getElementById("download_peaks-".concat(e.data.spectrum_index)).disabled = false;
+        /**
+         * Enable then simulate a click event to show the peaks
+         */
+        document.getElementById("show_peaks-".concat(e.data.spectrum_index)).disabled = false;
+        document.getElementById("show_peaks-".concat(e.data.spectrum_index)).click();
     }
 
     /**
@@ -642,14 +651,6 @@ function add_spectrum_to_list(index) {
     new_spectrum_div.appendChild(fname_text);
 
     /**
-     * Add a download button to download the spectrum
-     */
-    let download_button = document.createElement("button");
-    download_button.innerText = "Download frequency domain spectrum";
-    download_button.onclick = function () { download_spectrum(index); };
-    new_spectrum_div.appendChild(download_button);
-
-    /**
      * Add two input text element with ID ref1 and ref2, default value is 0 and 0
      * They also have a label element with text "Ref direct: " and "Ref indirect: "
      * They also have an onblur event to update the ref_direct and ref_indirect values
@@ -681,7 +682,62 @@ function add_spectrum_to_list(index) {
      * Add a line break
      */
     new_spectrum_div.appendChild(document.createElement("br"));
-    
+
+
+    /**
+     * Add a download button to download the spectrum
+     */
+    let download_button = document.createElement("button");
+    download_button.innerText = "Download frequency domain spectrum";
+    download_button.onclick = function () { download_spectrum(index); };
+    new_spectrum_div.appendChild(download_button);
+
+    /**
+     * Add a run_DEEP_Picker button to run DEEP picker
+     */
+    let deep_picker_button = document.createElement("button");
+    deep_picker_button.innerText = "Run DEEP Picker";
+    deep_picker_button.onclick = function () { run_DEEP_Picker(index); };
+    new_spectrum_div.appendChild(deep_picker_button);
+    /**
+     * Add a download peaks button to download the peaks. Default is disabled
+     */
+    let download_peaks_button = document.createElement("button");
+    download_peaks_button.innerText = "Download peaks";
+    download_peaks_button.disabled = true;
+    download_peaks_button.setAttribute("id", "download_peaks-".concat(index));
+    download_peaks_button.onclick = function () { download_peaks(index); };
+    new_spectrum_div.appendChild(download_peaks_button);
+    /**
+     * Add a checkbox to show or hide the peaks. Default is unchecked
+     * It has an event listener to show or hide the peaks
+     */
+    let show_peaks_checkbox = document.createElement("input");
+    show_peaks_checkbox.setAttribute("type", "checkbox");
+    show_peaks_checkbox.disabled = true;
+    show_peaks_checkbox.setAttribute("id", "show_peaks-".concat(index));
+    show_peaks_checkbox.onclick = function (e) {
+        /**
+         * If the checkbox is checked, show the peaks
+         */
+        if(e.target.checked) {
+            show_hide_peaks(index,true);
+        }
+        else {
+            show_hide_peaks(index,false);
+        }
+    }
+    new_spectrum_div.appendChild(show_peaks_checkbox);
+    let show_peaks_label = document.createElement("label");
+    show_peaks_label.setAttribute("for", "show_peaks-".concat(index));
+    show_peaks_label.innerText = "Show picked peaks";
+    new_spectrum_div.appendChild(show_peaks_label);
+
+
+    /**
+     * Add a new line
+     */
+    new_spectrum_div.appendChild(document.createElement("br"));    
 
     /**
      * Positive contour levels first
@@ -1895,7 +1951,11 @@ async function download_plot()
 }
 
 
-function run_deep(spectrum_index)
+/**
+ * Call DEEP Picker to run peaks picking the spectrum
+ * @param {int} spectrum_index: index of the spectrum in hsqc_spectra array
+ */
+function run_DEEP_Picker(spectrum_index)
 {
     /**
      * Combine hsqc_spectra[0].raw_data and hsqc_spectra[0].header into one Float32Array
@@ -1907,8 +1967,7 @@ function run_deep(spectrum_index)
     let data_uint8 = new Uint8Array(data.buffer);
 
     processing_message_title = "Run DEEP Picker";
-    webassembly_worker.postMessage({spectrum_data: data_uint8});
-
+    webassembly_worker.postMessage({spectrum_data: data_uint8, spectrum_index: spectrum_index});
 }
 
 /**
@@ -1931,5 +1990,77 @@ function show_message(message_title,message_content)
         p.innerHTML = message_content[i];
         document.getElementById("fixed65146").appendChild(p);
     }
+}
 
+/**
+ * Show or hide peaks on the plot
+ */
+function show_hide_peaks(index,b_show)
+{
+    /**
+     * Turn off checkbox of all other spectra
+     */
+    for(let i=0;i<hsqc_spectra.length;i++)
+    {
+        if(i!==index)
+        {
+            document.getElementById("show_peaks-"+i).checked = false;
+        }
+    }
+
+    if(b_show)
+    {
+        main_plot.add_picked_peaks(hsqc_spectra[index].peaks.picked_peaks);
+    }
+    else
+    {
+        main_plot.remove_picked_peaks();
+    }
+    /**
+     * There is no need to redraw the contour plot
+     */
+}
+
+/**
+ * Generate a list of peaks in nmrPipe .tab format
+ */
+function download_peaks(spectrum_index)
+{
+    let file_buffer = "VARS INDEX X_PPM Y_PPM HEIGHT\n";
+    file_buffer += "FORMAT %5d %10.6f %10.6f %+e\n"; 
+
+    for(let i=0;i<hsqc_spectra[spectrum_index].peaks.picked_peaks.length;i++)
+    {
+        let peak = hsqc_spectra[spectrum_index].peaks.picked_peaks[i];
+        /**
+         * This is a peak object example
+         * cs_x: 1.241449 ==> X_PPM, need to add x_ppm_ref
+         * cs_y : 20.02922 ==> Y_PPM, need to add y_ppm_ref
+         * gammax : 0.61602
+         * gammay : 0.40042
+         * index : 8000088.5 ==> HEIGHT
+         * sigmax : 1.304711
+         * sigmay : 1.530022
+         * type : 1
+         * i will be the index of the peak
+        */
+        file_buffer += (i+1).toFixed(0).padStart(5) + " ";
+        file_buffer += (peak.cs_x + hsqc_spectra[spectrum_index].x_ppm_ref).toFixed(6).padStart(10) + " ";
+        file_buffer += (peak.cs_y + hsqc_spectra[spectrum_index].y_ppm_ref).toFixed(6).padStart(10) + " ";
+        file_buffer += peak.index.toExponential() + " ";
+        file_buffer += "\n";
+    }
+
+    let blob = new Blob([file_buffer], { type: 'text/plain' });
+    let url = URL.createObjectURL(blob);
+    let a = document.createElement('a');
+    a.href = url;
+    a.download = hsqc_spectra[spectrum_index].filename + ".tab";
+    a.click();
+
+    /**
+     * Remove the url and a
+     */
+    URL.revokeObjectURL(url);
+    a.remove();
 }

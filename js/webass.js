@@ -23,7 +23,8 @@ onmessage = function (e) {
     console.log('Message received from main script');
 
     /**
-     * If the message is to read a file, call the read_file function
+     * If the message is file_data, save them to the virtual file system and run fid_phase function
+     * return the processed data to the main script as file_data
      */
     if (e.data.file_data) {
         console.log('File data received');
@@ -56,7 +57,7 @@ onmessage = function (e) {
     /**
      * If the message contains spectrum_data, call deep function
      */
-    if (e.data.spectrum_data)
+    if (e.data.spectrum_data )
     {
         console.log('Spectrum data received');
         /**
@@ -76,7 +77,7 @@ onmessage = function (e) {
         FS.unlink('test.ft2');
         let r=FS.readFile('peaks.json', {encoding: 'utf8'});
         let peaks=JSON.parse(r);
-        postMessage({ peaks: peaks });
+        postMessage({ peaks: peaks, spectrum_index: e.data.spectrum_index});
     }
 }
 
