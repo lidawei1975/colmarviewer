@@ -20,7 +20,7 @@ catch (err) {
 var main_plot; //hsqc plot object
 var stage = 1; // Because we have only one stage in this program, we set it to 1 (shared code with other programs, which may have more than one stage)
 var tooldiv; //tooltip div
-
+var current_spectrum_index_of_peaks = -1; //index of the spectrum that is currently showing peaks, -1 means none
 
 /**
  * DOM div for the processing message
@@ -61,6 +61,8 @@ class spectrum {
         this.y_ppm_step = -120.0 / 1024; //step of indirect dimension
         this.x_ppm_ref = 0.0; //reference ppm of direct dimension
         this.y_ppm_ref = 0.0; //reference ppm of indirect dimension
+        this.picked_peaks = []; //picked peaks
+        this.picked_peaks_visible = false; //picked peaks are visible or not
     }
 };
 
@@ -416,7 +418,7 @@ webassembly_worker.onmessage = function (e) {
      * If result is peaks
      */
     if (e.data.peaks) {
-        hsqc_spectra[e.data.spectrum_index].peaks = e.data.peaks;
+        hsqc_spectra[e.data.spectrum_index].picked_peaks = e.data.peaks.picked_peaks;
         processing_message_title = [];
         processing_message = [];
         show_message("",[]); //clear the processing message
@@ -1228,15 +1230,6 @@ my_contour_worker.onmessage = (e) => {
 };
 
 /**
- * Update contour0-index to the lowest level of the contour plot of the spectrum with index
- * Update contour-slider-index to the number of levels of the contour plot of the spectrum with index
- * @param {int} index spectral index in hsqc_spectra array
- */
-function set_scale_bigplot(index) {
-
-}
-
-/**
  * This function should be called only once when the first spectrum is loaded
  * to initialize the big plot
  * @param {obj} input an spectrum object. 
@@ -1533,6 +1526,22 @@ function update_contour_slider(e,index,flag) {
          * Update the current lowest shown level in main_plot
          */
         main_plot.contour_lbs[index] = level - 1;
+
+        /**
+         * Update peaks only if current index is the same as current spectrum index of peaks
+         * and current spectrum has picked peaks and is visible
+         */
+        if(current_spectrum_index_of_peaks === index && hsqc_spectra[index].picked_peaks.length > 0 && hsqc_spectra[index].picked_peaks_visible)
+        {
+            let level = hsqc_spectra[index].levels[main_plot.contour_lbs[index]];
+            /**
+             * Filter hsqc_spectra[index].picked_peaks by level (index > level)
+             * to get an subset of peaks
+             */
+            let new_peaks = hsqc_spectra[index].picked_peaks.filter(peak => peak.index > level);
+            main_plot.add_picked_peaks(new_peaks);
+        }
+
     }
     else if(flag==1)
     {
@@ -2010,10 +2019,22 @@ function show_hide_peaks(index,b_show)
 
     if(b_show)
     {
-        main_plot.add_picked_peaks(hsqc_spectra[index].peaks.picked_peaks);
+        current_spectrum_index_of_peaks = index;
+        hsqc_spectra[index].picked_peaks_visible = true;
+        /**
+         * Get current lowest contour level of the spectrum
+         */
+        let level = hsqc_spectra[index].levels[main_plot.contour_lbs[index]];
+        /**
+         * Filter hsqc_spectra[index].picked_peaks by level (index > level)
+         * to get an subset of peaks
+         */
+        let new_peaks = hsqc_spectra[index].picked_peaks.filter(peak => peak.index > level);
+        main_plot.add_picked_peaks(new_peaks);
     }
     else
     {
+        hsqc_spectra[index].picked_peaks_visible = false;
         main_plot.remove_picked_peaks();
     }
     /**
@@ -2029,9 +2050,9 @@ function download_peaks(spectrum_index)
     let file_buffer = "VARS INDEX X_PPM Y_PPM HEIGHT\n";
     file_buffer += "FORMAT %5d %10.6f %10.6f %+e\n"; 
 
-    for(let i=0;i<hsqc_spectra[spectrum_index].peaks.picked_peaks.length;i++)
+    for(let i=0;i<hsqc_spectra[spectrum_index].picked_peaks.length;i++)
     {
-        let peak = hsqc_spectra[spectrum_index].peaks.picked_peaks[i];
+        let peak = hsqc_spectra[spectrum_index].picked_peaks[i];
         /**
          * This is a peak object example
          * cs_x: 1.241449 ==> X_PPM, need to add x_ppm_ref
