@@ -9,6 +9,7 @@ const api = {
     version: Module.cwrap("version", "number", []),
     deep: Module.cwrap("deep", "number", []),
     fid_phase: Module.cwrap("fid_phase", "number", []),
+    voigt_fit: Module.cwrap("voigt_fit", "number", []),
 };
 
 /**
@@ -55,6 +56,44 @@ onmessage = function (e) {
     }
 
     /**
+     * If the message contains both spectrum_data and picked_peaks, call voigt_fit function
+     */
+    if (e.data.spectrum_data && e.data.picked_peaks) {
+        console.log('Spectrum data and picked peaks received');
+        /**
+         * Save the spectrum data and picked peaks to the virtual file system
+         */
+        Module['FS_createDataFile']('/', 'hsqc.ft2', e.data.spectrum_data, true, true, true);
+        /**
+         * Voigt fit function requires the picked peaks to like this:
+         * {"picked_peaks": [{"cs_x": 1.0, "cs_y": 2.0, "index": 1287.6}, ...] }
+         * but what we receive is just the array of picked peaks
+         */
+        let picked_peaks = { picked_peaks: e.data.picked_peaks};
+        Module['FS_createDataFile']('/', 'peaks.json', JSON.stringify(picked_peaks), true, true, true);
+        console.log('Spectrum data and picked peaks saved to virtual file system');
+        /**
+         * Run voigt_fit function
+         */
+        api.voigt_fit();
+        console.log('Finished running web assembly code');
+        /**
+         * Remove the input files from the virtual file system
+         * Read file peaks.json, parse it and send it back to the main script
+         */
+        FS.unlink('hsqc.ft2');
+        FS.unlink('peaks.json');
+        let r = FS.readFile('fitted.json', { encoding: 'utf8' });
+        let peaks = JSON.parse(r);
+        FS.unlink('fitted.json');
+        const file_data = FS.readFile('recon_voigt_hsqc.ft2', { encoding: 'binary' });
+        console.log('File data read from virtual file system, type of file_data:', typeof file_data, ' and length:', file_data.length);
+        FS.unlink('recon_voigt_hsqc.ft2');
+
+        postMessage({ fitted_peaks: peaks, spectrum_index: e.data.spectrum_index, recon_spectrum: file_data});
+    }
+
+    /**
      * If the message contains spectrum_data, call deep function
      */
     if (e.data.spectrum_data )
@@ -77,6 +116,7 @@ onmessage = function (e) {
         FS.unlink('test.ft2');
         let r=FS.readFile('peaks.json', {encoding: 'utf8'});
         let peaks=JSON.parse(r);
+        FS.unlink('peaks.json');
         postMessage({ peaks: peaks, spectrum_index: e.data.spectrum_index});
     }
 }

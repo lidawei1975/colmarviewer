@@ -410,14 +410,20 @@ webassembly_worker.onmessage = function (e) {
         if (processing_message.length > 6) {
             processing_message.shift();
         }
-
         show_message(processing_message_title,processing_message);
+    }
+    /**
+     * e.data.stdout is defined but empty, it is the end of the processing message
+     */
+    else if (typeof e.data.stdout !== "undefined" && e.data.stdout === "") {
+        processing_message_title = "";
+        show_message("",[]); //clear the processing message
     }
 
     /**
      * If result is peaks
      */
-    if (e.data.peaks) {
+    else if (e.data.peaks) {
         hsqc_spectra[e.data.spectrum_index].picked_peaks = e.data.peaks.picked_peaks;
         processing_message_title = [];
         processing_message = [];
@@ -434,15 +440,27 @@ webassembly_worker.onmessage = function (e) {
     }
 
     /**
+     * If result is fitted_peaks and recon_spectrum
+     */
+    else if (e.data.fitted_peaks && e.data.recon_spectrum) {
+        console.log("Fitted peaks and recon_spectrum received");
+        hsqc_spectra[e.data.spectrum_index].fitted_peaks = e.data.fitted_peaks;
+    }
+
+    /**
      * If result is file_data, it is the frequency domain spectrum
      */
-    if (e.data.file_data) {
+    else if (e.data.file_data) {
         let arrayBuffer = new Uint8Array(e.data.file_data).buffer;
         let result_spectrum = process_ft_file(arrayBuffer,"from_fid.ft2");
         draw_spectrum(result_spectrum);
         processing_message_title = [];
         processing_message = [];
         show_message("",[]); //clear the processing message`
+    }
+
+    else{
+        console.log(e.data);
     }
 };
 
@@ -1977,6 +1995,31 @@ function run_DEEP_Picker(spectrum_index)
 
     processing_message_title = "Run DEEP Picker";
     webassembly_worker.postMessage({spectrum_data: data_uint8, spectrum_index: spectrum_index});
+}
+
+/**
+ * Call Voigt fitter to run peak fitting on the spectrum
+ * @param {int} spectrum_index: index of the spectrum in hsqc_spectra array
+ */
+function run_Voigt_fitter(spectrum_index)
+{
+    /**
+     * Combine hsqc_spectra[0].raw_data and hsqc_spectra[0].header into one Float32Array
+     */
+    let data = Float32Concat(hsqc_spectra[spectrum_index].header, hsqc_spectra[spectrum_index].raw_data);
+    /**
+     * Convert to Uint8Array to be transferred to the worker
+     */
+    let data_uint8 = new Uint8Array(data.buffer);
+
+    /**
+     * Also send the picked peaks to the worker
+     */
+    let picked_peaks = hsqc_spectra[spectrum_index].picked_peaks;
+
+    processing_message_title = "Run Voigt Fitter";
+    webassembly_worker.postMessage({spectrum_data: data_uint8, picked_peaks: picked_peaks, spectrum_index: spectrum_index});
+
 }
 
 /**
