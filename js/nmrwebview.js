@@ -418,6 +418,7 @@ webassembly_worker.onmessage = function (e) {
     else if (typeof e.data.stdout !== "undefined" && e.data.stdout === "") {
         processing_message_title = "";
         show_message("",[]); //clear the processing message
+
     }
 
     /**
@@ -445,6 +446,28 @@ webassembly_worker.onmessage = function (e) {
     else if (e.data.fitted_peaks && e.data.recon_spectrum) {
         console.log("Fitted peaks and recon_spectrum received");
         hsqc_spectra[e.data.spectrum_index].fitted_peaks = e.data.fitted_peaks;
+        /**
+         * Treat the received recon_spectrum as a frequency domain spectrum
+         */
+        let arrayBuffer = new Uint8Array(e.data.recon_spectrum).buffer;
+
+        let result_spectrum = process_ft_file(arrayBuffer,"recon.ft2");
+
+        /**
+         * Replace its header with the header of the original spectrum
+         * and noise_level, levels, negative_levels, spectral_max and spectral_min with the original spectrum
+         */
+        result_spectrum.header = hsqc_spectra[e.data.spectrum_index].header;
+        result_spectrum.noise_level = hsqc_spectra[e.data.spectrum_index].noise_level;
+        result_spectrum.levels = hsqc_spectra[e.data.spectrum_index].levels;
+        result_spectrum.negative_levels = hsqc_spectra[e.data.spectrum_index].negative_levels;
+        result_spectrum.spectral_max = hsqc_spectra[e.data.spectrum_index].spectral_max;
+        result_spectrum.spectral_min = hsqc_spectra[e.data.spectrum_index].spectral_min;
+
+        draw_spectrum(result_spectrum);
+        processing_message_title = [];
+        processing_message = [];
+        show_message("",[]); //clear the processing message
     }
 
     /**
