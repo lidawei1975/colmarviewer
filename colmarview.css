@@ -93,6 +93,11 @@
             transform: rotate(90deg);
         }
 
+        .information {
+            font-weight: bold;
+            color: #220ddc;
+        }
+
         ol>li {
             margin-top: 1em;
         }

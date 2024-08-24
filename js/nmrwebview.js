@@ -26,9 +26,14 @@ var current_spectrum_index_of_peaks = -1; //index of the spectrum that is curren
  * DOM div for the processing message
  */
 var oOutput;
-
 var processing_message_title ="";
 var processing_message = [];
+
+/**
+ * Current phase correction values:
+ * direct_p0, direct_p1, indirect_p0, indirect_p1
+ */
+var current_phase_correction = [0, 0, 0, 0];
 
 
 /**
@@ -159,13 +164,32 @@ class file_drop_processor {
         let file = await entry.getFile();
 
         /**
-         * Only if the dropped file is  in the list
+         * Only if the dropped file is in the list
          */
         if (this.files_name.includes(file.name)) {
             let container = new DataTransfer();
             container.items.add(file);
             let file_id = this.files_id[this.files_name.indexOf(file.name)];
-            document.getElementById(file_id).files = container.files;
+
+            /**
+             * A special case for the file input id "hsqc_acquisition_file2"
+             * if the file is acqu3s, it will replace the acqu2s file
+             * if the file is acqu2s, it will be added if currently acqu2s is empty, otherwise it will be ignored
+             */
+            if (file_id === "hsqc_acquisition_file2" && file.name === "acqu3s") {
+                document.getElementById(file_id).files = container.files;
+            }
+            else if(file_id === "hsqc_acquisition_file2" && file.name === "acqu2s")
+            {
+                if(document.getElementById("hsqc_acquisition_file2").files.length === 0)
+                {
+                    document.getElementById(file_id).files = container.files;
+                }
+            }
+            else
+            {
+                document.getElementById(file_id).files = container.files;
+            }
             /**
              * If we can match file, will not try to match extension
              */
@@ -325,8 +349,8 @@ $(document).ready(function () {
      */
     new file_drop_processor()
     .drop_area('fid_file_area') /** id of dropzone */
-    .files_name(["acqu2s", "acqus", "ser", "fid"])  /** file names to be searched from upload */
-    .files_id(["acquisition_file2", "acquisition_file", "fid_file", "fid_file"]) /** Corresponding file element IDs */
+    .files_name(["acqu2s", "acqu3s", "acqus", "ser", "fid"])  /** file names to be searched from upload */
+    .files_id(["acquisition_file2","acquisition_file2", "acquisition_file", "fid_file", "fid_file"]) /** Corresponding file element IDs */
     .init();
 
     /**
@@ -381,10 +405,20 @@ $(document).ready(function () {
                 document.getElementById('fid_file').value = "";
 
                 /**
+                 * Get HTML select "hsqc_acquisition_seq" value: "321" or "312"
+                 */
+                let acquisition_seq = document.getElementById("hsqc_acquisition_seq").value;
+                /**
+                 * Get HTML checkbox "neg_imaginary".checked: true or false
+                 * convert it to "yes" or "no"
+                 */
+                let neg_imaginary = document.getElementById("neg_imaginary").checked ? "yes" : "no";
+
+                /**
                  * Result is an array of Uint8Array
                  */
                 processing_message_title = "Processing time domain spectra";
-                webassembly_worker.postMessage({file_data: result});
+                webassembly_worker.postMessage({file_data: result, acquisition_seq: acquisition_seq, neg_imaginary: neg_imaginary});
 
 
             })
@@ -426,6 +460,13 @@ webassembly_worker.onmessage = function (e) {
      */
     else if (e.data.peaks) {
         hsqc_spectra[e.data.spectrum_index].picked_peaks = e.data.peaks.picked_peaks;
+        /**
+         * Need to save its scale and scale2 used to run deep picker
+         * because we will need them to run peak fitting
+         */
+        hsqc_spectra[e.data.spectrum_index].scale = e.data.peaks.scale;
+        hsqc_spectra[e.data.spectrum_index].scale2 = e.data.peaks.scale2;
+
         processing_message_title = [];
         processing_message = [];
         show_message("",[]); //clear the processing message
@@ -434,9 +475,10 @@ webassembly_worker.onmessage = function (e) {
          */
         document.getElementById("download_peaks-".concat(e.data.spectrum_index)).disabled = false;
         /**
-         * Enable then simulate a click event to show the peaks
+         * Enable, set it as unchecked then simulate a click event to show the peaks
          */
         document.getElementById("show_peaks-".concat(e.data.spectrum_index)).disabled = false;
+        document.getElementById("show_peaks-".concat(e.data.spectrum_index)).checked = false;
         document.getElementById("show_peaks-".concat(e.data.spectrum_index)).click();
     }
 
@@ -473,7 +515,13 @@ webassembly_worker.onmessage = function (e) {
     /**
      * If result is file_data, it is the frequency domain spectrum
      */
-    else if (e.data.file_data) {
+    else if (e.data.file_data && e.data.phasing_data) {
+
+        /**
+         * e.data.phasing_data is a string with 4 numbers separated by space(s)
+         */
+        current_phase_correction = e.data.phasing_data.split(/(\s+)/);
+
         let arrayBuffer = new Uint8Array(e.data.file_data).buffer;
         let result_spectrum = process_ft_file(arrayBuffer,"from_fid.ft2");
         draw_spectrum(result_spectrum);
@@ -751,6 +799,23 @@ function add_spectrum_to_list(index) {
     download_peaks_button.setAttribute("id", "download_peaks-".concat(index));
     download_peaks_button.onclick = function () { download_peaks(index); };
     new_spectrum_div.appendChild(download_peaks_button);
+
+    /**
+     * Add two buttons to call run_Voigt_fitter, with option 0 and 1
+     */
+    let run_voigt_fitter_button0 = document.createElement("button");
+    run_voigt_fitter_button0.innerText = "Run Voigt shape fitting";
+    run_voigt_fitter_button0.onclick = function () { run_Voigt_fitter(index, 0); };
+    run_voigt_fitter_button0.setAttribute("id", "run_voigt_fitter0-".concat(index));
+    new_spectrum_div.appendChild(run_voigt_fitter_button0);
+
+    let run_voigt_fitter_button1 = document.createElement("button");
+    run_voigt_fitter_button1.innerText = "Run Gaussian shape fitting";
+    run_voigt_fitter_button1.onclick = function () { run_Voigt_fitter(index, 1); };
+    run_voigt_fitter_button1.setAttribute("id", "run_voigt_fitter1-".concat(index));
+    new_spectrum_div.appendChild(run_voigt_fitter_button1);
+
+
     /**
      * Add a checkbox to show or hide the peaks. Default is unchecked
      * It has an event listener to show or hide the peaks
@@ -2016,15 +2081,32 @@ function run_DEEP_Picker(spectrum_index)
      */
     let data_uint8 = new Uint8Array(data.buffer);
 
+    /**
+     * Get noise_level of the spectrum
+     * And current lowest contour level of the spectrum
+     * Calculate scale as lowest contour level / noise_level
+     * and scale2 as 0.6 * scale
+     */
+    let noise_level = hsqc_spectra[spectrum_index].noise_level;
+    let level = hsqc_spectra[spectrum_index].levels[main_plot.contour_lbs[spectrum_index]];
+    let scale = level / noise_level;
+    let scale2 = 0.6 * scale;
+
     processing_message_title = "Run DEEP Picker";
-    webassembly_worker.postMessage({spectrum_data: data_uint8, spectrum_index: spectrum_index});
+    webassembly_worker.postMessage({
+        spectrum_data: data_uint8,
+        spectrum_index: spectrum_index,
+        scale: scale,
+        scale2: scale2,
+        noise_level: noise_level
+    });
 }
 
 /**
  * Call Voigt fitter to run peak fitting on the spectrum
  * @param {int} spectrum_index: index of the spectrum in hsqc_spectra array
  */
-function run_Voigt_fitter(spectrum_index)
+function run_Voigt_fitter(spectrum_index,flag)
 {
     /**
      * Combine hsqc_spectra[0].raw_data and hsqc_spectra[0].header into one Float32Array
@@ -2035,13 +2117,17 @@ function run_Voigt_fitter(spectrum_index)
      */
     let data_uint8 = new Uint8Array(data.buffer);
 
-    /**
-     * Also send the picked peaks to the worker
-     */
-    let picked_peaks = hsqc_spectra[spectrum_index].picked_peaks;
 
     processing_message_title = "Run Voigt Fitter";
-    webassembly_worker.postMessage({spectrum_data: data_uint8, picked_peaks: picked_peaks, spectrum_index: spectrum_index});
+    webassembly_worker.postMessage({
+        spectrum_data: data_uint8,
+        picked_peaks: hsqc_spectra[spectrum_index].picked_peaks,
+        spectrum_index: spectrum_index,
+        flag: flag, //0: Voigt, 1: Gaussian
+        scale: hsqc_spectra[spectrum_index].scale,
+        scale2: hsqc_spectra[spectrum_index].scale2,
+        noise_level: hsqc_spectra[spectrum_index].noise_level
+    });
 
 }
 
@@ -2092,11 +2178,20 @@ function show_hide_peaks(index,b_show)
          */
         let level = hsqc_spectra[index].levels[main_plot.contour_lbs[index]];
         /**
-         * Filter hsqc_spectra[index].picked_peaks by level (index > level)
+         * Filter hsqc_spectra[index].fitted_peaks or picked_peaks by level (index > level)
          * to get an subset of peaks
+         * Use picked_peaks if fitted_peaks is not available Length = 0 or undefined
          */
-        let new_peaks = hsqc_spectra[index].picked_peaks.filter(peak => peak.index > level);
-        main_plot.add_picked_peaks(new_peaks);
+        if(typeof hsqc_spectra[index].fitted_peaks !== "undefined" && hsqc_spectra[index].fitted_peaks.length > 0)
+        {
+            let new_peaks = hsqc_spectra[index].fitted_peaks.filter(peak => peak.index > level);
+            main_plot.add_picked_peaks(new_peaks);
+        }
+        else
+        {
+            let new_peaks = hsqc_spectra[index].picked_peaks.filter(peak => peak.index > level);
+            main_plot.add_picked_peaks(new_peaks);
+        }
     }
     else
     {
