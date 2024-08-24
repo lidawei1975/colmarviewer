@@ -76,9 +76,16 @@
             </div>
         </div>
 
+        <div id="log_area" class="drop-area-neighbor" style="width: 1200px; margin:0 auto;">
+            <h4>Background server log:</h4>
+            <textarea id="log" rows="30" cols="160" readonly></textarea>
+            <button onclick="clear_log()">Clear log</button>
+            <button onclick="download_log()">Download log</button>
+        </div>
+
         <div id="instructions" class="drop-area-neighbor" style="width: 1200px;  margin:0 auto;">
-            <article>
-                <h3>Instructions</h3>
+            <details>
+                <summary>Instructions</summary>
                 <p>1. This is a web-based tool to view and process 2D NMR spectra. This tool is part of the frontend of
                     the more
                     advanced <a href="https://spin.ccic.osu.edu">COLMAR deep picker</a> server.</p>
@@ -119,7 +126,7 @@
                     it poses a security risk by adding this option. Therefore, do NOT load any local files unless you
                     are sure they are safe.
                 </p>
-            </article>
+            </details>
         </div>
 
         <div id="footer" style="width: 1200px; margin:10px auto;">

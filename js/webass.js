@@ -15,10 +15,10 @@ const api = {
 /**
  * Redirect the stdout and stderr to postMessage
  */
-// Module['print'] = function (text) {
-//     postMessage({ stdout: text });
-// };
-// out = Module['print'];
+Module['print'] = function (text) {
+    postMessage({ stdout: text });
+};
+out = Module['print'];
 
 onmessage = function (e) {
     console.log('Message received from main script');
@@ -70,7 +70,7 @@ onmessage = function (e) {
     /**
      * If the message contains both spectrum_data and picked_peaks, call voigt_fit function
      */
-    if (e.data.spectrum_data && e.data.picked_peaks) {
+    else if (e.data.spectrum_data && e.data.picked_peaks) {
         console.log('Spectrum data and picked peaks received');
         /**
          * Save the spectrum data and picked peaks to the virtual file system
@@ -89,6 +89,7 @@ onmessage = function (e) {
          * save -noise_level, -scale and -scale2 
          */
         let content = ' -noise_level '.concat(e.data.noise_level,' -scale ',e.data.scale,' -scale2 ',e.data.scale2);
+        console.log(content);
 
         /**
          * If flag is 0, add -method voigt to the content
@@ -137,7 +138,13 @@ onmessage = function (e) {
         const file_data = FS.readFile(filename, { encoding: 'binary' });
         console.log('File data read from virtual file system, type of file_data:', typeof file_data, ' and length:', file_data.length);
         FS.unlink(filename);
-        postMessage({ fitted_peaks: peaks, spectrum_index: e.data.spectrum_index, recon_spectrum: file_data});
+        postMessage({
+            fitted_peaks: peaks,
+            spectrum_index: e.data.spectrum_index,
+            recon_spectrum: file_data,
+            scale: e.data.scale,
+            scale2: e.data.scale2
+        });
     }
 
     /**
