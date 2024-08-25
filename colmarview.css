@@ -93,12 +93,21 @@
             transform: rotate(90deg);
         }
 
+        .information {
+            font-weight: bold;
+            color: #220ddc;
+        }
+
         ol>li {
             margin-top: 1em;
         }
 
         button {
             margin: 5px;
+        }
+
+        textarea {
+            resize: vertical;
         }
 
         #fixed65146 {

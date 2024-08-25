@@ -20,20 +20,26 @@
             <form id="fid_file_form" action="" enctype="multipart/form-data">
                 <h4>Upload Bruker time domain data for processing:</h4>
                 <label for="fid_file">fid file (required, usually called fid or ser): </label><input type="file"
-                    name="fid_file" id="fid_file" multiple>
-                <label> You can also drag and drop Bruker folder (which contains required files) here.</label><br>
-                <label for="acquisition_file">acqus file (required, usually called acqus): </label><input type="file"
+                    name="fid_file" id="fid_file" multiple><br>
+                <label for="acquisition_file">Direct dimension acquisition file (required, usually called acqus): </label><input type="file"
                     name="acquisition_file" id="acquisition_file"><br>
-                <label for="acquisition_file2">acqus2 file (required, usually called acqu2s): </label><input type="file"
+                <label for="acquisition_file2">Indirect dimension acquisition file (required, usually called acqu2s (in pseudo-3D: acqu3s)): </label><input type="file"
                     name="acquisition_file2" id="acquisition_file2"><br>
+                <label for="hsqc_acquisition_seq">pseudo-3D acquisition sequence </label>
+                <select name="hsqc_acquisition_seq" id="hsqc_acquisition_seq">
+                    <option value="321">321</option>
+                    <option value="312">312</option>
+                </select><br>
+                <input type="checkbox" name="neg_imaginary" id="neg_imaginary" value="yes"><label for="neg_imaginary">Negative imaginary data (indirect dimension)?</label> <br>
                 <input type="submit" id="button_fid_process" name="Submit" value="Upload fid files for processing"></br>
+                <label class="information"> You can also drag and drop Bruker folder (which contains required files) here.</label><br>
             </form>
         </div>
 
         <div id="file_area" class="drop-area" style="width: 1200px;">
             <h4>Or upload frequency domain spectra:</h4>
-            <label for="userfile">Frequency domain spectral file (.ft2) </label><input type="file" id="userfile">
-            <label> You can also drag and drop spectral file(s) in nmrPipe format or folder contains them here.</label>
+            <label for="userfile">Frequency domain spectral file (.ft2) </label><input type="file" id="userfile"><br>
+            <label class="information"> You can also drag and drop spectral file(s) in nmrPipe format or folder contains them here.</label>
         </div>
 
         <div id="spectra_list" style=" Padding: 10px; width: 1200px; margin:0 auto;" class="drop-area-neighbor">
@@ -70,9 +76,16 @@
             </div>
         </div>
 
+        <div id="log_area" class="drop-area-neighbor" style="width: 1200px; margin:0 auto;">
+            <h4>Background server log:</h4>
+            <textarea id="log" rows="30" cols="160" readonly></textarea>
+            <button onclick="clear_log()">Clear log</button>
+            <button onclick="download_log()">Download log</button>
+        </div>
+
         <div id="instructions" class="drop-area-neighbor" style="width: 1200px;  margin:0 auto;">
-            <article>
-                <h3>Instructions</h3>
+            <details>
+                <summary>Instructions</summary>
                 <p>1. This is a web-based tool to view and process 2D NMR spectra. This tool is part of the frontend of
                     the more
                     advanced <a href="https://spin.ccic.osu.edu">COLMAR deep picker</a> server.</p>
@@ -113,7 +126,7 @@
                     it poses a security risk by adding this option. Therefore, do NOT load any local files unless you
                     are sure they are safe.
                 </p>
-            </article>
+            </details>
         </div>
 
         <div id="footer" style="width: 1200px; margin:10px auto;">

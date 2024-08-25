@@ -21,14 +21,18 @@ var main_plot; //hsqc plot object
 var stage = 1; // Because we have only one stage in this program, we set it to 1 (shared code with other programs, which may have more than one stage)
 var tooldiv; //tooltip div
 var current_spectrum_index_of_peaks = -1; //index of the spectrum that is currently showing peaks, -1 means none
+var current_flag_of_peaks = 'picked'; //flag of the peaks that is currently showing, 'picked' or 'fitted
 
 /**
  * DOM div for the processing message
  */
 var oOutput;
 
-var processing_message_title ="";
-var processing_message = [];
+/**
+ * Current phase correction values:
+ * direct_p0, direct_p1, indirect_p0, indirect_p1
+ */
+var current_phase_correction = [0, 0, 0, 0];
 
 
 /**
@@ -62,7 +66,8 @@ class spectrum {
         this.x_ppm_ref = 0.0; //reference ppm of direct dimension
         this.y_ppm_ref = 0.0; //reference ppm of indirect dimension
         this.picked_peaks = []; //picked peaks
-        this.picked_peaks_visible = false; //picked peaks are visible or not
+        this.fitted_peaks = []; //fitted peaks
+        this.spectrum_origin = -1; //spectrum origin: -2: experimental spectrum from fid, -1: experimental spectrum uploaded,  n(n>=0): reconstructed from experimental spectrum n
     }
 };
 
@@ -159,13 +164,32 @@ class file_drop_processor {
         let file = await entry.getFile();
 
         /**
-         * Only if the dropped file is  in the list
+         * Only if the dropped file is in the list
          */
         if (this.files_name.includes(file.name)) {
             let container = new DataTransfer();
             container.items.add(file);
             let file_id = this.files_id[this.files_name.indexOf(file.name)];
-            document.getElementById(file_id).files = container.files;
+
+            /**
+             * A special case for the file input id "hsqc_acquisition_file2"
+             * if the file is acqu3s, it will replace the acqu2s file
+             * if the file is acqu2s, it will be added if currently acqu2s is empty, otherwise it will be ignored
+             */
+            if (file_id === "hsqc_acquisition_file2" && file.name === "acqu3s") {
+                document.getElementById(file_id).files = container.files;
+            }
+            else if(file_id === "hsqc_acquisition_file2" && file.name === "acqu2s")
+            {
+                if(document.getElementById("hsqc_acquisition_file2").files.length === 0)
+                {
+                    document.getElementById(file_id).files = container.files;
+                }
+            }
+            else
+            {
+                document.getElementById(file_id).files = container.files;
+            }
             /**
              * If we can match file, will not try to match extension
              */
@@ -325,8 +349,8 @@ $(document).ready(function () {
      */
     new file_drop_processor()
     .drop_area('fid_file_area') /** id of dropzone */
-    .files_name(["acqu2s", "acqus", "ser", "fid"])  /** file names to be searched from upload */
-    .files_id(["acquisition_file2", "acquisition_file", "fid_file", "fid_file"]) /** Corresponding file element IDs */
+    .files_name(["acqu2s", "acqu3s", "acqus", "ser", "fid"])  /** file names to be searched from upload */
+    .files_id(["acquisition_file2","acquisition_file2", "acquisition_file", "fid_file", "fid_file"]) /** Corresponding file element IDs */
     .init();
 
     /**
@@ -381,10 +405,19 @@ $(document).ready(function () {
                 document.getElementById('fid_file').value = "";
 
                 /**
+                 * Get HTML select "hsqc_acquisition_seq" value: "321" or "312"
+                 */
+                let acquisition_seq = document.getElementById("hsqc_acquisition_seq").value;
+                /**
+                 * Get HTML checkbox "neg_imaginary".checked: true or false
+                 * convert it to "yes" or "no"
+                 */
+                let neg_imaginary = document.getElementById("neg_imaginary").checked ? "yes" : "no";
+
+                /**
                  * Result is an array of Uint8Array
                  */
-                processing_message_title = "Processing time domain spectra";
-                webassembly_worker.postMessage({file_data: result});
+                webassembly_worker.postMessage({file_data: result, acquisition_seq: acquisition_seq, neg_imaginary: neg_imaginary});
 
 
             })
@@ -404,45 +437,139 @@ webassembly_worker.onmessage = function (e) {
     if (e.data.stdout) {
 
         /**
-         * Keep a queue of 6 messages
+         * Append e.data.stdout to textarea with ID "log"
+         * and add a new line
          */
-        processing_message.push(e.data.stdout);
-        if (processing_message.length > 6) {
-            processing_message.shift();
-        }
+        document.getElementById("log").value += e.data.stdout + "\n";
+        document.getElementById("log").scrollTop = document.getElementById("log").scrollHeight;
 
-        show_message(processing_message_title,processing_message);
+    }
+    /**
+     * e.data.stdout is defined but empty, it is the end of the processing message
+     */
+    else if (typeof e.data.stdout !== "undefined" && e.data.stdout === "") {
     }
 
     /**
      * If result is peaks
      */
-    if (e.data.peaks) {
+    else if (e.data.peaks) {
         hsqc_spectra[e.data.spectrum_index].picked_peaks = e.data.peaks.picked_peaks;
-        processing_message_title = [];
-        processing_message = [];
-        show_message("",[]); //clear the processing message
+
+        /**
+         * when picked peaks are received, fitted peaks need to be reset
+         */
+        hsqc_spectra[e.data.spectrum_index].fitted_peaks = [];
+        /**
+         * Disable the download fitted peaks button. Uncheck the show fitted peaks checkbox, disable it too
+         */
+        document.getElementById("download_fitted_peaks-".concat(e.data.spectrum_index)).disabled = true;
+        document.getElementById("show_fitted_peaks-".concat(e.data.spectrum_index)).checked = false;
+        document.getElementById("show_fitted_peaks-".concat(e.data.spectrum_index)).disabled = true;
+
+        /**
+         * Need to save its scale and scale2 used to run deep picker
+         * because we will need them to run peak fitting
+         */
+        hsqc_spectra[e.data.spectrum_index].scale = e.data.scale;
+        hsqc_spectra[e.data.spectrum_index].scale2 = e.data.scale2;
         /**
          * Enable the download peaks button
          */
         document.getElementById("download_peaks-".concat(e.data.spectrum_index)).disabled = false;
         /**
-         * Enable then simulate a click event to show the peaks
+         * Enable peak picking (we disabled it when starting deep picker) and peak fitting buttons
+         */
+        document.getElementById("run_deep_picker-".concat(e.data.spectrum_index)).disabled = false;
+        document.getElementById("run_voigt_fitter0-".concat(e.data.spectrum_index)).disabled = false;
+        document.getElementById("run_voigt_fitter1-".concat(e.data.spectrum_index)).disabled = false;
+        /**
+         * Enable, set it as unchecked then simulate a click event to show the peaks
          */
         document.getElementById("show_peaks-".concat(e.data.spectrum_index)).disabled = false;
+        document.getElementById("show_peaks-".concat(e.data.spectrum_index)).checked = false;
         document.getElementById("show_peaks-".concat(e.data.spectrum_index)).click();
+    }
+
+    /**
+     * If result is fitted_peaks and recon_spectrum
+     */
+    else if (e.data.fitted_peaks && e.data.recon_spectrum) {
+        console.log("Fitted peaks and recon_spectrum received");
+        hsqc_spectra[e.data.spectrum_index].fitted_peaks = e.data.fitted_peaks.fitted_peaks; //The double fitted_peaks is correct
+
+        /**
+         * Enable run deep picker and run voigt fitter buttons
+         */
+        document.getElementById("run_deep_picker-".concat(e.data.spectrum_index)).disabled = false;
+        document.getElementById("run_voigt_fitter0-".concat(e.data.spectrum_index)).disabled = false;
+        document.getElementById("run_voigt_fitter1-".concat(e.data.spectrum_index)).disabled = false;
+
+        /**
+         * Enable the download fitted peaks button and show the fitted peaks button
+         */
+        document.getElementById("download_fitted_peaks-".concat(e.data.spectrum_index)).disabled = false;
+        document.getElementById("show_fitted_peaks-".concat(e.data.spectrum_index)).disabled = false;
+
+        /**
+         * Uncheck the show_peaks checkbox then simulate a click event to show the peaks (with updated peaks from fitted_peaks)
+         */
+        document.getElementById("show_fitted_peaks-".concat(e.data.spectrum_index)).checked = false;
+        document.getElementById("show_fitted_peaks-".concat(e.data.spectrum_index)).click();
+
+        /**
+         * Treat the received recon_spectrum as a frequency domain spectrum
+         */
+        let arrayBuffer = new Uint8Array(e.data.recon_spectrum).buffer;
+
+        /**
+         * Process the frequency domain spectrum, spectrum name is "recon-".spectrum_origin.".ft2"
+         */
+        let result_spectrum_name = "recon-".concat(e.data.spectrum_index.toString(), ".ft2");
+        let result_spectrum = process_ft_file(arrayBuffer,result_spectrum_name,e.data.spectrum_index);
+
+        /**
+         * Replace its header with the header of the original spectrum
+         * and noise_level, levels, negative_levels, spectral_max and spectral_min with the original spectrum
+         */
+        result_spectrum.header = hsqc_spectra[e.data.spectrum_index].header;
+        result_spectrum.noise_level = hsqc_spectra[e.data.spectrum_index].noise_level;
+        result_spectrum.levels = hsqc_spectra[e.data.spectrum_index].levels;
+        result_spectrum.negative_levels = hsqc_spectra[e.data.spectrum_index].negative_levels;
+        result_spectrum.spectral_max = hsqc_spectra[e.data.spectrum_index].spectral_max;
+        result_spectrum.spectral_min = hsqc_spectra[e.data.spectrum_index].spectral_min;
+
+        /**
+         * Copy picked_peaks and fitted_peaks from the original spectrum
+         */
+        result_spectrum.picked_peaks = hsqc_spectra[e.data.spectrum_index].picked_peaks;
+        result_spectrum.fitted_peaks = hsqc_spectra[e.data.spectrum_index].fitted_peaks;
+
+        /**
+         * Also copy scale and scale2 from the original spectrum, which are used to run deep picker and peak fitting
+         */
+        result_spectrum.scale = e.data.scale;
+        result_spectrum.scale2 = e.data.scale2;
+        draw_spectrum(result_spectrum);
     }
 
     /**
      * If result is file_data, it is the frequency domain spectrum
      */
-    if (e.data.file_data) {
+    else if (e.data.file_data && e.data.phasing_data) {
+
+        /**
+         * e.data.phasing_data is a string with 4 numbers separated by space(s)
+         */
+        current_phase_correction = e.data.phasing_data.split(/(\s+)/);
+
         let arrayBuffer = new Uint8Array(e.data.file_data).buffer;
-        let result_spectrum = process_ft_file(arrayBuffer,"from_fid.ft2");
+        let result_spectrum = process_ft_file(arrayBuffer,"from_fid.ft2",-2);
         draw_spectrum(result_spectrum);
-        processing_message_title = [];
-        processing_message = [];
-        show_message("",[]); //clear the processing message`
+    }
+
+    else{
+        console.log(e.data);
     }
 };
 
@@ -622,7 +749,7 @@ const getDragAfterElement = (
 
 
 
-function add_spectrum_to_list(index) {
+function add_to_list(index) {
     let new_spectrum = hsqc_spectra[index];
     let new_spectrum_div = document.createElement("li");
 
@@ -643,8 +770,10 @@ function add_spectrum_to_list(index) {
     
     /**
      * The new DIV will have the following children:
+     * A original index (which is different from the index in the list, because of the order change by drag and drop)
      * A span element with the spectrum noise level
      */
+    new_spectrum_div.appendChild(document.createTextNode("Original index: ".concat(index.toString(), ", ")));
     new_spectrum_div.appendChild(document.createTextNode("Noise: " + new_spectrum.noise_level.toExponential(2) + ","));
     /**
      * Add filename as a text node
@@ -687,46 +816,92 @@ function add_spectrum_to_list(index) {
 
 
     /**
-     * Add a download button to download the spectrum
+     * Add a download button to download the spectrum only if spectrum_origin is -2
      */
-    let download_button = document.createElement("button");
-    download_button.innerText = "Download frequency domain spectrum";
-    download_button.onclick = function () { download_spectrum(index); };
-    new_spectrum_div.appendChild(download_button);
+    if (new_spectrum.spectrum_origin === -2) {
+        let download_button = document.createElement("button");
+        download_button.innerText = "Download frequency domain spectrum";
+        download_button.onclick = function () { download_spectrum(index); };
+        new_spectrum_div.appendChild(download_button);
+    }
+
 
     /**
-     * Add a run_DEEP_Picker button to run DEEP picker
+     * If the spectrum is experimental, add a run_DEEP_Picker, run Voigt fitter, run Gaussian fitter, and download peaks button
      */
-    let deep_picker_button = document.createElement("button");
-    deep_picker_button.innerText = "Run DEEP Picker";
-    deep_picker_button.onclick = function () { run_DEEP_Picker(index); };
-    new_spectrum_div.appendChild(deep_picker_button);
+    if(new_spectrum.spectrum_origin === -1 || new_spectrum.spectrum_origin === -2)
+    {
+        /**
+         * Add a run_DEEP_Picker button to run DEEP picker. Default is enabled
+         */
+        let deep_picker_button = document.createElement("button");
+        deep_picker_button.setAttribute("id", "run_deep_picker-".concat(index));
+        deep_picker_button.innerText = "Run DEEP Picker";
+        deep_picker_button.onclick = function () { run_DEEP_Picker(index); };
+        new_spectrum_div.appendChild(deep_picker_button);
+        
+        /**
+         * Add two buttons to call run_Voigt_fitter, with option 0 and 1
+         * Default is disabled
+         */
+        let run_voigt_fitter_button0 = document.createElement("button");
+        run_voigt_fitter_button0.innerText = "Run Voigt shape fitting";
+        run_voigt_fitter_button0.onclick = function () { run_Voigt_fitter(index, 0); };
+        run_voigt_fitter_button0.disabled = true;
+        run_voigt_fitter_button0.setAttribute("id", "run_voigt_fitter0-".concat(index));
+        new_spectrum_div.appendChild(run_voigt_fitter_button0);
+
+        let run_voigt_fitter_button1 = document.createElement("button");
+        run_voigt_fitter_button1.innerText = "Run Gaussian shape fitting";
+        run_voigt_fitter_button1.onclick = function () { run_Voigt_fitter(index, 1); };
+        run_voigt_fitter_button1.disabled = true;
+        run_voigt_fitter_button1.setAttribute("id", "run_voigt_fitter1-".concat(index));
+        new_spectrum_div.appendChild(run_voigt_fitter_button1);
+    }
+
     /**
-     * Add a download peaks button to download the peaks. Default is disabled
+     * Add a download button to download the picked peaks. Default is disabled unless it is a reconstructed spectrum
      */
     let download_peaks_button = document.createElement("button");
-    download_peaks_button.innerText = "Download peaks";
-    download_peaks_button.disabled = true;
+    download_peaks_button.innerText = "Download picked peaks";
+    if(new_spectrum.spectrum_origin === -1 || new_spectrum.spectrum_origin === -2){
+        download_peaks_button.disabled = true;
+    }
     download_peaks_button.setAttribute("id", "download_peaks-".concat(index));
-    download_peaks_button.onclick = function () { download_peaks(index); };
+    download_peaks_button.onclick = function () { download_peaks(index,'picked'); };
     new_spectrum_div.appendChild(download_peaks_button);
+
     /**
-     * Add a checkbox to show or hide the peaks. Default is unchecked
+     * Add a download button to download the fitted peaks. Default is disabled unless it is a reconstructed spectrum
+     */
+    let download_fitted_peaks_button = document.createElement("button");
+    download_fitted_peaks_button.innerText = "Download fitted peaks";
+    if(new_spectrum.spectrum_origin === -1 || new_spectrum.spectrum_origin === -2){
+        download_fitted_peaks_button.disabled = true;
+    }
+    download_fitted_peaks_button.setAttribute("id", "download_fitted_peaks-".concat(index));
+    download_fitted_peaks_button.onclick = function () { download_peaks(index,'fitted'); };
+    new_spectrum_div.appendChild(download_fitted_peaks_button);
+
+    /**
+     * Add a checkbox to show or hide the picked peaks. Default is unchecked
      * It has an event listener to show or hide the peaks
      */
     let show_peaks_checkbox = document.createElement("input");
     show_peaks_checkbox.setAttribute("type", "checkbox");
-    show_peaks_checkbox.disabled = true;
+    if(new_spectrum.spectrum_origin === -1 || new_spectrum.spectrum_origin === -2){
+        show_peaks_checkbox.disabled = true;
+    }
     show_peaks_checkbox.setAttribute("id", "show_peaks-".concat(index));
     show_peaks_checkbox.onclick = function (e) {
         /**
          * If the checkbox is checked, show the peaks
          */
-        if(e.target.checked) {
-            show_hide_peaks(index,true);
+        if (e.target.checked) {
+            show_hide_peaks(index,'picked', true);
         }
         else {
-            show_hide_peaks(index,false);
+            show_hide_peaks(index,'picked', false);
         }
     }
     new_spectrum_div.appendChild(show_peaks_checkbox);
@@ -735,11 +910,39 @@ function add_spectrum_to_list(index) {
     show_peaks_label.innerText = "Show picked peaks";
     new_spectrum_div.appendChild(show_peaks_label);
 
+    /**
+     * Add a checkbox to show or hide the fitted peaks. Default is unchecked
+     */
+    let show_fitted_peaks_checkbox = document.createElement("input");
+    show_fitted_peaks_checkbox.setAttribute("type", "checkbox");
+    if(new_spectrum.spectrum_origin === -1 || new_spectrum.spectrum_origin === -2){
+        show_fitted_peaks_checkbox.disabled = true;
+    }
+    show_fitted_peaks_checkbox.setAttribute("id", "show_fitted_peaks-".concat(index));
+    show_fitted_peaks_checkbox.onclick = function (e) {
+        /**
+         * If the checkbox is checked, show the peaks
+         */
+        if (e.target.checked) {
+            show_hide_peaks(index,'fitted', true);
+        }
+        else {
+            show_hide_peaks(index,'fitted', false);
+        }
+    }
+    new_spectrum_div.appendChild(show_fitted_peaks_checkbox);
+    let show_fitted_peaks_label = document.createElement("label");
+    show_fitted_peaks_label.setAttribute("for", "show_fitted_peaks-".concat(index));
+    show_fitted_peaks_label.innerText = "Show fitted peaks";
+    new_spectrum_div.appendChild(show_fitted_peaks_label);
+
+
 
     /**
      * Add a new line
-     */
-    new_spectrum_div.appendChild(document.createElement("br"));    
+    */
+    new_spectrum_div.appendChild(document.createElement("br"));  
+    
 
     /**
      * Positive contour levels first
@@ -832,7 +1035,7 @@ function add_spectrum_to_list(index) {
     contour_slider.setAttribute("max", "20");
     contour_slider.setAttribute("value", "1");
     contour_slider.style.width = "10%";
-    contour_slider.addEventListener("input", (e) => {update_contour_slider(e,index,0); });
+    contour_slider.addEventListener("input", (e) => {update_contour_slider(e,index,'positive'); });
     new_spectrum_div.appendChild(contour_slider);
 
     
@@ -942,7 +1145,7 @@ function add_spectrum_to_list(index) {
         contour_slider_negative.setAttribute("max", "20");
         contour_slider_negative.setAttribute("value", "1");
         contour_slider_negative.style.width = "10%";
-        contour_slider_negative.addEventListener("input", (e) => { update_contour_slider(e,index,1); });
+        contour_slider_negative.addEventListener("input", (e) => { update_contour_slider(e,index,'negative'); });
         new_spectrum_div.appendChild(contour_slider_negative);
     
         
@@ -1021,7 +1224,7 @@ my_contour_worker.onmessage = (e) => {
                 x_ppm_ref: hsqc_spectra[e.data.spectrum_index].x_ppm_ref,
                 y_ppm_ref: hsqc_spectra[e.data.spectrum_index].y_ppm_ref,
             });
-            add_spectrum_to_list(e.data.spectrum_index);
+            add_to_list(e.data.spectrum_index);
             main_plot.spectral_order.push(e.data.spectrum_index);
             main_plot.redraw_contour();
         }
@@ -1515,7 +1718,7 @@ function update_contour_slider(e,index,flag) {
      */
     let level = parseInt(e.target.value);
 
-    if(flag==0)
+    if(flag === 'positive')
     {
         /**
          * Update text of corresponding contour_level
@@ -1531,19 +1734,28 @@ function update_contour_slider(e,index,flag) {
          * Update peaks only if current index is the same as current spectrum index of peaks
          * and current spectrum has picked peaks and is visible
          */
-        if(current_spectrum_index_of_peaks === index && hsqc_spectra[index].picked_peaks.length > 0 && hsqc_spectra[index].picked_peaks_visible)
+        if(current_spectrum_index_of_peaks === index )
         {
             let level = hsqc_spectra[index].levels[main_plot.contour_lbs[index]];
+            let peaks;
+            if(current_flag_of_peaks === 'picked')
+            {
+                peaks = hsqc_spectra[index].picked_peaks.filter(peak => peak.index > level);
+            }
+            else if(current_flag_of_peaks === 'fitted')
+            {
+                peaks = hsqc_spectra[index].fitted_peaks.filter(peak => peak.index > level);
+            }
             /**
-             * Filter hsqc_spectra[index].picked_peaks by level (index > level)
+             * Filter peaks by level (index > level)
              * to get an subset of peaks
              */
-            let new_peaks = hsqc_spectra[index].picked_peaks.filter(peak => peak.index > level);
+            let new_peaks = peaks.filter(peak => peak.index > level);
             main_plot.add_picked_peaks(new_peaks);
         }
 
     }
-    else if(flag==1)
+    else if(flag === 'negative')
     {
         /**
          * Update text of corresponding contour_level
@@ -1558,7 +1770,6 @@ function update_contour_slider(e,index,flag) {
 
     main_plot.redraw_contour();
 
-    
 }
 
 
@@ -1603,7 +1814,7 @@ const read_file_and_process_ft2 = (file_id) => {
                 // var data = new Uint8Array(reader.result);
                 // Module['FS_createDataFile']('/', 'test.ft2', data, true, true, true);
 
-                let result = process_ft_file(arrayBuffer, file.name);
+                let result = process_ft_file(arrayBuffer, file.name,-1);
                 resolve(result);
             };
             reader.onerror = function (e) {
@@ -1622,9 +1833,11 @@ const read_file_and_process_ft2 = (file_id) => {
  * @param {arrayBuffer} arrayBuffer: raw file data
  * @returns hsqc_spectra object
  */
-function process_ft_file(arrayBuffer,file_name) {
+function process_ft_file(arrayBuffer,file_name, spectrum_type) {
 
     let result = new spectrum();
+
+    result.spectrum_origin = spectrum_type;
 
     result.header = new Float32Array(arrayBuffer, 0, 512);
 
@@ -1967,6 +2180,14 @@ async function download_plot()
 function run_DEEP_Picker(spectrum_index)
 {
     /**
+     * Disable the buttons to run deep picker and voigt fitter
+     */
+    document.getElementById("run_deep_picker-".concat(spectrum_index)).disabled = true;
+    document.getElementById("run_voigt_fitter0-".concat(spectrum_index)).disabled = true;
+    document.getElementById("run_voigt_fitter1-".concat(spectrum_index)).disabled = true;
+
+
+    /**
      * Combine hsqc_spectra[0].raw_data and hsqc_spectra[0].header into one Float32Array
      */
     let data = Float32Concat(hsqc_spectra[spectrum_index].header, hsqc_spectra[spectrum_index].raw_data);
@@ -1975,36 +2196,71 @@ function run_DEEP_Picker(spectrum_index)
      */
     let data_uint8 = new Uint8Array(data.buffer);
 
-    processing_message_title = "Run DEEP Picker";
-    webassembly_worker.postMessage({spectrum_data: data_uint8, spectrum_index: spectrum_index});
+    /**
+     * Get noise_level of the spectrum
+     * And current lowest contour level of the spectrum
+     * Calculate scale as lowest contour level / noise_level
+     * and scale2 as 0.6 * scale
+     */
+    let noise_level = hsqc_spectra[spectrum_index].noise_level;
+    let level = hsqc_spectra[spectrum_index].levels[main_plot.contour_lbs[spectrum_index]];
+    let scale = level / noise_level;
+    let scale2 = 0.6 * scale;
+
+    /**
+     * Add title to textarea "log"
+     */
+    document.getElementById("log").value += "\n\nRun DEEP Picker\n";
+    webassembly_worker.postMessage({
+        spectrum_data: data_uint8,
+        spectrum_index: spectrum_index,
+        scale: scale,
+        scale2: scale2,
+        noise_level: noise_level
+    });
 }
 
 /**
- * Show a message on a floating div with id fixed65146
- * @param {string} message_title 
- * @param {array} message_content 
+ * Call Voigt fitter to run peak fitting on the spectrum
+ * @param {int} spectrum_index: index of the spectrum in hsqc_spectra array
  */
-function show_message(message_title,message_content)
+function run_Voigt_fitter(spectrum_index,flag)
 {
+    /**
+     * Disable the buttons to run deep picker and voigt fitter
+     */
+    document.getElementById("run_deep_picker-".concat(spectrum_index)).disabled = true;
+    document.getElementById("run_voigt_fitter0-".concat(spectrum_index)).disabled = true;
+    document.getElementById("run_voigt_fitter1-".concat(spectrum_index)).disabled = true;
 
-    let h3=document.createElement("h3");
-    h3.innerHTML = message_title;
-    document.getElementById("fixed65146").innerHTML = "";
-    document.getElementById("fixed65146").appendChild(h3);
+
+    /**
+     * Combine hsqc_spectra[0].raw_data and hsqc_spectra[0].header into one Float32Array
+     */
+    let data = Float32Concat(hsqc_spectra[spectrum_index].header, hsqc_spectra[spectrum_index].raw_data);
+    /**
+     * Convert to Uint8Array to be transferred to the worker
+     */
+    let data_uint8 = new Uint8Array(data.buffer);
 
 
-    for(let i=0;i<message_content.length;i++)
-    {
-        let p = document.createElement("p");
-        p.innerHTML = message_content[i];
-        document.getElementById("fixed65146").appendChild(p);
-    }
+    document.getElementById("log").value += "\n\nRun Peak fitting\n";
+    webassembly_worker.postMessage({
+        spectrum_data: data_uint8,
+        picked_peaks: hsqc_spectra[spectrum_index].picked_peaks,
+        spectrum_index: spectrum_index,
+        flag: flag, //0: Voigt, 1: Gaussian
+        scale: hsqc_spectra[spectrum_index].scale,
+        scale2: hsqc_spectra[spectrum_index].scale2,
+        noise_level: hsqc_spectra[spectrum_index].noise_level
+    });
+
 }
 
 /**
  * Show or hide peaks on the plot
  */
-function show_hide_peaks(index,b_show)
+function show_hide_peaks(index,flag,b_show)
 {
     /**
      * Turn off checkbox of all other spectra
@@ -2014,27 +2270,54 @@ function show_hide_peaks(index,b_show)
         if(i!==index)
         {
             document.getElementById("show_peaks-"+i).checked = false;
+            document.getElementById("show_fitted_peaks-"+i).checked = false;
+        }
+        /**
+         * uncheck the checkbox of the current spectrum
+         */
+        else
+        {
+            if(flag === 'picked')
+            {
+                document.getElementById("show_fitted_peaks-"+i).checked = false;
+            }
+            else if(flag === 'fitted')
+            {
+                document.getElementById("show_peaks-"+i).checked = false;
+            }
         }
     }
 
     if(b_show)
     {
         current_spectrum_index_of_peaks = index;
-        hsqc_spectra[index].picked_peaks_visible = true;
+        current_flag_of_peaks = flag;
+
         /**
          * Get current lowest contour level of the spectrum
          */
         let level = hsqc_spectra[index].levels[main_plot.contour_lbs[index]];
+
+        let peaks;
+        if(flag === 'picked')
+        {
+            peaks = hsqc_spectra[index].picked_peaks;
+        }
+        else if(flag === 'fitted')
+        {
+            peaks = hsqc_spectra[index].fitted_peaks;
+        }
+
         /**
-         * Filter hsqc_spectra[index].picked_peaks by level (index > level)
+         * Filter hsqc_spectra[index].fitted_peaks or picked_peaks by level (index > level)
          * to get an subset of peaks
          */
-        let new_peaks = hsqc_spectra[index].picked_peaks.filter(peak => peak.index > level);
-        main_plot.add_picked_peaks(new_peaks);
+        let new_peaks = peaks.filter(peak => peak.index > level);
+         main_plot.add_picked_peaks(new_peaks);
     }
     else
     {
-        hsqc_spectra[index].picked_peaks_visible = false;
+        current_spectrum_index_of_peaks = -1; // -1 means no spectrum is selected. flag is not important
         main_plot.remove_picked_peaks();
     }
     /**
@@ -2045,16 +2328,24 @@ function show_hide_peaks(index,b_show)
 /**
  * Generate a list of peaks in nmrPipe .tab format
  */
-function download_peaks(spectrum_index)
+function download_peaks(spectrum_index,flag)
 {
-    let file_buffer = "VARS INDEX X_PPM Y_PPM HEIGHT\n";
-    file_buffer += "FORMAT %5d %10.6f %10.6f %+e\n"; 
+    let file_buffer = "VARS INDEX X_PPM Y_PPM HEIGHT\nFORMAT %5d %10.6f %10.6f %+e\n";
 
-    for(let i=0;i<hsqc_spectra[spectrum_index].picked_peaks.length;i++)
+    let peaks;
+    if(flag === 'picked')
     {
-        let peak = hsqc_spectra[spectrum_index].picked_peaks[i];
+        peaks = hsqc_spectra[spectrum_index].picked_peaks;
+    }
+    else if(flag === 'fitted')
+    {
+        peaks = hsqc_spectra[spectrum_index].fitted_peaks;
+    }
+
+    for(let i=0;i<peaks.length;i++)
+    {
         /**
-         * This is a peak object example
+         * This is a peak object peaks[i] example
          * cs_x: 1.241449 ==> X_PPM, need to add x_ppm_ref
          * cs_y : 20.02922 ==> Y_PPM, need to add y_ppm_ref
          * gammax : 0.61602
@@ -2066,9 +2357,9 @@ function download_peaks(spectrum_index)
          * i will be the index of the peak
         */
         file_buffer += (i+1).toFixed(0).padStart(5) + " ";
-        file_buffer += (peak.cs_x + hsqc_spectra[spectrum_index].x_ppm_ref).toFixed(6).padStart(10) + " ";
-        file_buffer += (peak.cs_y + hsqc_spectra[spectrum_index].y_ppm_ref).toFixed(6).padStart(10) + " ";
-        file_buffer += peak.index.toExponential() + " ";
+        file_buffer += (peaks[i].cs_x + hsqc_spectra[spectrum_index].x_ppm_ref).toFixed(6).padStart(10) + " ";
+        file_buffer += (peaks[i].cs_y + hsqc_spectra[spectrum_index].y_ppm_ref).toFixed(6).padStart(10) + " ";
+        file_buffer += peaks[i].index.toExponential() + " ";
         file_buffer += "\n";
     }
 
@@ -2077,6 +2368,34 @@ function download_peaks(spectrum_index)
     let a = document.createElement('a');
     a.href = url;
     a.download = hsqc_spectra[spectrum_index].filename + ".tab";
+    a.click();
+
+    /**
+     * Remove the url and a
+     */
+    URL.revokeObjectURL(url);
+    a.remove();
+}
+
+/**
+ * Clear the textarea log
+ */
+function clear_log()
+{
+    document.getElementById("log").value = "";
+}
+
+/**
+ * Save the current textarea log to a file
+ */
+function save_log()
+{
+    let log = document.getElementById("log").value;
+    let blob = new Blob([log], { type: 'text/plain' });
+    let url = URL.createObjectURL(blob);
+    let a = document.createElement('a');
+    a.href = url;
+    a.download = "log.txt";
     a.click();
 
     /**
