@@ -2396,7 +2396,7 @@ function clear_log()
 /**
  * Save the current textarea log to a file
  */
-function save_log()
+function download_log()
 {
     let log = document.getElementById("log").value;
     let blob = new Blob([log], { type: 'text/plain' });
