@@ -832,9 +832,9 @@ function add_to_list(index) {
 
 
     /**
-     * Add a download button to download the spectrum only if spectrum_origin is -2
+     * Add a download button to download the spectrum only if spectrum_origin is not -1
      */
-    if (new_spectrum.spectrum_origin === -2) {
+    if (new_spectrum.spectrum_origin !== -1) {
         let download_button = document.createElement("button");
         download_button.innerText = "Download ft2";
         download_button.onclick = function () { download_spectrum(index); };
