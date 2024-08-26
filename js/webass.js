@@ -48,6 +48,7 @@ onmessage = function (e) {
         /**
          * Run fid_phase function
          */
+        this.postMessage({ stdout: "Running fid_phase function" });
         api.version();
         api.fid_phase();
         console.log('Finished running web assembly code');
@@ -108,6 +109,7 @@ onmessage = function (e) {
         /**
          * Run voigt_fit function
          */
+        this.postMessage({ stdout: "Running voigt_fit function" });
         api.voigt_fit();
         console.log('Finished running web assembly code');
         /**
@@ -169,6 +171,7 @@ onmessage = function (e) {
         /**
          * Run deep function
          */
+        this.postMessage({ stdout: "Running deep function" });
         api.deep();
         console.log('Finished running web assembly code');
         /**

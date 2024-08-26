@@ -89,18 +89,6 @@
             z-index: 100; /* Place the tooltip above all other elements */
         }
 
-
-        .highlight {
-            background-color: #e6f10d;
-            color: blue;
-        }
-
-
-        .fieldset-auto-width {
-            display: inline-block;
-        }
-
-
         .drop-area {
             border: 2px dashed #ccc;
             border-radius: 20px;
@@ -146,5 +134,27 @@
 
         textarea {
             resize: auto;
+        }
+
+        #contour_message {
+            position: fixed;
+            font-size: x-large;
+            left: 50px;
+            top: 50px;
+            background-color: #e6f10d;
+            color: blue;
+            opacity: 0.6;
+            z-index: 2000;
+        }
+
+        #webassembly_message {
+            position: fixed;
+            font-size: x-large;
+            left: 50px;
+            top: 100px;
+            background-color: #e6f10d;
+            color: blue;
+            opacity: 0.6;
+            z-index: 2000;
         }
 
