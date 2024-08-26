@@ -820,7 +820,7 @@ function add_to_list(index) {
      */
     if (new_spectrum.spectrum_origin === -2) {
         let download_button = document.createElement("button");
-        download_button.innerText = "Download frequency domain spectrum";
+        download_button.innerText = "Download ft2";
         download_button.onclick = function () { download_spectrum(index); };
         new_spectrum_div.appendChild(download_button);
     }
@@ -836,7 +836,7 @@ function add_to_list(index) {
          */
         let deep_picker_button = document.createElement("button");
         deep_picker_button.setAttribute("id", "run_deep_picker-".concat(index));
-        deep_picker_button.innerText = "Run DEEP Picker";
+        deep_picker_button.innerText = "DEEP Picker";
         deep_picker_button.onclick = function () { run_DEEP_Picker(index); };
         new_spectrum_div.appendChild(deep_picker_button);
         
@@ -845,14 +845,14 @@ function add_to_list(index) {
          * Default is disabled
          */
         let run_voigt_fitter_button0 = document.createElement("button");
-        run_voigt_fitter_button0.innerText = "Run Voigt shape fitting";
+        run_voigt_fitter_button0.innerText = "Voigt Fit (Voigt)";
         run_voigt_fitter_button0.onclick = function () { run_Voigt_fitter(index, 0); };
         run_voigt_fitter_button0.disabled = true;
         run_voigt_fitter_button0.setAttribute("id", "run_voigt_fitter0-".concat(index));
         new_spectrum_div.appendChild(run_voigt_fitter_button0);
 
         let run_voigt_fitter_button1 = document.createElement("button");
-        run_voigt_fitter_button1.innerText = "Run Gaussian shape fitting";
+        run_voigt_fitter_button1.innerText = "Voigt Fit (Gaussian)";
         run_voigt_fitter_button1.onclick = function () { run_Voigt_fitter(index, 1); };
         run_voigt_fitter_button1.disabled = true;
         run_voigt_fitter_button1.setAttribute("id", "run_voigt_fitter1-".concat(index));
@@ -863,7 +863,7 @@ function add_to_list(index) {
      * Add a download button to download the picked peaks. Default is disabled unless it is a reconstructed spectrum
      */
     let download_peaks_button = document.createElement("button");
-    download_peaks_button.innerText = "Download picked peaks";
+    download_peaks_button.innerText = "Download peaks";
     if(new_spectrum.spectrum_origin === -1 || new_spectrum.spectrum_origin === -2){
         download_peaks_button.disabled = true;
     }
@@ -907,7 +907,7 @@ function add_to_list(index) {
     new_spectrum_div.appendChild(show_peaks_checkbox);
     let show_peaks_label = document.createElement("label");
     show_peaks_label.setAttribute("for", "show_peaks-".concat(index));
-    show_peaks_label.innerText = "Show picked peaks";
+    show_peaks_label.innerText = "Show peaks";
     new_spectrum_div.appendChild(show_peaks_label);
 
     /**
@@ -1964,12 +1964,20 @@ function process_ft_file(arrayBuffer,file_name, spectrum_type) {
     z.sort();
     result.noise_level = z_abs[Math.floor(z_abs.length / 2)];
 
-
     /**
      * Get max and min of z (z is sorted)
      */
     result.spectral_max = z[z.length - 1];
     result.spectral_min = z[0];
+
+    /**
+     * In case of reconstructed spectrum from fitting or from NUS, noise_level is usually 0.
+     * In that case, we define noise_level as spectral_max/power(1.3,20)
+     */
+    if(result.noise_level <= Number.MIN_VALUE)
+    {
+        result.noise_level = result.spectral_max/Math.pow(1.3,20);
+    }
 
     /**
      * Calculate positive contour levels 
@@ -1979,7 +1987,7 @@ function process_ft_file(arrayBuffer,file_name, spectrum_type) {
     for (let i = 1; i < result.levels.length; i++) {
         result.levels[i] = 1.3 * result.levels[i - 1];
         if (result.levels[i] > result.spectral_max) {
-            result.levels = result.levels.slice(0, i);
+            result.levels = result.levels.slice(0, i+1);
             break;
         }
     }
@@ -1992,7 +2000,7 @@ function process_ft_file(arrayBuffer,file_name, spectrum_type) {
     for (let i = 1; i < result.negative_levels.length; i++) {
         result.negative_levels[i] = 1.3 * result.negative_levels[i - 1];
         if (result.negative_levels[i] < result.spectral_min) {
-            result.negative_levels = result.negative_levels.slice(0, i);
+            result.negative_levels = result.negative_levels.slice(0, i+1);
             break;
         }
     }
@@ -2388,7 +2396,7 @@ function clear_log()
 /**
  * Save the current textarea log to a file
  */
-function save_log()
+function download_log()
 {
     let log = document.getElementById("log").value;
     let blob = new Blob([log], { type: 'text/plain' });
