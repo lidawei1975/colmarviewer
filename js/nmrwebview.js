@@ -418,7 +418,10 @@ $(document).ready(function () {
                  * Result is an array of Uint8Array
                  */
                 webassembly_worker.postMessage({file_data: result, acquisition_seq: acquisition_seq, neg_imaginary: neg_imaginary});
-
+                /**
+                 * Let user know the processing is started
+                 */
+                document.getElementById("webassembly_message").innerText = "Processing time domain spectra, please wait...";
 
             })
             .catch((err) => {
@@ -442,7 +445,6 @@ webassembly_worker.onmessage = function (e) {
          */
         document.getElementById("log").value += e.data.stdout + "\n";
         document.getElementById("log").scrollTop = document.getElementById("log").scrollHeight;
-
     }
     /**
      * e.data.stdout is defined but empty, it is the end of the processing message
@@ -489,6 +491,11 @@ webassembly_worker.onmessage = function (e) {
         document.getElementById("show_peaks-".concat(e.data.spectrum_index)).disabled = false;
         document.getElementById("show_peaks-".concat(e.data.spectrum_index)).checked = false;
         document.getElementById("show_peaks-".concat(e.data.spectrum_index)).click();
+
+        /**
+         * Clear the processing message
+         */
+        document.getElementById("webassembly_message").innerText = "";
     }
 
     /**
@@ -551,6 +558,11 @@ webassembly_worker.onmessage = function (e) {
         result_spectrum.scale = e.data.scale;
         result_spectrum.scale2 = e.data.scale2;
         draw_spectrum(result_spectrum);
+
+        /**
+ * Clear the processing message
+ */
+        document.getElementById("webassembly_message").innerText = "";
     }
 
     /**
@@ -566,6 +578,10 @@ webassembly_worker.onmessage = function (e) {
         let arrayBuffer = new Uint8Array(e.data.file_data).buffer;
         let result_spectrum = process_ft_file(arrayBuffer,"from_fid.ft2",-2);
         draw_spectrum(result_spectrum);
+        /**
+         * Clear the processing message
+         */
+        document.getElementById("webassembly_message").innerText = "";
     }
 
     else{
@@ -816,9 +832,9 @@ function add_to_list(index) {
 
 
     /**
-     * Add a download button to download the spectrum only if spectrum_origin is -2
+     * Add a download button to download the spectrum only if spectrum_origin is not -1
      */
-    if (new_spectrum.spectrum_origin === -2) {
+    if (new_spectrum.spectrum_origin !== -1) {
         let download_button = document.createElement("button");
         download_button.innerText = "Download ft2";
         download_button.onclick = function () { download_spectrum(index); };
@@ -2218,7 +2234,6 @@ function run_DEEP_Picker(spectrum_index)
     /**
      * Add title to textarea "log"
      */
-    document.getElementById("log").value += "\n\nRun DEEP Picker\n";
     webassembly_worker.postMessage({
         spectrum_data: data_uint8,
         spectrum_index: spectrum_index,
@@ -2226,6 +2241,11 @@ function run_DEEP_Picker(spectrum_index)
         scale2: scale2,
         noise_level: noise_level
     });
+    /**
+ * Let user know the processing is started
+ */
+    document.getElementById("webassembly_message").innerText = "Run DEEP Picker, please wait...";
+
 }
 
 /**
@@ -2251,8 +2271,6 @@ function run_Voigt_fitter(spectrum_index,flag)
      */
     let data_uint8 = new Uint8Array(data.buffer);
 
-
-    document.getElementById("log").value += "\n\nRun Peak fitting\n";
     webassembly_worker.postMessage({
         spectrum_data: data_uint8,
         picked_peaks: hsqc_spectra[spectrum_index].picked_peaks,
@@ -2262,6 +2280,10 @@ function run_Voigt_fitter(spectrum_index,flag)
         scale2: hsqc_spectra[spectrum_index].scale2,
         noise_level: hsqc_spectra[spectrum_index].noise_level
     });
+    /**
+     * Let user know the processing is started
+     */
+    document.getElementById("webassembly_message").innerText = "Run Peak fitting, please wait...";
 
 }
 

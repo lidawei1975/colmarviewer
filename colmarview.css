@@ -27,10 +27,50 @@
             font-family: Arial;
             border-width: 2px;
             clear: both;
-            display: block;
-            margin-top: 25px;
-            margin-bottom: 25px;
+            display: flex;
+            flex-direction: column;
+            margin-top: 10px;
+            margin-bottom: 10px;
             min-width: 1024px;
+            justify-content: center;
+            align-items: center;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        #section2 {
+            font-family: Arial;
+            border-width: 2px;
+            clear: both;
+            display: flex;
+            flex-wrap: wrap;
+            margin-top: 10px;
+            margin-bottom: 10px;
+            min-width: 1024px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        #section21 {
+            font-family: Arial;
+            border-width: 2px;
+            clear: both;
+            display: flex;
+            flex-direction: column;
+            margin-top: 10px;
+            margin-bottom: 10px;
+            min-width: 1024px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        #log_area {
+            font-family: Arial;
+            border-width: 2px;
+            clear: both;
+            margin-top: 10px;
+            margin-bottom: 10px;
+            min-width: 100px;
             margin-left: auto;
             margin-right: auto;
         }
@@ -49,22 +89,9 @@
             z-index: 100; /* Place the tooltip above all other elements */
         }
 
-
-        .highlight {
-            background-color: #e6f10d;
-            color: blue;
-        }
-
-
-        .fieldset-auto-width {
-            display: inline-block;
-        }
-
-
         .drop-area {
             border: 2px dashed #ccc;
             border-radius: 20px;
-            width: 480px;
             font-family: sans-serif;
             margin: 10px auto;
             padding: 10px;
@@ -73,9 +100,8 @@
         .drop-area-neighbor {
             border: 2px solid #ccc;
             border-radius: 10px;
-            width: 480px;
             font-family: sans-serif;
-            margin: 10px;
+            margin: 10px auto;
             padding: 10px;
         }
 
@@ -107,16 +133,27 @@
         }
 
         textarea {
-            resize: vertical;
+            resize: auto;
         }
 
-        #fixed65146 {
+        #contour_message {
             position: fixed;
             font-size: x-large;
-            left: 400px;
-            top: 400px;
-            color: red;
-            background-color: yellow;
+            left: 50px;
+            top: 50px;
+            background-color: #e6f10d;
+            color: blue;
+            opacity: 0.6;
+            z-index: 2000;
+        }
+
+        #webassembly_message {
+            position: fixed;
+            font-size: x-large;
+            left: 50px;
+            top: 100px;
+            background-color: #e6f10d;
+            color: blue;
             opacity: 0.6;
             z-index: 2000;
         }

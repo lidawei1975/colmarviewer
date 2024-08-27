@@ -9,128 +9,167 @@
 
 <body>
 
-    <div id="fixed65146"></div>
-
     <div id="body">
 
-        <h1>Web based two-dimensional NMR spectra viewer</h1>
-        <h2>with processing and peak picking</h2>
+        <span id="contour_message" ></span>
+        <span id="webassembly_message" ></span>
 
-        <div id="fid_file_area" class="drop-area" style="width: 1200px;">
-            <form id="fid_file_form" action="" enctype="multipart/form-data">
-                <h4>Upload Bruker time domain data for processing:</h4>
-                <label for="fid_file">fid file (required, usually called fid or ser): </label><input type="file"
-                    name="fid_file" id="fid_file" multiple><br>
-                <label for="acquisition_file">Direct dimension acquisition file (required, usually called acqus): </label><input type="file"
-                    name="acquisition_file" id="acquisition_file"><br>
-                <label for="acquisition_file2">Indirect dimension acquisition file (required, usually called acqu2s (in pseudo-3D: acqu3s)): </label><input type="file"
-                    name="acquisition_file2" id="acquisition_file2"><br>
-                <label for="hsqc_acquisition_seq">pseudo-3D acquisition sequence </label>
-                <select name="hsqc_acquisition_seq" id="hsqc_acquisition_seq">
-                    <option value="321">321</option>
-                    <option value="312">312</option>
-                </select><br>
-                <input type="checkbox" name="neg_imaginary" id="neg_imaginary" value="yes"><label for="neg_imaginary">Negative imaginary data (indirect dimension)?</label> <br>
-                <input type="submit" id="button_fid_process" name="Submit" value="Upload fid files for processing"></br>
-                <label class="information"> You can also drag and drop Bruker folder (which contains required files) here.</label><br>
-            </form>
-        </div>
+        <div id="section1" style=" Padding: 10px; width: min-content;">
+            <div>
+                <h1>Web based two-dimensional NMR spectra viewer</h1>
+                <h2>with processing and peak picking</h2>
+            </div>
 
-        <div id="file_area" class="drop-area" style="width: 1200px;">
-            <h4>Or upload frequency domain spectra:</h4>
-            <label for="userfile">Frequency domain spectral file (.ft2) </label><input type="file" id="userfile"><br>
-            <label class="information"> You can also drag and drop spectral file(s) in nmrPipe format or folder contains them here.</label>
-        </div>
-
-        <div id="spectra_list" style=" Padding: 10px; width: 1200px; margin:0 auto;" class="drop-area-neighbor">
-            <h4>Uploaded Spectra:</h4>
-            <ol id="spectra_list_ol" type="1">
-            </ol>
-        </div>
-
-        <div id="plot" style=" Padding: 10px; width: min-content; margin:0 auto;">
-            <span id="contour_message" class="highlight"></span>
-            <strong>Control:</strong>
-            <button onclick="resetzoom()">Reset all Zoom</button>,
-            <button onclick="popzoom()">Zoom Back</button>,
-            <button onclick="zoomout()">Zoom out 120%</button>
-            <button onclick="download_plot()">Download plot</button>
-            <input type="checkbox" id="Horizontal_cross_section">
-            <label for="Horizontal_cross_section"> Show Horizontal Cross Section </label>
-            <input type="checkbox" id="Vertical_cross_section">
-            <label for="Vertical_cross_section"> Show Vertical Cross Section </label>
-            <br><br>
-
-            <div id="vis_parent" class="resizable" style="position: relative; width: 1200px; height: 800px;">
-                <div id="information_bar" class="tooltip"
-                    style="position: absolute; top: 0px; right: 40px; width:400px; z-index: 3;">
-                    <span id="infor">Information</span>
-                </div>
-                <div id="canvas_parent" style="position: absolute; top: 0px; left: 0px; z-index: 1;">
-                    <canvas id="canvas1" style="border:0px;"></canvas>
-                </div>
-
-                <div id="svg_parent" style="position: absolute; bottom: 0px; left: 0px; z-index: 2;">
-                    <svg id="visualization"></svg>
-                </div>
+            <div id="instructions" class="drop-area-neighbor" style="width: 1200px;  margin:0 auto;">
+                <details>
+                    <summary>Instructions</summary>
+                    <p>1. This is a web-based tool to view and process 2D NMR spectra. This tool is part of the frontend
+                        of
+                        the more
+                        advanced <a href="https://spin.ccic.osu.edu">COLMAR deep picker</a> server.</p>
+                    <p>2. Upload the 2D NMR spectra in .ft2 format using the "Choose File" button above. Additional
+                        files
+                        can be added by repeating this process. You can also drag and drop a .ft2 file into the dashed
+                        area
+                        titled "Uploaded Spectra". If you drop a folder, all .ft2 files within the folder will be
+                        processed
+                        sequentially.</p>
+                    <p>3. User can also upload Bruker time domain data for processing.
+                        To do so, drag and drop the folder (such as "2", "4", which contains fid, acqus, acqu2s files)
+                        into the dashed area titled "Upload Bruker time domain data for processing".
+                        Alternatively, click the "Choose File" button to select the files.
+                        Then click the "Upload fid files for processing" button. The server will automatically process
+                        the
+                        data and generate
+                        the 2D NMR spectra.
+                        The user can then download the processed ft2 file
+                        for further analysis.</p>
+                    <p>4. The server will automatically estimate the noise level of each uploaded spectrum. By default,
+                        the
+                        lowest contour level is set at 5.5 times the noise level and each subsequent level is 1.3 times
+                        the
+                        previous level, until reaching the spectral maximum. Users can adjust both values and
+                        recalculate.
+                        Users can also click on the down button to add one more contour level (current lowest level /
+                        Logarithmic scale) at the beginning of all levels. This process is more efficient because there
+                        is
+                        no need to recalculate all other levels. The slider can be used to set the lowest visible
+                        contour
+                        level, without recalculation. Users can also change the color of each spectrum.</p>
+                    <p>5. Users can brush an area in the main plot to zoom in, and use buttons to zoom out, zoom back,
+                        or
+                        reset all zooms.</p>
+                    <p>6. User can drag and drop spectrum to re-order them on the plot</p>
+                    <p>7. User can show Horizontal and Vertical cross sections of the last spectrum in the spectral
+                        list.
+                    </p>
+                    <p>8. This program utilizes WebWorker and WebAssemble, which can't be loaded automatically when runs
+                        locally
+                        unless you add required command line to Google Chrome. To do so,
+                        right click on the Google Chrome icon, select "Properties", and add
+                        "--allow-file-access-from-files"
+                        to the
+                        end of the "Target" field to be like this: "C:\Program
+                        Files\Google\Chrome\Application\chrome.exe"
+                        --allow-file-access-from-files
+                        then click "Apply" or "OK". After this, click the Google Chrome icon to run the browser first
+                        before
+                        loading. Unfortunately,
+                        it poses a security risk by adding this option. Therefore, do NOT load any local files unless
+                        you
+                        are sure they are safe.
+                    </p>
+                </details>
             </div>
         </div>
 
-        <div id="log_area" class="drop-area-neighbor" style="width: 1200px; margin:0 auto;">
-            <h4>Background server log:</h4>
-            <textarea id="log" rows="30" cols="160" readonly></textarea>
-            <button onclick="clear_log()">Clear log</button>
-            <button onclick="download_log()">Download log</button>
+        <div id="section2">
+            <div id="section21">
+                <div id="fid_file_area" class="drop-area" style="width: 1200px;">
+                    <form id="fid_file_form" action="" enctype="multipart/form-data">
+                        <h4>Upload Bruker time domain data for processing:</h4>
+                        <label for="fid_file">fid file (required, usually called fid or ser): </label><input type="file"
+                            name="fid_file" id="fid_file" multiple><br>
+                        <label for="acquisition_file">Direct dimension acquisition file (required, usually called
+                            acqus):
+                        </label><input type="file" name="acquisition_file" id="acquisition_file"><br>
+                        <label for="acquisition_file2">Indirect dimension acquisition file (required, usually called
+                            acqu2s
+                            (in pseudo-3D: acqu3s)): </label><input type="file" name="acquisition_file2"
+                            id="acquisition_file2"><br>
+                        <label for="hsqc_acquisition_seq">pseudo-3D acquisition sequence </label>
+                        <select name="hsqc_acquisition_seq" id="hsqc_acquisition_seq">
+                            <option value="321">321</option>
+                            <option value="312">312</option>
+                        </select><br>
+                        <input type="checkbox" name="neg_imaginary" id="neg_imaginary" value="yes"><label
+                            for="neg_imaginary">Negative imaginary data (indirect dimension)?</label> <br>
+                        <input type="submit" id="button_fid_process" name="Submit"
+                            value="Upload fid files for processing"></br>
+                        <label class="information"> You can also drag and drop Bruker folder (which contains required
+                            files)
+                            here.</label><br>
+                    </form>
+                </div>
+
+                <div id="file_area" class="drop-area" style="width: 1200px;">
+                    <h4>Or upload frequency domain spectra:</h4>
+                    <label for="userfile">Frequency domain spectral file (.ft2) </label><input type="file"
+                        id="userfile"><br>
+                    <label class="information"> You can also drag and drop spectral file(s) in nmrPipe format or folder
+                        contains them here.</label>
+                </div>
+
+                <div id="spectra_list" style=" Padding: 10px; width: 1200px;" class="drop-area-neighbor">
+                    <h4>Uploaded Spectra:</h4>
+                    <ol id="spectra_list_ol" type="1">
+                    </ol>
+                </div>
+
+
+                <div id="plot" class="drop-area-neighbor" style=" Padding: 10px; width: min-content;">
+                    <strong>Control:</strong>
+                    <button onclick="resetzoom()">Reset all Zoom</button>,
+                    <button onclick="popzoom()">Zoom Back</button>,
+                    <button onclick="zoomout()">Zoom out 120%</button>
+                    <button onclick="download_plot()">Download plot</button>
+                    <input type="checkbox" id="Horizontal_cross_section">
+                    <label for="Horizontal_cross_section"> Show Horizontal Cross Section </label>
+                    <input type="checkbox" id="Vertical_cross_section">
+                    <label for="Vertical_cross_section"> Show Vertical Cross Section </label>
+                    <br><br>
+
+                    <div id="vis_parent" class="resizable" style="position: relative; width: 1200px; height: 800px;">
+                        <div id="information_bar" class="tooltip"
+                            style="position: absolute; top: 0px; right: 40px; width:400px; z-index: 3;">
+                            <span id="infor">Information</span>
+                        </div>
+                        <div id="canvas_parent" style="position: absolute; top: 0px; left: 0px; z-index: 1;">
+                            <canvas id="canvas1" style="border:0px;"></canvas>
+                        </div>
+
+                        <div id="svg_parent" style="position: absolute; bottom: 0px; left: 0px; z-index: 2;">
+                            <svg id="visualization"></svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+            <div id="log_area" class="drop-area-neighbor" style="width: min-content;">
+                <h4>Background server log:</h4>
+                <textarea id="log" rows="50" cols="80" readonly></textarea>
+                <button onclick="clear_log()">Clear log</button>
+                <button onclick="download_log()">Download log</button>
+            </div>
+
         </div>
 
-        <div id="instructions" class="drop-area-neighbor" style="width: 1200px;  margin:0 auto;">
-            <details>
-                <summary>Instructions</summary>
-                <p>1. This is a web-based tool to view and process 2D NMR spectra. This tool is part of the frontend of
-                    the more
-                    advanced <a href="https://spin.ccic.osu.edu">COLMAR deep picker</a> server.</p>
-                <p>2. Upload the 2D NMR spectra in .ft2 format using the "Choose File" button above. Additional files
-                    can be added by repeating this process. You can also drag and drop a .ft2 file into the dashed area
-                    titled "Uploaded Spectra". If you drop a folder, all .ft2 files within the folder will be processed
-                    sequentially.</p>
-                <p>3. User can also upload Bruker time domain data for processing.
-                    To do so, drag and drop the folder (such as "2", "4", which contains fid, acqus, acqu2s files)
-                    into the dashed area titled "Upload Bruker time domain data for processing".
-                    Alternatively, click the "Choose File" button to select the files.
-                    Then click the "Upload fid files for processing" button. The server will automatically process the
-                    data and generate
-                    the 2D NMR spectra.
-                    The user can then download the processed ft2 file
-                    for further analysis.</p>
-                <p>4. The server will automatically estimate the noise level of each uploaded spectrum. By default, the
-                    lowest contour level is set at 5.5 times the noise level and each subsequent level is 1.3 times the
-                    previous level, until reaching the spectral maximum. Users can adjust both values and recalculate.
-                    Users can also click on the down button to add one more contour level (current lowest level /
-                    Logarithmic scale) at the beginning of all levels. This process is more efficient because there is
-                    no need to recalculate all other levels. The slider can be used to set the lowest visible contour
-                    level, without recalculation. Users can also change the color of each spectrum.</p>
-                <p>5. Users can brush an area in the main plot to zoom in, and use buttons to zoom out, zoom back, or
-                    reset all zooms.</p>
-                <p>6. User can drag and drop spectrum to re-order them on the plot</p>
-                <p>7. User can show Horizontal and Vertical cross sections of the last spectrum in the spectral list.
-                </p>
-                <p>8. This program utilizes WebWorker and WebAssemble, which can't be loaded automatically when runs
-                    locally
-                    unless you add required command line to Google Chrome. To do so,
-                    right click on the Google Chrome icon, select "Properties", and add "--allow-file-access-from-files"
-                    to the
-                    end of the "Target" field to be like this: "C:\Program Files\Google\Chrome\Application\chrome.exe"
-                    --allow-file-access-from-files
-                    then click "Apply" or "OK". After this, click the Google Chrome icon to run the browser first before
-                    loading. Unfortunately,
-                    it poses a security risk by adding this option. Therefore, do NOT load any local files unless you
-                    are sure they are safe.
-                </p>
-            </details>
-        </div>
 
-        <div id="footer" style="width: 1200px; margin:10px auto;">
-            <p>For questions or comments, please contact us at <a href="mailto:lidawei@gmail.com">lidawei@gmail.com</a></p>
+
+        <div id="footer" style="width: 1200px;">
+            <p>For questions or comments, please contact us at <a href="mailto:lidawei@gmail.com">lidawei@gmail.com</a>
+            </p>
         </div>
 
         <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
