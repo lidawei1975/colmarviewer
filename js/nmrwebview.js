@@ -409,6 +409,14 @@ $(document).ready(function () {
                  */
                 let acquisition_seq = document.getElementById("hsqc_acquisition_seq").value;
                 /**
+                 * Get HTML select zf_direct value: "2" or "4" or "8"
+                 */
+                let zf_direct = document.getElementById("zf_direct").value;
+                /**
+                 * Get HTML select zf_indirect value: "2" or "4" or "8"
+                 */
+                let zf_indirect = document.getElementById("zf_indirect").value;
+                /**
                  * Get HTML checkbox "neg_imaginary".checked: true or false
                  * convert it to "yes" or "no"
                  */
@@ -417,7 +425,13 @@ $(document).ready(function () {
                 /**
                  * Result is an array of Uint8Array
                  */
-                webassembly_worker.postMessage({file_data: result, acquisition_seq: acquisition_seq, neg_imaginary: neg_imaginary});
+                webassembly_worker.postMessage({
+                    file_data: result,
+                    acquisition_seq: acquisition_seq,
+                    neg_imaginary: neg_imaginary,
+                    zf_direct: zf_direct,
+                    zf_indirect: zf_indirect
+                });
                 /**
                  * Let user know the processing is started
                  */
@@ -1753,21 +1767,8 @@ function update_contour_slider(e,index,flag) {
         if(current_spectrum_index_of_peaks === index )
         {
             let level = hsqc_spectra[index].levels[main_plot.contour_lbs[index]];
-            let peaks;
-            if(current_flag_of_peaks === 'picked')
-            {
-                peaks = hsqc_spectra[index].picked_peaks.filter(peak => peak.index > level);
-            }
-            else if(current_flag_of_peaks === 'fitted')
-            {
-                peaks = hsqc_spectra[index].fitted_peaks.filter(peak => peak.index > level);
-            }
-            /**
-             * Filter peaks by level (index > level)
-             * to get an subset of peaks
-             */
-            let new_peaks = peaks.filter(peak => peak.index > level);
-            main_plot.add_picked_peaks(new_peaks);
+            main_plot.set_peak_level(level);
+            main_plot.draw_peaks();
         }
 
     }
@@ -2327,23 +2328,16 @@ function show_hide_peaks(index,flag,b_show)
          * Get current lowest contour level of the spectrum
          */
         let level = hsqc_spectra[index].levels[main_plot.contour_lbs[index]];
+        main_plot.set_peak_level(level);
 
-        let peaks;
         if(flag === 'picked')
         {
-            peaks = hsqc_spectra[index].picked_peaks;
+            main_plot.add_picked_peaks(hsqc_spectra[index].picked_peaks);
         }
         else if(flag === 'fitted')
         {
-            peaks = hsqc_spectra[index].fitted_peaks;
+            main_plot.add_picked_peaks(hsqc_spectra[index].fitted_peaks);
         }
-
-        /**
-         * Filter hsqc_spectra[index].fitted_peaks or picked_peaks by level (index > level)
-         * to get an subset of peaks
-         */
-        let new_peaks = peaks.filter(peak => peak.index > level);
-         main_plot.add_picked_peaks(new_peaks);
     }
     else
     {

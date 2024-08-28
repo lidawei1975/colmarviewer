@@ -48,6 +48,8 @@ function plotit(input) {
 
     this.spectral_order = [];
 
+    this.peak_level = 0.0;
+
 };
 
 /**
@@ -610,23 +612,42 @@ plotit.prototype.redraw_contour_order = function ()
 }
 
 /**
- * Draw peaks on the plot
+ * Set lowest visible peak level
+ */
+plotit.prototype.set_peak_level = function (level) {
+    this.peak_level = level;
+}
+
+/**
+ * Set peaks for the plot
  */
 plotit.prototype.add_picked_peaks = function (peaks) {
+    this.peaks = peaks;
+    this.draw_peaks();
+}
+
+
+/**
+ * Draw peaks on the plot
+ */
+plotit.prototype.draw_peaks = function () {
+
     let self = this;
-
-    self.peaks = peaks;
-
     /**
      * Remove all peaks if there is any
      */
     self.vis.selectAll('.peak').remove();
 
     /**
+     * Filter peaks based on peak level
+     */
+    let new_peaks = self.peaks.filter(peak => peak.index > self.peak_level)
+
+    /**
      * Draw peaks, red circles without fill
      */
     self.vis.selectAll('.peak')
-        .data(peaks)
+        .data(new_peaks)
         .enter()
         .append('circle')
         .attr('class', 'peak')
