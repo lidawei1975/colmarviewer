@@ -308,20 +308,6 @@ $(document).ready(function () {
      */
     hsqc_spectra = [];
 
-    // api = {
-    //     version: Module.cwrap("version", "number", []),
-    //     deep: Module.cwrap("deep", "number", []),
-    //     fid_phase: Module.cwrap("fid_phase", "number", []),
-    // };
-
-
-    // Module.print = function (text) {
-    //     console.log("hehe"+text);
-    // }
-
-    // out = function (text) {
-    //     oProcessing.innerHTML = text;
-    // }
 
 
     /**
@@ -441,6 +427,28 @@ $(document).ready(function () {
             .catch((err) => {
                 console.log(err);
             });      
+    });
+
+    /**
+     * Add event listener to the allow_peak_editing checkbox
+     */
+    document.getElementById("allow_peak_editing").addEventListener('change', function () {
+        /**
+         * change event can only be triggered when the checkbox is enabled,
+         * which means the main_plot is already defined
+         */
+        if (this.checked) {
+            /**
+             * Enable the peak editing in main plot
+             */
+            main_plot.allow_peak_editing = true;
+        }
+        else {
+            /**
+             * Disable the peak editing in main plot
+             */
+            main_plot.allow_peak_editing = false;
+        }
     });
 
 });
@@ -2294,6 +2302,12 @@ function run_Voigt_fitter(spectrum_index,flag)
 function show_hide_peaks(index,flag,b_show)
 {
     /**
+     * Disable main_plot.allow_peak_editing and checkbox allow_peak_fitting
+     */
+    main_plot.allow_peak_editing = false;
+    document.getElementById("allow_peak_editing").checked = false;
+    document.getElementById("allow_peak_editing").disabled = true;
+    /**
      * Turn off checkbox of all other spectra
      */
     for(let i=0;i<hsqc_spectra.length;i++)
@@ -2332,12 +2346,17 @@ function show_hide_peaks(index,flag,b_show)
 
         if(flag === 'picked')
         {
-            main_plot.add_picked_peaks(hsqc_spectra[index].picked_peaks);
+            
+            /**
+             * Only for picked peaks of an experimental spectrum, allow user to click editing
+             */
+            if(hsqc_spectra[index].spectrum_origin === -1 || hsqc_spectra[index].spectrum_origin === -2)
+            {
+                document.getElementById("allow_peak_editing").disabled = false;
+            }
         }
-        else if(flag === 'fitted')
-        {
-            main_plot.add_picked_peaks(hsqc_spectra[index].fitted_peaks);
-        }
+        main_plot.add_peaks(hsqc_spectra[index],flag);
+        
     }
     else
     {

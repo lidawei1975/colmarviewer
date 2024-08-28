@@ -50,6 +50,8 @@ function plotit(input) {
 
     this.peak_level = 0.0;
 
+    this.allow_peak_editing = false; //default is false
+
 };
 
 /**
@@ -110,6 +112,11 @@ plotit.prototype.update = function (input) {
     // this.contour_plot.setCamera_ppm(this.xscale[0], this.xscale[1], this.yscale[0], this.yscale[1]);
     this.contour_plot.drawScene();
 
+    /**
+     * Update peaks if there is any
+     */
+    this.reset_axis();
+
 };
 
 
@@ -159,6 +166,44 @@ plotit.prototype.brushend = function (e) {
     }
 
     let self = this;
+
+    /**
+     * IF allow_peak_editing is true, then do not zoom.
+     * Remove all peaks within the brush
+     * Remove the brush and return
+     */
+    if(this.allow_peak_editing && self.spectrum != null && self.peak_flag ==='picked') {
+        this.vis.select(".brush").call(this.brush.move, null);
+        let brush_x_ppm_start = self.xRange.invert(e.selection[0][0]);
+        let brush_x_ppm_end   = self.xRange.invert(e.selection[1][0]);
+        let brush_y_ppm_start = self.yRange.invert(e.selection[1][1]);
+        let brush_y_ppm_end   = self.yRange.invert(e.selection[0][1]);
+
+        /**
+         * Make sure brush_x_ppm_start < brush_x_ppm_end and brush_y_ppm_start < brush_y_ppm_end
+         * Their order depends on the direction of the brush operation by the user
+         */
+        if(brush_x_ppm_start > brush_x_ppm_end) {
+            [brush_x_ppm_start, brush_x_ppm_end] = [brush_x_ppm_end, brush_x_ppm_start];
+        }
+        if(brush_y_ppm_start > brush_y_ppm_end) {
+            [brush_y_ppm_start, brush_y_ppm_end] = [brush_y_ppm_end, brush_y_ppm_start];
+        }
+
+        /**
+         * Remove all peaks within the brush.
+         * This step can't be undone !!
+         */
+        let new_peaks = self.spectrum.picked_peaks.filter(peak => peak.cs_x < brush_x_ppm_start || peak.cs_x > brush_x_ppm_end || peak.cs_y < brush_y_ppm_start || peak.cs_y > brush_y_ppm_end);
+        self.spectrum.picked_peaks = new_peaks;
+
+        /**
+         * Redraw peaks
+         */
+        self.draw_peaks();
+
+        return;
+    }
 
     this.xscales.push(this.xscale);
     this.yscales.push(this.yscale);
@@ -621,8 +666,12 @@ plotit.prototype.set_peak_level = function (level) {
 /**
  * Set peaks for the plot
  */
-plotit.prototype.add_picked_peaks = function (peaks) {
-    this.peaks = peaks;
+plotit.prototype.add_peaks = function (spectrum,flag) {
+
+
+    this.spectrum = spectrum;
+    this.peak_flag = flag;
+
     this.draw_peaks();
 }
 
@@ -641,7 +690,13 @@ plotit.prototype.draw_peaks = function () {
     /**
      * Filter peaks based on peak level
      */
-    let new_peaks = self.peaks.filter(peak => peak.index > self.peak_level)
+    let new_peaks;
+    if(self.peak_flag === 'picked') {
+        new_peaks = self.spectrum.picked_peaks.filter(peak => peak.index > self.peak_level);
+    }
+    else{
+        new_peaks = self.spectrum.fitted_peaks.filter(peak => peak.index > self.peak_level);
+    }
 
     /**
      * Draw peaks, red circles without fill
@@ -669,6 +724,6 @@ plotit.prototype.draw_peaks = function () {
  */
 plotit.prototype.remove_picked_peaks = function () {
     let self = this;
-    self.peaks = [];
+    self.spectrum = null;
     self.vis.selectAll('.peak').remove();
 };
