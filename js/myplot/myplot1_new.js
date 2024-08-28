@@ -713,14 +713,36 @@ plotit.prototype.draw_peaks = function () {
             return self.yRange(d.cs_y);
         })
         .attr("clip-path", "url(#clip)")
-        .attr('r', 5)
+        .attr('r', 6)
         .attr('stroke', 'red')
         .attr('fill', 'none')
-        .attr('stroke-width', 1);
+        .attr('stroke-width', 5);
 };
 
 /**
+ * Allow peak dragging
+ */
+plotit.prototype.allow_peak_dragging = function () {
+
+    let self = this;
+
+    const drag = d3.drag()
+    .on('start', function (d) {
+    })
+    .on('drag', function (event,d) {
+        d3.select(this).attr('cx', event.x).attr('cy', event.y);
+    })
+    .on('end', function (event,d) {
+        d.cs_x = self.xRange.invert(event.x);
+        d.cs_y = self.yRange.invert(event.y);
+    });
+
+    self.vis.selectAll('.peak').call(drag);
+}
+
+/**
  * Remove peaks
+ * 
  */
 plotit.prototype.remove_picked_peaks = function () {
     let self = this;

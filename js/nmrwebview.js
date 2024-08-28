@@ -436,12 +436,15 @@ $(document).ready(function () {
         /**
          * change event can only be triggered when the checkbox is enabled,
          * which means the main_plot is already defined
+         * and current spectrum is an experimental spectrum
+         * and current showing peaks are picked peaks (not fitted peaks)
          */
         if (this.checked) {
             /**
              * Enable the peak editing in main plot
              */
             main_plot.allow_peak_editing = true;
+            main_plot.allow_peak_dragging();
         }
         else {
             /**
