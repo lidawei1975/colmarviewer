@@ -857,6 +857,16 @@ function add_to_list(index) {
     draggable_span.appendChild(document.createTextNode("\u2630 Drag me. "));
     draggable_span.style.cursor = "move";
     new_spectrum_div.appendChild(draggable_span);
+
+    /**
+     * If this is a reconstructed spectrum, add a button called "Remove me"
+     */
+    if (new_spectrum.spectrum_origin >= 0) {
+        let remove_button = document.createElement("button");
+        remove_button.innerText = "Remove me";
+        remove_button.onclick = function () { remove_spectrum(index); };
+        new_spectrum_div.appendChild(remove_button);
+    }
     
     /**
      * The new DIV will have the following children:
@@ -2449,8 +2459,15 @@ function show_hide_peaks(index,flag,b_show)
     {
         if(i!==index)
         {
-            document.getElementById("show_peaks-"+i).checked = false;
-            document.getElementById("show_fitted_peaks-"+i).checked = false;
+            /**
+             * If spectrum is deleted, these checkboxes are no longer available.
+             * So we need to check if they are available
+             */
+            if(hsqc_spectra[i].spectrum_origin !== -3)
+            {
+                document.getElementById("show_peaks-"+i).checked = false;
+                document.getElementById("show_fitted_peaks-"+i).checked = false;
+            }
         }
         /**
          * uncheck the checkbox of the current spectrum
@@ -2557,6 +2574,61 @@ function download_peaks(spectrum_index,flag)
 }
 
 /**
+ * Remove a reconstructed spectrum from the list and data
+ */
+function remove_spectrum(index)
+{
+    /**
+     * Remove it from the list
+     */
+    document.getElementById("spectrum-".concat(index)).remove();
+
+    /**
+     * Because we make extensive use of spectrum index and we don't want to change the index of the spectrum
+     * So we remove its data (array member only), but keep the object in the array
+     */
+    hsqc_spectra[index].raw_data = new Float32Array();
+    hsqc_spectra[index].header = new Float32Array();
+    hsqc_spectra[index].levels = [];
+    hsqc_spectra[index].negative_levels = [];
+    hsqc_spectra[index].picked_peaks = [];
+    hsqc_spectra[index].fitted_peaks = [];
+    hsqc_spectra[index].spectrum_origin = -3; // -3 means the spectrum is removed
+
+    /**
+     * Remove its contour data from main_plot and redraw the contour plot
+     */
+    main_plot.levels_length[index] = [];
+    main_plot.polygon_length[index] = [];
+    main_plot.levels_length_negative[index] = [];
+    main_plot.polygon_length_negative[index] = [];
+    /**
+     * Now remove main_plot.points (type is Float32Array)
+     * from the  main_plot.points_start[index] main_plot.points_start[index+1]
+     * (This means we also removed the negative contour points)
+     */
+    if(index === hsqc_spectra.length - 1) //last spectrum
+    {
+        main_plot.points = main_plot.points.slice(0, main_plot.points_start[index]);
+    }
+    else
+    {
+        const n_removed = main_plot.points_start[index + 1] - main_plot.points_start[index];
+        main_plot.points = Float32Concat( main_plot.points.slice(0, main_plot.points_start[index]), main_plot.points.slice(main_plot.points_start[index + 1]));
+        /**
+         * We need to update main_plot.points_start and main_plot.points_start_negative from index+1
+         */
+        for (let i = index + 1; i < main_plot.points_start.length; i++) {
+            main_plot.points_start[i] -= n_removed;
+            main_plot.points_start_negative[i] -= n_removed;
+        }
+    }
+    main_plot.points_start_negative[index]=main_plot.points_start[index];
+
+    main_plot.redraw_contour();
+}
+
+/**
  * Clear the textarea log
  */
 function clear_log()
@@ -2602,4 +2674,4 @@ function median(values)
       : (values[half - 1] + values[half]) / 2
     );
   
-  }
+}
