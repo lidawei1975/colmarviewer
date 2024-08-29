@@ -864,7 +864,7 @@ function add_to_list(index) {
     if (new_spectrum.spectrum_origin >= 0) {
         let remove_button = document.createElement("button");
         remove_button.innerText = "Remove me";
-        remove_button.onclick = function () { remove_spectrum(index); };
+        remove_button.onclick = function () { remove_spectrum_caller(index); };
         new_spectrum_div.appendChild(remove_button);
     }
     
@@ -1315,14 +1315,17 @@ my_contour_worker.onmessage = (e) => {
         document.getElementById("contour_message").innerText = e.data.message;
         return;
     }
+    else if(typeof e.data.remove_spectrum !== "undefined")
+    {
+        remove_spectrum(e.data.remove_spectrum);
+        return;
+    }
 
     /**
      * If the message is not a message, it is a result from the worker.
      */
 
     console.log("Message received from worker, spectral type: " + e.data.spectrum_type);
-
-
 
 
     /**
@@ -2574,7 +2577,23 @@ function download_peaks(spectrum_index,flag)
 }
 
 /**
- * Remove a reconstructed spectrum from the list and data
+ * Remove a reconstructed spectrum from the list and data.
+ * This function will send a message to the contour worker,
+ * The contour worker will send it back to the main thread 
+ * then the main thread will call remove_spectrum(index) to remove the spectrum
+ * This is to make sure that the contour plot is updated correctly (single thread for the contour plot)
+ */
+function remove_spectrum_caller(index)
+{
+    /**
+     * Send a message to the contour worker to remove the spectrum
+     */
+    my_contour_worker.postMessage({ remove_spectrum: index });
+}
+
+/**
+ * 
+ * ACtually remove a reconstructed spectrum from the list and data
  */
 function remove_spectrum(index)
 {
