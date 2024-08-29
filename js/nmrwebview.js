@@ -940,6 +940,23 @@ function add_to_list(index) {
         deep_picker_button.innerText = "DEEP Picker";
         deep_picker_button.onclick = function () { run_DEEP_Picker(index); };
         new_spectrum_div.appendChild(deep_picker_button);
+
+        /**
+         * Add a combine_peak cutoff input filed with ID "combine_peak_cutoff-".concat(index)
+         * run_Voigt_fitter() will read this value and send to wasm to combine peaks in the fitting
+         */
+        let combine_peak_cutoff_label = document.createElement("label");
+        combine_peak_cutoff_label.setAttribute("for", "combine_peak_cutoff-".concat(index));
+        combine_peak_cutoff_label.innerText = " Combine peak cutoff: ";
+        let combine_peak_cutoff_input = document.createElement("input");
+        combine_peak_cutoff_input.setAttribute("type", "number");
+        combine_peak_cutoff_input.setAttribute("step", "0.01");
+        combine_peak_cutoff_input.setAttribute("min", "0.00");
+        combine_peak_cutoff_input.setAttribute("id", "combine_peak_cutoff-".concat(index));
+        combine_peak_cutoff_input.setAttribute("size", "1");
+        combine_peak_cutoff_input.setAttribute("value", "0.04");
+        new_spectrum_div.appendChild(combine_peak_cutoff_label);
+        new_spectrum_div.appendChild(combine_peak_cutoff_input);
         
         /**
          * Add two buttons to call run_Voigt_fitter, with option 0 and 1
@@ -958,6 +975,11 @@ function add_to_list(index) {
         run_voigt_fitter_button1.disabled = true;
         run_voigt_fitter_button1.setAttribute("id", "run_voigt_fitter1-".concat(index));
         new_spectrum_div.appendChild(run_voigt_fitter_button1);
+
+        /**
+         * Add a new line
+         */
+        new_spectrum_div.appendChild(document.createElement("br"));
     }
 
     /**
@@ -2369,6 +2391,11 @@ function run_Voigt_fitter(spectrum_index,flag)
     document.getElementById("run_voigt_fitter0-".concat(spectrum_index)).disabled = true;
     document.getElementById("run_voigt_fitter1-".concat(spectrum_index)).disabled = true;
 
+    /**
+     * Get number input field with ID "combine_peak_cutoff-"+spectrum_index
+     */
+    let combine_peak_cutoff = parseFloat(document.getElementById("combine_peak_cutoff-"+spectrum_index).value);
+
 
     /**
      * Combine hsqc_spectra[0].raw_data and hsqc_spectra[0].header into one Float32Array
@@ -2383,6 +2410,7 @@ function run_Voigt_fitter(spectrum_index,flag)
         spectrum_data: data_uint8,
         picked_peaks: hsqc_spectra[spectrum_index].picked_peaks,
         spectrum_index: spectrum_index,
+        combine_peak_cutoff: combine_peak_cutoff,
         flag: flag, //0: Voigt, 1: Gaussian
         scale: hsqc_spectra[spectrum_index].scale,
         scale2: hsqc_spectra[spectrum_index].scale2,

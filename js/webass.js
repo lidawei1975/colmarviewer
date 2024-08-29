@@ -90,8 +90,9 @@ onmessage = function (e) {
          * Write a file named "argument_voigt_fit.txt" to the virtual file system
          * save -noise_level, -scale and -scale2 
          */
-        let content = ' -combine 0.12 -noise_level '.concat(e.data.noise_level,' -scale ',e.data.scale,' -scale2 ',e.data.scale2);
-        console.log(content);
+        let content = ' -noise_level '.concat(e.data.noise_level,' -scale ',e.data.scale,' -scale2 ',e.data.scale2);
+        content = content.concat(' -combine ', e.data.combine_peak_cutoff);
+        
 
         /**
          * If flag is 0, add -method voigt to the content
@@ -103,6 +104,7 @@ onmessage = function (e) {
         else {
             content = content.concat(' -method gaussian ');
         }
+        console.log(content);
 
         Module['FS_createDataFile']('/', 'argument_voigt_fit.txt', content, true, true, true);
 
