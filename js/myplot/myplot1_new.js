@@ -816,3 +816,10 @@ plotit.prototype.remove_picked_peaks = function () {
     self.spectrum = null;
     self.vis.selectAll('.peak').remove();
 };
+
+/**
+ * Get current visible region
+ */
+plotit.prototype.get_visible_region = function () {
+    return [this.xscale[1], this.xscale[0], this.yscale[1], this.yscale[0]];
+}

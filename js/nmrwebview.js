@@ -2409,6 +2409,16 @@ function run_Voigt_fitter(spectrum_index,flag)
      */
     let combine_peak_cutoff = parseFloat(document.getElementById("combine_peak_cutoff-"+spectrum_index).value);
 
+    /**
+     * Get subset of the picked peaks (within visible region)
+     * start < end from the get_visible_region function call
+     */
+    [x_ppm_visible_start, x_ppm_visible_end, y_ppm_visible_start, y_ppm_visible_end] = main_plot.get_visible_region();
+
+    let picked_peaks = hsqc_spectra[spectrum_index].picked_peaks.filter(function (peak) {
+        return peak.cs_x >= x_ppm_visible_start && peak.cs_x <= x_ppm_visible_end && peak.cs_y >= y_ppm_visible_start && peak.cs_y <= y_ppm_visible_end;
+    });
+
 
     /**
      * Combine hsqc_spectra[0].raw_data and hsqc_spectra[0].header into one Float32Array
@@ -2421,7 +2431,7 @@ function run_Voigt_fitter(spectrum_index,flag)
 
     webassembly_worker.postMessage({
         spectrum_data: data_uint8,
-        picked_peaks: hsqc_spectra[spectrum_index].picked_peaks,
+        picked_peaks: picked_peaks,
         spectrum_index: spectrum_index,
         combine_peak_cutoff: combine_peak_cutoff,
         flag: flag, //0: Voigt, 1: Gaussian
