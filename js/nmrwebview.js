@@ -907,11 +907,22 @@ function add_to_list(index) {
 
     /**
      * Add a download button to download the spectrum only if spectrum_origin is not -1
+     * Allow download of from fid and from reconstructed spectrum
      */
     if (new_spectrum.spectrum_origin !== -1) {
         let download_button = document.createElement("button");
         download_button.innerText = "Download ft2";
-        download_button.onclick = function () { download_spectrum(index); };
+        download_button.onclick = function () { download_spectrum(index,'original'); };
+        new_spectrum_div.appendChild(download_button);
+    }
+
+    /**
+     * Add a different spectrum download button for reconstructed spectrum only
+     */
+    if (new_spectrum.spectrum_origin >=0) {
+        let download_button = document.createElement("button");
+        download_button.innerText = "Download diff.ft2";
+        download_button.onclick = function () { download_spectrum(index,'diff'); };
         new_spectrum_div.appendChild(download_button);
     }
 
@@ -2089,13 +2100,49 @@ function process_ft_file(arrayBuffer,file_name, spectrum_type) {
  * Download spectrum
  *
  */
- function download_spectrum(index) {
-    let filename = hsqc_spectra[index].filename;
+ function download_spectrum(index,flag) {
 
-    /**
-     * generate a blob, which is hsqc_spectra[index].header + hsqc_spectra[index].raw_data
-     */
-    let data = Float32Concat(hsqc_spectra[index].header, hsqc_spectra[index].raw_data);
+    let data;
+    let filename;
+
+    if(flag==='original')
+    {
+        filename = hsqc_spectra[index].filename;
+        /**
+         * generate a blob, which is hsqc_spectra[index].header + hsqc_spectra[index].raw_data
+         */
+        data = Float32Concat(hsqc_spectra[index].header, hsqc_spectra[index].raw_data);
+    }
+    else if(flag==='diff')
+    {   
+        /**
+         * Replace recon with diff in the filename, if not found, add diff- to the filename at the beginning
+         */
+        filename = hsqc_spectra[index].filename.replace('recon','diff');
+        if(filename === hsqc_spectra[index].filename)
+        {
+            filename = 'diff-'.concat(hsqc_spectra[index].filename);
+        }
+
+        /**
+         * Get the original spectrum index
+         */
+        let spectrum_origin = hsqc_spectra[index].spectrum_origin;
+        /**
+         * Calcualte difference spectrum, which is hsqc_spectra[index].raw_data - hsqc_spectra[spectrum_origin].raw_data
+         */
+        let diff_data = new Float32Array(hsqc_spectra[index].raw_data.length);
+        for(let i=0;i<hsqc_spectra[index].raw_data.length;i++)
+        {
+            diff_data[i] = hsqc_spectra[index].raw_data[i] - hsqc_spectra[spectrum_origin].raw_data[i];
+        }
+        /**
+         * generate a blob, which is hsqc_spectra[index].header + diff_data
+         */
+        data = Float32Concat(hsqc_spectra[index].header, diff_data);
+    }
+
+
     let blob = new Blob([data], { type: 'application/octet-stream' });
     let url = URL.createObjectURL(blob);
     let a = document.createElement('a');
