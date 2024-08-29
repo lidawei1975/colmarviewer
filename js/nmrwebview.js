@@ -68,6 +68,14 @@ class spectrum {
         this.picked_peaks = []; //picked peaks
         this.fitted_peaks = []; //fitted peaks
         this.spectrum_origin = -1; //spectrum origin: -2: experimental spectrum from fid, -1: experimental spectrum uploaded,  n(n>=0): reconstructed from experimental spectrum n
+        
+        /**
+         * Default median sigmax, sigmay, gammax, gammay
+         */
+        this.median_sigmax = 1.0;
+        this.median_sigmay = 1.0;
+        this.median_gammax = 1.0;
+        this.median_gammay = 1.0;
     }
 };
 
@@ -430,27 +438,48 @@ $(document).ready(function () {
     });
 
     /**
-     * Add event listener to the allow_peak_editing checkbox
+     * These 3 checkbox can only be triggered when the checkboxes are enabled
+     * which means the main_plot is already defined
+     * and current spectrum is an experimental spectrum
+     * and current showing peaks are picked peaks (not fitted peaks)
      */
-    document.getElementById("allow_peak_editing").addEventListener('change', function () {
-        /**
-         * change event can only be triggered when the checkbox is enabled,
-         * which means the main_plot is already defined
-         * and current spectrum is an experimental spectrum
-         * and current showing peaks are picked peaks (not fitted peaks)
-         */
+
+    /** 
+     * Add event listener to the allow_brush_to_remove checkbox
+     */
+    document.getElementById("allow_brush_to_remove").addEventListener('change', function () {
         if (this.checked) {
-            /**
-             * Enable the peak editing in main plot
-             */
-            main_plot.allow_peak_editing = true;
-            main_plot.allow_peak_dragging();
+            main_plot.allow_brush_to_remove = true;
         }
         else {
             /**
              * Disable the peak editing in main plot
              */
-            main_plot.allow_peak_editing = false;
+            main_plot.allow_brush_to_remove = false;
+        }
+    });
+
+    /**
+     * Event listener for the allow_drag_and_drop checkbox
+     */
+    document.getElementById("allow_drag_and_drop").addEventListener('change', function () {
+        if (this.checked) {
+            main_plot.allow_peak_dragging(true);
+        }
+        else {
+            main_plot.allow_peak_dragging(false);
+        }
+    });
+
+    /**
+     * Event listener for the allow_click_to_add_peak checkbox
+    */
+    document.getElementById("allow_click_to_add_peak").addEventListener('change', function () {
+        if (this.checked) {
+            main_plot.allow_click_to_add_peak(true);
+        }
+        else {
+            main_plot.allow_click_to_add_peak(false);
         }
     });
 
@@ -483,6 +512,26 @@ webassembly_worker.onmessage = function (e) {
     else if (e.data.peaks) {
         hsqc_spectra[e.data.spectrum_index].picked_peaks = e.data.peaks.picked_peaks;
 
+        /**
+         * Calculate the median sigmax, sigmay, gammax, gammay of the picked peaks
+         * Get an array of sigmax, sigmay, gammax, gammay
+         */
+        let sigmax = [];
+        let sigmay = [];
+        let gammax = [];
+        let gammay = [];
+        for (let i = 0; i < e.data.peaks.picked_peaks.length; i++) {
+            sigmax.push(e.data.peaks.picked_peaks[i].sigmax);
+            sigmay.push(e.data.peaks.picked_peaks[i].sigmay);
+            gammax.push(e.data.peaks.picked_peaks[i].gammax);
+            gammay.push(e.data.peaks.picked_peaks[i].gammay);
+        }
+
+        hsqc_spectra[e.data.spectrum_index].median_sigmax = median(sigmax);
+        hsqc_spectra[e.data.spectrum_index].median_sigmay = median(sigmay);
+        hsqc_spectra[e.data.spectrum_index].median_gammax = median(gammax);
+        hsqc_spectra[e.data.spectrum_index].median_gammay = median(gammay);
+        
         /**
          * when picked peaks are received, fitted peaks need to be reset
          */
@@ -2305,11 +2354,19 @@ function run_Voigt_fitter(spectrum_index,flag)
 function show_hide_peaks(index,flag,b_show)
 {
     /**
-     * Disable main_plot.allow_peak_editing and checkbox allow_peak_fitting
+     * Disable main_plot.allow_brush_to_remove and checkbox:
+     * allow_brush_to_remove
+     * allow_drag_and_drop
+     * allow_click_to_add_peak
      */
-    main_plot.allow_peak_editing = false;
-    document.getElementById("allow_peak_editing").checked = false;
-    document.getElementById("allow_peak_editing").disabled = true;
+    main_plot.allow_brush_to_remove = false;
+    document.getElementById("allow_brush_to_remove").checked = false;
+    document.getElementById("allow_brush_to_remove").disabled = true;
+    document.getElementById("allow_drag_and_drop").checked = false;
+    document.getElementById("allow_drag_and_drop").disabled = true;
+    document.getElementById("allow_click_to_add_peak").checked = false;
+    document.getElementById("allow_click_to_add_peak").disabled = true;
+    
     /**
      * Turn off checkbox of all other spectra
      */
@@ -2349,13 +2406,14 @@ function show_hide_peaks(index,flag,b_show)
 
         if(flag === 'picked')
         {
-            
             /**
-             * Only for picked peaks of an experimental spectrum, allow user to click editing
+             * Only for picked peaks of an experimental spectrum, allow user to make changes
              */
             if(hsqc_spectra[index].spectrum_origin === -1 || hsqc_spectra[index].spectrum_origin === -2)
             {
-                document.getElementById("allow_peak_editing").disabled = false;
+                document.getElementById("allow_brush_to_remove").disabled = false;
+                document.getElementById("allow_drag_and_drop").disabled = false;
+                document.getElementById("allow_click_to_add_peak").disabled = false;
             }
         }
         main_plot.add_peaks(hsqc_spectra[index],flag);
@@ -2450,3 +2508,23 @@ function download_log()
     URL.revokeObjectURL(url);
     a.remove();
 }
+
+
+function median(values) 
+{
+    if (values.length === 0) {
+      throw new Error('Input array is empty');
+    }
+  
+    // Sorting values, preventing original array
+    // from being mutated.
+    values = [...values].sort((a, b) => a - b);
+  
+    const half = Math.floor(values.length / 2);
+  
+    return (values.length % 2
+      ? values[half]
+      : (values[half - 1] + values[half]) / 2
+    );
+  
+  }

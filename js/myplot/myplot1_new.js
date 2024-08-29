@@ -50,7 +50,7 @@ function plotit(input) {
 
     this.peak_level = 0.0;
 
-    this.allow_peak_editing = false; //default is false
+    this.allow_brush_to_remove = false; //default is false
 
 };
 
@@ -168,11 +168,11 @@ plotit.prototype.brushend = function (e) {
     let self = this;
 
     /**
-     * IF allow_peak_editing is true, then do not zoom.
+     * IF allow_brush_to_remove is true, then do not zoom.
      * Remove all peaks within the brush
      * Remove the brush and return
      */
-    if(this.allow_peak_editing && self.spectrum != null && self.peak_flag ==='picked') {
+    if(this.allow_brush_to_remove && self.spectrum != null && self.peak_flag ==='picked') {
         this.vis.select(".brush").call(this.brush.move, null);
         let brush_x_ppm_start = self.xRange.invert(e.selection[0][0]);
         let brush_x_ppm_end   = self.xRange.invert(e.selection[1][0]);
@@ -722,7 +722,7 @@ plotit.prototype.draw_peaks = function () {
 /**
  * Allow peak dragging
  */
-plotit.prototype.allow_peak_dragging = function () {
+plotit.prototype.allow_peak_dragging = function (flag) {
 
     let self = this;
 
@@ -733,16 +733,83 @@ plotit.prototype.allow_peak_dragging = function () {
         d3.select(this).attr('cx', event.x).attr('cy', event.y);
     })
     .on('end', function (event,d) {
+        /**
+         * Get new coordinates of the peak
+         */
         d.cs_x = self.xRange.invert(event.x);
         d.cs_y = self.yRange.invert(event.y);
+        /**
+         * Check amplitude of the spectrum at the peak position
+         * if less than lowest contour level, remove the peak
+         */
+        let y_pos= Math.floor((d.cs_y - self.spectrum.y_ppm_ref - self.spectrum.y_ppm_start)/self.spectrum.y_ppm_step);
+        let x_pos = Math.floor((d.cs_x - self.spectrum.x_ppm_ref - self.spectrum.x_ppm_start)/self.spectrum.x_ppm_step);
+        let data_height = 0.0; //default value if out of range
+        if(x_pos>=0 && x_pos<self.spectrum.n_direct && y_pos>=0 && y_pos<self.spectrum.n_indirect) {
+            data_height = self.spectrum.raw_data[y_pos *  self.spectrum.n_direct + x_pos];
+        }
+        if(data_height < self.peak_level) {
+            if(self.peak_flag === 'picked') {
+                self.spectrum.picked_peaks = self.spectrum.picked_peaks.filter(peak => peak.cs_x != d.cs_x || peak.cs_y != d.cs_y);
+            }
+            d3.select(this).remove();
+        }
+
     });
 
-    self.vis.selectAll('.peak').call(drag);
+    if(flag===true){
+        self.vis.selectAll('.peak').call(drag);
+    }
+    else{
+        self.vis.selectAll('.peak').on('.drag',null);
+    }
 }
 
 /**
- * Remove peaks
- * 
+ * Allow click to add peaks
+ */
+plotit.prototype.allow_click_to_add_peak = function (flag) {
+
+    let self = this;
+
+    if(flag === true) {
+        self.vis.on('click', function (event) {
+            let coordinates = d3.pointer(event);
+            let x_ppm = self.xRange.invert(coordinates[0]);
+            let y_ppm = self.yRange.invert(coordinates[1]);
+            /**
+                 * Get amplitude of the spectrum at the peak position
+                 */
+            let y_pos= Math.floor((y_ppm - self.spectrum.y_ppm_ref - self.spectrum.y_ppm_start)/self.spectrum.y_ppm_step);
+            let x_pos = Math.floor((x_ppm - self.spectrum.x_ppm_ref - self.spectrum.x_ppm_start)/self.spectrum.x_ppm_step);
+            let data_height = 0.0; //default value if out of range
+            if(x_pos>=0 && x_pos<self.spectrum.n_direct && y_pos>=0 && y_pos<self.spectrum.n_indirect) {
+                data_height = self.spectrum.raw_data[y_pos *  self.spectrum.n_direct + x_pos];
+            }
+            let new_peak = {
+                cs_x: x_ppm,
+                cs_y: y_ppm,
+                index: data_height,
+                type: 1,
+                sigmax:  self.spectrum.median_sigmax,
+                sigmay:  self.spectrum.median_sigmay,
+                gamamx: self.spectrum.median_gammax,
+                gamamy: self.spectrum.median_gammay
+            };
+            if(self.spectrum != null && new_peak.index > self.peak_level)
+            {
+                self.spectrum.picked_peaks.push(new_peak);
+                self.draw_peaks();
+            }
+        });
+    }
+    else {
+        self.vis.on('click', null);
+    }
+};
+
+/**
+ * Remove peaks from the plot
  */
 plotit.prototype.remove_picked_peaks = function () {
     let self = this;
