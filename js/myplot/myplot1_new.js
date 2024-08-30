@@ -52,6 +52,8 @@ function plotit(input) {
 
     this.allow_brush_to_remove = false; //default is false
 
+    this.peak_color = "#FF0000"; //default color is red
+
 };
 
 /**
@@ -714,10 +716,16 @@ plotit.prototype.draw_peaks = function () {
         })
         .attr("clip-path", "url(#clip)")
         .attr('r', 6)
-        .attr('stroke', 'red')
+        .attr('stroke', self.peak_color)
         .attr('fill', 'none')
         .attr('stroke-width', 5);
 };
+
+plotit.prototype.redraw_peaks = function () {
+    let self = this;
+    self.vis.selectAll('.peak')
+        .attr('stroke', self.peak_color);
+}
 
 /**
  * Allow peak dragging

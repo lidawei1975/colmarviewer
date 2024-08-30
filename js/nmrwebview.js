@@ -17,7 +17,7 @@ catch (err) {
 }
 
 
-var main_plot; //hsqc plot object
+var main_plot = null; //hsqc plot object
 var stage = 1; // Because we have only one stage in this program, we set it to 1 (shared code with other programs, which may have more than one stage)
 var tooldiv; //tooltip div
 var current_spectrum_index_of_peaks = -1; //index of the spectrum that is currently showing peaks, -1 means none
@@ -722,7 +722,7 @@ function resize_main_plot(wid, height, padding, margin_left, margin_top)
         HEIGHT: height
     };
 
-    if ('undefined' !== typeof (main_plot)) {
+    if (main_plot !== null) {
         main_plot.update(input);
     }
 }
@@ -1649,6 +1649,14 @@ function init_plot(input) {
 
     document.getElementById("Vertical_cross_section").addEventListener("change", function () {
         main_plot.vertical = this.checked;
+    });
+
+    /**
+     * Event listener for peak_color
+     */
+    document.getElementById("peak_color").addEventListener('change', function () {
+        main_plot.peak_color = this.value;
+        main_plot.redraw_peaks();
     });
 };
 
