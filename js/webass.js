@@ -42,6 +42,7 @@ onmessage = function (e) {
          * C++ program will read it to get "commandline arguments"
          */
         let content = ' -first_only yes -aqseq '.concat(e.data.acquisition_seq,' -negative ',e.data.neg_imaginary);
+        content = content.concat(' -zf '.concat(e.data.zf_direct,' -zf_indirect ',e.data.zf_indirect));
         Module['FS_createDataFile']('/', 'arguments_fid_phasing.txt', content, true, true, true);
         console.log(content);
 
@@ -90,7 +91,9 @@ onmessage = function (e) {
          * save -noise_level, -scale and -scale2 
          */
         let content = ' -noise_level '.concat(e.data.noise_level,' -scale ',e.data.scale,' -scale2 ',e.data.scale2);
-        console.log(content);
+        content = content.concat(' -combine ', e.data.combine_peak_cutoff);
+        content = content.concat(' -maxround ', e.data.maxround);
+        
 
         /**
          * If flag is 0, add -method voigt to the content
@@ -102,6 +105,7 @@ onmessage = function (e) {
         else {
             content = content.concat(' -method gaussian ');
         }
+        console.log(content);
 
         Module['FS_createDataFile']('/', 'argument_voigt_fit.txt', content, true, true, true);
 

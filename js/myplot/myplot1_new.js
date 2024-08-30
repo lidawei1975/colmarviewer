@@ -48,6 +48,14 @@ function plotit(input) {
 
     this.spectral_order = [];
 
+    this.peak_level = 0.0;
+
+    this.allow_brush_to_remove = false; //default is false
+
+    this.peak_color = "#FF0000"; //default color is red
+    this.peak_size = 6;
+    this.peak_thickness = 5;
+
 };
 
 /**
@@ -108,6 +116,11 @@ plotit.prototype.update = function (input) {
     // this.contour_plot.setCamera_ppm(this.xscale[0], this.xscale[1], this.yscale[0], this.yscale[1]);
     this.contour_plot.drawScene();
 
+    /**
+     * Update peaks if there is any
+     */
+    this.reset_axis();
+
 };
 
 
@@ -157,6 +170,44 @@ plotit.prototype.brushend = function (e) {
     }
 
     let self = this;
+
+    /**
+     * IF allow_brush_to_remove is true, then do not zoom.
+     * Remove all peaks within the brush
+     * Remove the brush and return
+     */
+    if(this.allow_brush_to_remove && self.spectrum != null && self.peak_flag ==='picked') {
+        this.vis.select(".brush").call(this.brush.move, null);
+        let brush_x_ppm_start = self.xRange.invert(e.selection[0][0]);
+        let brush_x_ppm_end   = self.xRange.invert(e.selection[1][0]);
+        let brush_y_ppm_start = self.yRange.invert(e.selection[1][1]);
+        let brush_y_ppm_end   = self.yRange.invert(e.selection[0][1]);
+
+        /**
+         * Make sure brush_x_ppm_start < brush_x_ppm_end and brush_y_ppm_start < brush_y_ppm_end
+         * Their order depends on the direction of the brush operation by the user
+         */
+        if(brush_x_ppm_start > brush_x_ppm_end) {
+            [brush_x_ppm_start, brush_x_ppm_end] = [brush_x_ppm_end, brush_x_ppm_start];
+        }
+        if(brush_y_ppm_start > brush_y_ppm_end) {
+            [brush_y_ppm_start, brush_y_ppm_end] = [brush_y_ppm_end, brush_y_ppm_start];
+        }
+
+        /**
+         * Remove all peaks within the brush.
+         * This step can't be undone !!
+         */
+        let new_peaks = self.spectrum.picked_peaks.filter(peak => peak.cs_x < brush_x_ppm_start || peak.cs_x > brush_x_ppm_end || peak.cs_y < brush_y_ppm_start || peak.cs_y > brush_y_ppm_end);
+        self.spectrum.picked_peaks = new_peaks;
+
+        /**
+         * Redraw peaks
+         */
+        self.draw_peaks();
+
+        return;
+    }
 
     this.xscales.push(this.xscale);
     this.yscales.push(this.yscale);
@@ -610,23 +661,52 @@ plotit.prototype.redraw_contour_order = function ()
 }
 
 /**
+ * Set lowest visible peak level
+ */
+plotit.prototype.set_peak_level = function (level) {
+    this.peak_level = level;
+}
+
+/**
+ * Set peaks for the plot
+ */
+plotit.prototype.add_peaks = function (spectrum,flag) {
+
+
+    this.spectrum = spectrum;
+    this.peak_flag = flag;
+
+    this.draw_peaks();
+}
+
+
+/**
  * Draw peaks on the plot
  */
-plotit.prototype.add_picked_peaks = function (peaks) {
+plotit.prototype.draw_peaks = function () {
+
     let self = this;
-
-    self.peaks = peaks;
-
     /**
      * Remove all peaks if there is any
      */
     self.vis.selectAll('.peak').remove();
 
     /**
+     * Filter peaks based on peak level
+     */
+    let new_peaks;
+    if(self.peak_flag === 'picked') {
+        new_peaks = self.spectrum.picked_peaks.filter(peak => peak.index > self.peak_level);
+    }
+    else{
+        new_peaks = self.spectrum.fitted_peaks.filter(peak => peak.index > self.peak_level);
+    }
+
+    /**
      * Draw peaks, red circles without fill
      */
     self.vis.selectAll('.peak')
-        .data(peaks)
+        .data(new_peaks)
         .enter()
         .append('circle')
         .attr('class', 'peak')
@@ -637,17 +717,122 @@ plotit.prototype.add_picked_peaks = function (peaks) {
             return self.yRange(d.cs_y);
         })
         .attr("clip-path", "url(#clip)")
-        .attr('r', 5)
-        .attr('stroke', 'red')
+        .attr('r', self.peak_size)
+        .attr('stroke', self.peak_color)
         .attr('fill', 'none')
-        .attr('stroke-width', 1);
+        .attr('stroke-width', self.peak_thickness);
+};
+
+plotit.prototype.redraw_peaks = function () {
+    let self = this;
+    self.vis.selectAll('.peak')
+        .attr('r', self.peak_size)
+        .attr('stroke', self.peak_color)
+        .attr('fill', 'none')
+        .attr('stroke-width', self.peak_thickness);
+}
+
+/**
+ * Allow peak dragging
+ */
+plotit.prototype.allow_peak_dragging = function (flag) {
+
+    let self = this;
+
+    const drag = d3.drag()
+    .on('start', function (d) {
+    })
+    .on('drag', function (event,d) {
+        d3.select(this).attr('cx', event.x).attr('cy', event.y);
+    })
+    .on('end', function (event,d) {
+        /**
+         * Get new coordinates of the peak
+         */
+        d.cs_x = self.xRange.invert(event.x);
+        d.cs_y = self.yRange.invert(event.y);
+        /**
+         * Check amplitude of the spectrum at the peak position
+         * if less than lowest contour level, remove the peak
+         */
+        let y_pos= Math.floor((d.cs_y - self.spectrum.y_ppm_ref - self.spectrum.y_ppm_start)/self.spectrum.y_ppm_step);
+        let x_pos = Math.floor((d.cs_x - self.spectrum.x_ppm_ref - self.spectrum.x_ppm_start)/self.spectrum.x_ppm_step);
+        let data_height = 0.0; //default value if out of range
+        if(x_pos>=0 && x_pos<self.spectrum.n_direct && y_pos>=0 && y_pos<self.spectrum.n_indirect) {
+            data_height = self.spectrum.raw_data[y_pos *  self.spectrum.n_direct + x_pos];
+        }
+        if(data_height < self.peak_level) {
+            if(self.peak_flag === 'picked') {
+                self.spectrum.picked_peaks = self.spectrum.picked_peaks.filter(peak => peak.cs_x != d.cs_x || peak.cs_y != d.cs_y);
+            }
+            d3.select(this).remove();
+        }
+
+    });
+
+    if(flag===true){
+        self.vis.selectAll('.peak').call(drag);
+    }
+    else{
+        self.vis.selectAll('.peak').on('.drag',null);
+    }
+}
+
+/**
+ * Allow click to add peaks
+ */
+plotit.prototype.allow_click_to_add_peak = function (flag) {
+
+    let self = this;
+
+    if(flag === true) {
+        self.vis.on('click', function (event) {
+            let coordinates = d3.pointer(event);
+            let x_ppm = self.xRange.invert(coordinates[0]);
+            let y_ppm = self.yRange.invert(coordinates[1]);
+            /**
+                 * Get amplitude of the spectrum at the peak position
+                 */
+            let y_pos= Math.floor((y_ppm - self.spectrum.y_ppm_ref - self.spectrum.y_ppm_start)/self.spectrum.y_ppm_step);
+            let x_pos = Math.floor((x_ppm - self.spectrum.x_ppm_ref - self.spectrum.x_ppm_start)/self.spectrum.x_ppm_step);
+            let data_height = 0.0; //default value if out of range
+            if(x_pos>=0 && x_pos<self.spectrum.n_direct && y_pos>=0 && y_pos<self.spectrum.n_indirect) {
+                data_height = self.spectrum.raw_data[y_pos *  self.spectrum.n_direct + x_pos];
+            }
+            let new_peak = {
+                cs_x: x_ppm,
+                cs_y: y_ppm,
+                index: data_height,
+                type: 1,
+                sigmax:  self.spectrum.median_sigmax,
+                sigmay:  self.spectrum.median_sigmay,
+                gamamx: self.spectrum.median_gammax,
+                gamamy: self.spectrum.median_gammay
+            };
+            if(self.spectrum != null && new_peak.index > self.peak_level)
+            {
+                self.spectrum.picked_peaks.push(new_peak);
+                self.draw_peaks();
+            }
+        });
+    }
+    else {
+        self.vis.on('click', null);
+    }
 };
 
 /**
- * Remove peaks
+ * Remove peaks from the plot
  */
 plotit.prototype.remove_picked_peaks = function () {
     let self = this;
-    self.peaks = [];
+    self.spectrum = null;
     self.vis.selectAll('.peak').remove();
 };
+
+/**
+ * Get current visible region
+ */
+plotit.prototype.get_visible_region = function () {
+    return [this.xscale[1], this.xscale[0], this.yscale[1], this.yscale[0]];
+}

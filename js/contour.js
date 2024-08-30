@@ -1,10 +1,18 @@
     importScripts('https://d3js.org/d3.v7.min.js');
 
     onmessage = (e) => {
-        postMessage({ message: "Calculating contour" });
-        let workerResult = {};
-        process_spectrum_data(e.data.response_value, e.data.spectrum, workerResult);
-        postMessage(workerResult);
+
+        if(e.data.remove_spectrum)
+        {
+            postMessage({remove_spectrum: e.data.remove_spectrum});
+        }
+        else
+        {
+            postMessage({ message: "Calculating contour" });
+            let workerResult = {};
+            process_spectrum_data(e.data.response_value, e.data.spectrum, workerResult);
+            postMessage(workerResult);
+        }
     };
 
 

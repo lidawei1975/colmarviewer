@@ -17,7 +17,7 @@ catch (err) {
 }
 
 
-var main_plot; //hsqc plot object
+var main_plot = null; //hsqc plot object
 var stage = 1; // Because we have only one stage in this program, we set it to 1 (shared code with other programs, which may have more than one stage)
 var tooldiv; //tooltip div
 var current_spectrum_index_of_peaks = -1; //index of the spectrum that is currently showing peaks, -1 means none
@@ -68,6 +68,14 @@ class spectrum {
         this.picked_peaks = []; //picked peaks
         this.fitted_peaks = []; //fitted peaks
         this.spectrum_origin = -1; //spectrum origin: -2: experimental spectrum from fid, -1: experimental spectrum uploaded,  n(n>=0): reconstructed from experimental spectrum n
+        
+        /**
+         * Default median sigmax, sigmay, gammax, gammay
+         */
+        this.median_sigmax = 1.0;
+        this.median_sigmay = 1.0;
+        this.median_gammax = 1.0;
+        this.median_gammay = 1.0;
     }
 };
 
@@ -308,20 +316,6 @@ $(document).ready(function () {
      */
     hsqc_spectra = [];
 
-    // api = {
-    //     version: Module.cwrap("version", "number", []),
-    //     deep: Module.cwrap("deep", "number", []),
-    //     fid_phase: Module.cwrap("fid_phase", "number", []),
-    // };
-
-
-    // Module.print = function (text) {
-    //     console.log("hehe"+text);
-    // }
-
-    // out = function (text) {
-    //     oProcessing.innerHTML = text;
-    // }
 
 
     /**
@@ -409,6 +403,14 @@ $(document).ready(function () {
                  */
                 let acquisition_seq = document.getElementById("hsqc_acquisition_seq").value;
                 /**
+                 * Get HTML select zf_direct value: "2" or "4" or "8"
+                 */
+                let zf_direct = document.getElementById("zf_direct").value;
+                /**
+                 * Get HTML select zf_indirect value: "2" or "4" or "8"
+                 */
+                let zf_indirect = document.getElementById("zf_indirect").value;
+                /**
                  * Get HTML checkbox "neg_imaginary".checked: true or false
                  * convert it to "yes" or "no"
                  */
@@ -417,7 +419,13 @@ $(document).ready(function () {
                 /**
                  * Result is an array of Uint8Array
                  */
-                webassembly_worker.postMessage({file_data: result, acquisition_seq: acquisition_seq, neg_imaginary: neg_imaginary});
+                webassembly_worker.postMessage({
+                    file_data: result,
+                    acquisition_seq: acquisition_seq,
+                    neg_imaginary: neg_imaginary,
+                    zf_direct: zf_direct,
+                    zf_indirect: zf_indirect
+                });
                 /**
                  * Let user know the processing is started
                  */
@@ -427,6 +435,52 @@ $(document).ready(function () {
             .catch((err) => {
                 console.log(err);
             });      
+    });
+
+    /**
+     * These 3 checkbox can only be triggered when the checkboxes are enabled
+     * which means the main_plot is already defined
+     * and current spectrum is an experimental spectrum
+     * and current showing peaks are picked peaks (not fitted peaks)
+     */
+
+    /** 
+     * Add event listener to the allow_brush_to_remove checkbox
+     */
+    document.getElementById("allow_brush_to_remove").addEventListener('change', function () {
+        if (this.checked) {
+            main_plot.allow_brush_to_remove = true;
+        }
+        else {
+            /**
+             * Disable the peak editing in main plot
+             */
+            main_plot.allow_brush_to_remove = false;
+        }
+    });
+
+    /**
+     * Event listener for the allow_drag_and_drop checkbox
+     */
+    document.getElementById("allow_drag_and_drop").addEventListener('change', function () {
+        if (this.checked) {
+            main_plot.allow_peak_dragging(true);
+        }
+        else {
+            main_plot.allow_peak_dragging(false);
+        }
+    });
+
+    /**
+     * Event listener for the allow_click_to_add_peak checkbox
+    */
+    document.getElementById("allow_click_to_add_peak").addEventListener('change', function () {
+        if (this.checked) {
+            main_plot.allow_click_to_add_peak(true);
+        }
+        else {
+            main_plot.allow_click_to_add_peak(false);
+        }
     });
 
 });
@@ -458,6 +512,26 @@ webassembly_worker.onmessage = function (e) {
     else if (e.data.peaks) {
         hsqc_spectra[e.data.spectrum_index].picked_peaks = e.data.peaks.picked_peaks;
 
+        /**
+         * Calculate the median sigmax, sigmay, gammax, gammay of the picked peaks
+         * Get an array of sigmax, sigmay, gammax, gammay
+         */
+        let sigmax = [];
+        let sigmay = [];
+        let gammax = [];
+        let gammay = [];
+        for (let i = 0; i < e.data.peaks.picked_peaks.length; i++) {
+            sigmax.push(e.data.peaks.picked_peaks[i].sigmax);
+            sigmay.push(e.data.peaks.picked_peaks[i].sigmay);
+            gammax.push(e.data.peaks.picked_peaks[i].gammax);
+            gammay.push(e.data.peaks.picked_peaks[i].gammay);
+        }
+
+        hsqc_spectra[e.data.spectrum_index].median_sigmax = median(sigmax);
+        hsqc_spectra[e.data.spectrum_index].median_sigmay = median(sigmay);
+        hsqc_spectra[e.data.spectrum_index].median_gammax = median(gammax);
+        hsqc_spectra[e.data.spectrum_index].median_gammay = median(gammay);
+        
         /**
          * when picked peaks are received, fitted peaks need to be reset
          */
@@ -648,7 +722,7 @@ function resize_main_plot(wid, height, padding, margin_left, margin_top)
         HEIGHT: height
     };
 
-    if ('undefined' !== typeof (main_plot)) {
+    if (main_plot !== null) {
         main_plot.update(input);
     }
 }
@@ -783,6 +857,16 @@ function add_to_list(index) {
     draggable_span.appendChild(document.createTextNode("\u2630 Drag me. "));
     draggable_span.style.cursor = "move";
     new_spectrum_div.appendChild(draggable_span);
+
+    /**
+     * If this is a reconstructed spectrum, add a button called "Remove me"
+     */
+    if (new_spectrum.spectrum_origin >= 0) {
+        let remove_button = document.createElement("button");
+        remove_button.innerText = "Remove me";
+        remove_button.onclick = function () { remove_spectrum_caller(index); };
+        new_spectrum_div.appendChild(remove_button);
+    }
     
     /**
      * The new DIV will have the following children:
@@ -833,11 +917,22 @@ function add_to_list(index) {
 
     /**
      * Add a download button to download the spectrum only if spectrum_origin is not -1
+     * Allow download of from fid and from reconstructed spectrum
      */
     if (new_spectrum.spectrum_origin !== -1) {
         let download_button = document.createElement("button");
         download_button.innerText = "Download ft2";
-        download_button.onclick = function () { download_spectrum(index); };
+        download_button.onclick = function () { download_spectrum(index,'original'); };
+        new_spectrum_div.appendChild(download_button);
+    }
+
+    /**
+     * Add a different spectrum download button for reconstructed spectrum only
+     */
+    if (new_spectrum.spectrum_origin >=0) {
+        let download_button = document.createElement("button");
+        download_button.innerText = "Download diff.ft2";
+        download_button.onclick = function () { download_spectrum(index,'diff'); };
         new_spectrum_div.appendChild(download_button);
     }
 
@@ -855,6 +950,39 @@ function add_to_list(index) {
         deep_picker_button.innerText = "DEEP Picker";
         deep_picker_button.onclick = function () { run_DEEP_Picker(index); };
         new_spectrum_div.appendChild(deep_picker_button);
+
+        /**
+         * Add a combine_peak cutoff input filed with ID "combine_peak_cutoff-".concat(index)
+         * run_Voigt_fitter() will read this value and send to wasm to combine peaks in the fitting
+         */
+        let combine_peak_cutoff_label = document.createElement("label");
+        combine_peak_cutoff_label.setAttribute("for", "combine_peak_cutoff-".concat(index));
+        combine_peak_cutoff_label.innerText = " Combine peak cutoff: ";
+        let combine_peak_cutoff_input = document.createElement("input");
+        combine_peak_cutoff_input.setAttribute("type", "number");
+        combine_peak_cutoff_input.setAttribute("step", "0.01");
+        combine_peak_cutoff_input.setAttribute("min", "0.00");
+        combine_peak_cutoff_input.setAttribute("id", "combine_peak_cutoff-".concat(index));
+        combine_peak_cutoff_input.setAttribute("size", "1");
+        combine_peak_cutoff_input.setAttribute("value", "0.04");
+        new_spectrum_div.appendChild(combine_peak_cutoff_label);
+        new_spectrum_div.appendChild(combine_peak_cutoff_input);
+
+        /**
+         * Add a maxround input filed (type: int number) with ID "maxround-".concat(index)
+         */
+        let maxround_label = document.createElement("label");
+        maxround_label.setAttribute("for", "maxround-".concat(index));
+        maxround_label.innerText = " Max round: ";
+        let maxround_input = document.createElement("input");
+        maxround_input.setAttribute("type", "number");
+        maxround_input.setAttribute("step", "1");
+        maxround_input.setAttribute("min", "1");
+        maxround_input.setAttribute("id", "maxround-".concat(index));
+        maxround_input.setAttribute("size", "1");
+        maxround_input.setAttribute("value", "50"); //Default value is 50
+        new_spectrum_div.appendChild(maxround_label);
+        new_spectrum_div.appendChild(maxround_input);
         
         /**
          * Add two buttons to call run_Voigt_fitter, with option 0 and 1
@@ -873,6 +1001,11 @@ function add_to_list(index) {
         run_voigt_fitter_button1.disabled = true;
         run_voigt_fitter_button1.setAttribute("id", "run_voigt_fitter1-".concat(index));
         new_spectrum_div.appendChild(run_voigt_fitter_button1);
+
+        /**
+         * Add a new line
+         */
+        new_spectrum_div.appendChild(document.createElement("br"));
     }
 
     /**
@@ -1006,7 +1139,7 @@ function add_to_list(index) {
     let logarithmic_scale_input = document.createElement("input");
     logarithmic_scale_input.setAttribute("type", "text");
     logarithmic_scale_input.setAttribute("id", "logarithmic_scale-".concat(index));
-    logarithmic_scale_input.setAttribute("value", "1.3");
+    logarithmic_scale_input.setAttribute("value", "1.5");
     logarithmic_scale_input.setAttribute("size", "3");
     logarithmic_scale_input.setAttribute("min",1.05);
     new_spectrum_div.appendChild(logarithmic_scale_input_label);
@@ -1116,7 +1249,7 @@ function add_to_list(index) {
         let logarithmic_scale_input_negative = document.createElement("input");
         logarithmic_scale_input_negative.setAttribute("type", "text");
         logarithmic_scale_input_negative.setAttribute("id", "logarithmic_scale_negative-".concat(index));
-        logarithmic_scale_input_negative.setAttribute("value", "1.3");
+        logarithmic_scale_input_negative.setAttribute("value", "1.5");
         logarithmic_scale_input_negative.setAttribute("size", "3");
         logarithmic_scale_input_negative.setAttribute("min",1.05);
         new_spectrum_div.appendChild(logarithmic_scale_input_label_negative);
@@ -1198,14 +1331,17 @@ my_contour_worker.onmessage = (e) => {
         document.getElementById("contour_message").innerText = e.data.message;
         return;
     }
+    else if(typeof e.data.remove_spectrum !== "undefined")
+    {
+        remove_spectrum(e.data.remove_spectrum);
+        return;
+    }
 
     /**
      * If the message is not a message, it is a result from the worker.
      */
 
     console.log("Message received from worker, spectral type: " + e.data.spectrum_type);
-
-
 
 
     /**
@@ -1514,6 +1650,24 @@ function init_plot(input) {
     document.getElementById("Vertical_cross_section").addEventListener("change", function () {
         main_plot.vertical = this.checked;
     });
+
+    /**
+     * Event listener for peak_color, peak_size and peak_thickness
+     */
+    document.getElementById("peak_color").addEventListener('change', function () {
+        main_plot.peak_color = this.value;
+        main_plot.redraw_peaks();
+    });
+
+    document.getElementById("peak_size").addEventListener('change', function () {
+        main_plot.peak_size = parseInt(this.value);
+        main_plot.redraw_peaks();
+    });
+
+    document.getElementById("peak_thickness").addEventListener('change', function () {
+        main_plot.peak_thickness = parseInt(this.value);
+        main_plot.redraw_peaks();
+    });
 };
 
 
@@ -1676,7 +1830,7 @@ function update_contour0_or_logarithmic_scale(index,flag) {
         for (let i = 1; i < 40; i++) {
             hsqc_spectrum.levels[i] = hsqc_spectrum.levels[i - 1] * scale;
             if (hsqc_spectrum.levels[i] > hsqc_spectrum.spectral_max) {
-                hsqc_spectrum.levels = hsqc_spectrum.levels.slice(0, i);
+                hsqc_spectrum.levels = hsqc_spectrum.levels.slice(0, i+1);
                 break;
             }
         }
@@ -1702,7 +1856,7 @@ function update_contour0_or_logarithmic_scale(index,flag) {
         for (let i = 1; i < 40; i++) {
             hsqc_spectrum.negative_levels[i] = hsqc_spectrum.negative_levels[i - 1] * scale;
             if (hsqc_spectrum.negative_levels[i] < hsqc_spectrum.spectral_min) {
-                hsqc_spectrum.negative_levels = hsqc_spectrum.negative_levels.slice(0, i);
+                hsqc_spectrum.negative_levels = hsqc_spectrum.negative_levels.slice(0, i+1);
                 break;
             }
         }
@@ -1753,21 +1907,8 @@ function update_contour_slider(e,index,flag) {
         if(current_spectrum_index_of_peaks === index )
         {
             let level = hsqc_spectra[index].levels[main_plot.contour_lbs[index]];
-            let peaks;
-            if(current_flag_of_peaks === 'picked')
-            {
-                peaks = hsqc_spectra[index].picked_peaks.filter(peak => peak.index > level);
-            }
-            else if(current_flag_of_peaks === 'fitted')
-            {
-                peaks = hsqc_spectra[index].fitted_peaks.filter(peak => peak.index > level);
-            }
-            /**
-             * Filter peaks by level (index > level)
-             * to get an subset of peaks
-             */
-            let new_peaks = peaks.filter(peak => peak.index > level);
-            main_plot.add_picked_peaks(new_peaks);
+            main_plot.set_peak_level(level);
+            main_plot.draw_peaks();
         }
 
     }
@@ -1971,28 +2112,24 @@ function process_ft_file(arrayBuffer,file_name, spectrum_type) {
         stride = Math.floor(data_size / (1024 * 1024));
     }
     let z_abs = new Float32Array(data_size / stride);
-    let z = new Float32Array(data_size / stride);
     for (var i = 0; i < data_size; i += stride) {
         z_abs[Math.floor(i / stride)] = Math.abs(result.raw_data[i]);
-        z[Math.floor(i / stride)] = result.raw_data[i];
     }
     z_abs.sort();
-    z.sort();
     result.noise_level = z_abs[Math.floor(z_abs.length / 2)];
 
     /**
      * Get max and min of z (z is sorted)
      */
-    result.spectral_max = z[z.length - 1];
-    result.spectral_min = z[0];
+    [result.spectral_max, result.spectral_min] = find_max_min(result.raw_data);
 
     /**
      * In case of reconstructed spectrum from fitting or from NUS, noise_level is usually 0.
-     * In that case, we define noise_level as spectral_max/power(1.3,20)
+     * In that case, we define noise_level as spectral_max/power(1.5,40)
      */
     if(result.noise_level <= Number.MIN_VALUE)
     {
-        result.noise_level = result.spectral_max/Math.pow(1.3,20);
+        result.noise_level = result.spectral_max/Math.pow(1.5,40);
     }
 
     /**
@@ -2001,7 +2138,7 @@ function process_ft_file(arrayBuffer,file_name, spectrum_type) {
     result.levels = new Array(40);
     result.levels[0] = 5.5 * result.noise_level;
     for (let i = 1; i < result.levels.length; i++) {
-        result.levels[i] = 1.3 * result.levels[i - 1];
+        result.levels[i] = 1.5 * result.levels[i - 1];
         if (result.levels[i] > result.spectral_max) {
             result.levels = result.levels.slice(0, i+1);
             break;
@@ -2014,7 +2151,7 @@ function process_ft_file(arrayBuffer,file_name, spectrum_type) {
     result.negative_levels = new Array(40);
     result.negative_levels[0] = -5.5 * result.noise_level;
     for (let i = 1; i < result.negative_levels.length; i++) {
-        result.negative_levels[i] = 1.3 * result.negative_levels[i - 1];
+        result.negative_levels[i] = 1.5 * result.negative_levels[i - 1];
         if (result.negative_levels[i] < result.spectral_min) {
             result.negative_levels = result.negative_levels.slice(0, i+1);
             break;
@@ -2028,13 +2165,49 @@ function process_ft_file(arrayBuffer,file_name, spectrum_type) {
  * Download spectrum
  *
  */
- function download_spectrum(index) {
-    let filename = hsqc_spectra[index].filename;
+ function download_spectrum(index,flag) {
 
-    /**
-     * generate a blob, which is hsqc_spectra[index].header + hsqc_spectra[index].raw_data
-     */
-    let data = Float32Concat(hsqc_spectra[index].header, hsqc_spectra[index].raw_data);
+    let data;
+    let filename;
+
+    if(flag==='original')
+    {
+        filename = hsqc_spectra[index].filename;
+        /**
+         * generate a blob, which is hsqc_spectra[index].header + hsqc_spectra[index].raw_data
+         */
+        data = Float32Concat(hsqc_spectra[index].header, hsqc_spectra[index].raw_data);
+    }
+    else if(flag==='diff')
+    {   
+        /**
+         * Replace recon with diff in the filename, if not found, add diff- to the filename at the beginning
+         */
+        filename = hsqc_spectra[index].filename.replace('recon','diff');
+        if(filename === hsqc_spectra[index].filename)
+        {
+            filename = 'diff-'.concat(hsqc_spectra[index].filename);
+        }
+
+        /**
+         * Get the original spectrum index
+         */
+        let spectrum_origin = hsqc_spectra[index].spectrum_origin;
+        /**
+         * Calcualte difference spectrum, which is hsqc_spectra[index].raw_data - hsqc_spectra[spectrum_origin].raw_data
+         */
+        let diff_data = new Float32Array(hsqc_spectra[index].raw_data.length);
+        for(let i=0;i<hsqc_spectra[index].raw_data.length;i++)
+        {
+            diff_data[i] = hsqc_spectra[index].raw_data[i] - hsqc_spectra[spectrum_origin].raw_data[i];
+        }
+        /**
+         * generate a blob, which is hsqc_spectra[index].header + diff_data
+         */
+        data = Float32Concat(hsqc_spectra[index].header, diff_data);
+    }
+
+
     let blob = new Blob([data], { type: 'application/octet-stream' });
     let url = URL.createObjectURL(blob);
     let a = document.createElement('a');
@@ -2117,6 +2290,27 @@ function Float32Concat(first, second)
     result.set(second, firstLength);
 
     return result;
+}
+
+/**
+ * Find max and min of a Float32Array
+ */
+function find_max_min(data)
+{
+    let max = data[0];
+    let min = data[0];
+    for(let i=1;i<data.length;i++)
+    {
+        if(data[i] > max)
+        {
+            max = data[i];
+        }
+        if(data[i] < min)
+        {
+            min = data[i];
+        }
+    }
+    return [max,min];
 }
 
 /**
@@ -2261,6 +2455,26 @@ function run_Voigt_fitter(spectrum_index,flag)
     document.getElementById("run_voigt_fitter0-".concat(spectrum_index)).disabled = true;
     document.getElementById("run_voigt_fitter1-".concat(spectrum_index)).disabled = true;
 
+    /**
+     * Get maxround input field with ID "maxround-"+spectrum_index
+     */
+    let maxround = parseInt(document.getElementById("maxround-"+spectrum_index).value);
+
+    /**
+     * Get number input field with ID "combine_peak_cutoff-"+spectrum_index
+     */
+    let combine_peak_cutoff = parseFloat(document.getElementById("combine_peak_cutoff-"+spectrum_index).value);
+
+    /**
+     * Get subset of the picked peaks (within visible region)
+     * start < end from the get_visible_region function call
+     */
+    [x_ppm_visible_start, x_ppm_visible_end, y_ppm_visible_start, y_ppm_visible_end] = main_plot.get_visible_region();
+
+    let picked_peaks = hsqc_spectra[spectrum_index].picked_peaks.filter(function (peak) {
+        return peak.cs_x >= x_ppm_visible_start && peak.cs_x <= x_ppm_visible_end && peak.cs_y >= y_ppm_visible_start && peak.cs_y <= y_ppm_visible_end;
+    });
+
 
     /**
      * Combine hsqc_spectra[0].raw_data and hsqc_spectra[0].header into one Float32Array
@@ -2273,8 +2487,10 @@ function run_Voigt_fitter(spectrum_index,flag)
 
     webassembly_worker.postMessage({
         spectrum_data: data_uint8,
-        picked_peaks: hsqc_spectra[spectrum_index].picked_peaks,
+        picked_peaks: picked_peaks,
         spectrum_index: spectrum_index,
+        combine_peak_cutoff: combine_peak_cutoff,
+        maxround: maxround,
         flag: flag, //0: Voigt, 1: Gaussian
         scale: hsqc_spectra[spectrum_index].scale,
         scale2: hsqc_spectra[spectrum_index].scale2,
@@ -2293,14 +2509,35 @@ function run_Voigt_fitter(spectrum_index,flag)
 function show_hide_peaks(index,flag,b_show)
 {
     /**
+     * Disable main_plot.allow_brush_to_remove and checkbox:
+     * allow_brush_to_remove
+     * allow_drag_and_drop
+     * allow_click_to_add_peak
+     */
+    main_plot.allow_brush_to_remove = false;
+    document.getElementById("allow_brush_to_remove").checked = false;
+    document.getElementById("allow_brush_to_remove").disabled = true;
+    document.getElementById("allow_drag_and_drop").checked = false;
+    document.getElementById("allow_drag_and_drop").disabled = true;
+    document.getElementById("allow_click_to_add_peak").checked = false;
+    document.getElementById("allow_click_to_add_peak").disabled = true;
+    
+    /**
      * Turn off checkbox of all other spectra
      */
     for(let i=0;i<hsqc_spectra.length;i++)
     {
         if(i!==index)
         {
-            document.getElementById("show_peaks-"+i).checked = false;
-            document.getElementById("show_fitted_peaks-"+i).checked = false;
+            /**
+             * If spectrum is deleted, these checkboxes are no longer available.
+             * So we need to check if they are available
+             */
+            if(hsqc_spectra[i].spectrum_origin !== -3)
+            {
+                document.getElementById("show_peaks-"+i).checked = false;
+                document.getElementById("show_fitted_peaks-"+i).checked = false;
+            }
         }
         /**
          * uncheck the checkbox of the current spectrum
@@ -2327,23 +2564,22 @@ function show_hide_peaks(index,flag,b_show)
          * Get current lowest contour level of the spectrum
          */
         let level = hsqc_spectra[index].levels[main_plot.contour_lbs[index]];
+        main_plot.set_peak_level(level);
 
-        let peaks;
         if(flag === 'picked')
         {
-            peaks = hsqc_spectra[index].picked_peaks;
+            /**
+             * Only for picked peaks of an experimental spectrum, allow user to make changes
+             */
+            if(hsqc_spectra[index].spectrum_origin === -1 || hsqc_spectra[index].spectrum_origin === -2)
+            {
+                document.getElementById("allow_brush_to_remove").disabled = false;
+                document.getElementById("allow_drag_and_drop").disabled = false;
+                document.getElementById("allow_click_to_add_peak").disabled = false;
+            }
         }
-        else if(flag === 'fitted')
-        {
-            peaks = hsqc_spectra[index].fitted_peaks;
-        }
-
-        /**
-         * Filter hsqc_spectra[index].fitted_peaks or picked_peaks by level (index > level)
-         * to get an subset of peaks
-         */
-        let new_peaks = peaks.filter(peak => peak.index > level);
-         main_plot.add_picked_peaks(new_peaks);
+        main_plot.add_peaks(hsqc_spectra[index],flag);
+        
     }
     else
     {
@@ -2408,6 +2644,77 @@ function download_peaks(spectrum_index,flag)
 }
 
 /**
+ * Remove a reconstructed spectrum from the list and data.
+ * This function will send a message to the contour worker,
+ * The contour worker will send it back to the main thread 
+ * then the main thread will call remove_spectrum(index) to remove the spectrum
+ * This is to make sure that the contour plot is updated correctly (single thread for the contour plot)
+ */
+function remove_spectrum_caller(index)
+{
+    /**
+     * Send a message to the contour worker to remove the spectrum
+     */
+    my_contour_worker.postMessage({ remove_spectrum: index });
+}
+
+/**
+ * 
+ * ACtually remove a reconstructed spectrum from the list and data
+ */
+function remove_spectrum(index)
+{
+    /**
+     * Remove it from the list
+     */
+    document.getElementById("spectrum-".concat(index)).remove();
+
+    /**
+     * Because we make extensive use of spectrum index and we don't want to change the index of the spectrum
+     * So we remove its data (array member only), but keep the object in the array
+     */
+    hsqc_spectra[index].raw_data = new Float32Array();
+    hsqc_spectra[index].header = new Float32Array();
+    hsqc_spectra[index].levels = [];
+    hsqc_spectra[index].negative_levels = [];
+    hsqc_spectra[index].picked_peaks = [];
+    hsqc_spectra[index].fitted_peaks = [];
+    hsqc_spectra[index].spectrum_origin = -3; // -3 means the spectrum is removed
+
+    /**
+     * Remove its contour data from main_plot and redraw the contour plot
+     */
+    main_plot.levels_length[index] = [];
+    main_plot.polygon_length[index] = [];
+    main_plot.levels_length_negative[index] = [];
+    main_plot.polygon_length_negative[index] = [];
+    /**
+     * Now remove main_plot.points (type is Float32Array)
+     * from the  main_plot.points_start[index] main_plot.points_start[index+1]
+     * (This means we also removed the negative contour points)
+     */
+    if(index === hsqc_spectra.length - 1) //last spectrum
+    {
+        main_plot.points = main_plot.points.slice(0, main_plot.points_start[index]);
+    }
+    else
+    {
+        const n_removed = main_plot.points_start[index + 1] - main_plot.points_start[index];
+        main_plot.points = Float32Concat( main_plot.points.slice(0, main_plot.points_start[index]), main_plot.points.slice(main_plot.points_start[index + 1]));
+        /**
+         * We need to update main_plot.points_start and main_plot.points_start_negative from index+1
+         */
+        for (let i = index + 1; i < main_plot.points_start.length; i++) {
+            main_plot.points_start[i] -= n_removed;
+            main_plot.points_start_negative[i] -= n_removed;
+        }
+    }
+    main_plot.points_start_negative[index]=main_plot.points_start[index];
+
+    main_plot.redraw_contour();
+}
+
+/**
  * Clear the textarea log
  */
 function clear_log()
@@ -2433,4 +2740,24 @@ function download_log()
      */
     URL.revokeObjectURL(url);
     a.remove();
+}
+
+
+function median(values) 
+{
+    if (values.length === 0) {
+      throw new Error('Input array is empty');
+    }
+  
+    // Sorting values, preventing original array
+    // from being mutated.
+    values = [...values].sort((a, b) => a - b);
+  
+    const half = Math.floor(values.length / 2);
+  
+    return (values.length % 2
+      ? values[half]
+      : (values[half - 1] + values[half]) / 2
+    );
+  
 }

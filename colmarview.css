@@ -134,6 +134,8 @@
 
         textarea {
             resize: auto;
+            min-height : 300px;
+            min-width: 300px;
         }
 
         #contour_message {
