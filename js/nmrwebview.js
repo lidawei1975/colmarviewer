@@ -1652,10 +1652,20 @@ function init_plot(input) {
     });
 
     /**
-     * Event listener for peak_color
+     * Event listener for peak_color, peak_size and peak_thickness
      */
     document.getElementById("peak_color").addEventListener('change', function () {
         main_plot.peak_color = this.value;
+        main_plot.redraw_peaks();
+    });
+
+    document.getElementById("peak_size").addEventListener('change', function () {
+        main_plot.peak_size = parseInt(this.value);
+        main_plot.redraw_peaks();
+    });
+
+    document.getElementById("peak_thickness").addEventListener('change', function () {
+        main_plot.peak_thickness = parseInt(this.value);
         main_plot.redraw_peaks();
     });
 };

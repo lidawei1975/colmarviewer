@@ -145,12 +145,18 @@
                     <button onclick="popzoom()">Zoom Back</button>,
                     <button onclick="zoomout()">Zoom out 120%</button>
                     <button onclick="download_plot()">Download plot</button>
+                    <br>
+
                     <input type="checkbox" id="Horizontal_cross_section">
-                    <label for="Horizontal_cross_section"> Show Horizontal Cross Section </label>
+                    <label for="Horizontal_cross_section"> Show Horizontal Cross Section </label>&nbsp;&nbsp;
                     <input type="checkbox" id="Vertical_cross_section">
-                    <label for="Vertical_cross_section"> Show Vertical Cross Section </label>
+                    <label for="Vertical_cross_section"> Show Vertical Cross Section </label>&nbsp;&nbsp;
                     <label for="peak_color">Peak color: </label>
-                    <input type="color" id="peak_color" value="#ff0000">
+                    <input type="color" id="peak_color" value="#ff0000">&nbsp;&nbsp;
+                    <label for="peak_size">Peak size: </label>
+                    <input type="number" id="peak_size" value="6" min="1" max="20">&nbsp;&nbsp;
+                    <label for="peak_thickness">Thickness: </label>
+                    <input type="number" id="peak_thickness" value="5" min="1" max="10">
                     <br>
 
 
