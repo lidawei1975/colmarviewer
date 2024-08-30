@@ -1139,7 +1139,7 @@ function add_to_list(index) {
     let logarithmic_scale_input = document.createElement("input");
     logarithmic_scale_input.setAttribute("type", "text");
     logarithmic_scale_input.setAttribute("id", "logarithmic_scale-".concat(index));
-    logarithmic_scale_input.setAttribute("value", "1.3");
+    logarithmic_scale_input.setAttribute("value", "1.5");
     logarithmic_scale_input.setAttribute("size", "3");
     logarithmic_scale_input.setAttribute("min",1.05);
     new_spectrum_div.appendChild(logarithmic_scale_input_label);
@@ -1249,7 +1249,7 @@ function add_to_list(index) {
         let logarithmic_scale_input_negative = document.createElement("input");
         logarithmic_scale_input_negative.setAttribute("type", "text");
         logarithmic_scale_input_negative.setAttribute("id", "logarithmic_scale_negative-".concat(index));
-        logarithmic_scale_input_negative.setAttribute("value", "1.3");
+        logarithmic_scale_input_negative.setAttribute("value", "1.5");
         logarithmic_scale_input_negative.setAttribute("size", "3");
         logarithmic_scale_input_negative.setAttribute("min",1.05);
         new_spectrum_div.appendChild(logarithmic_scale_input_label_negative);
@@ -1812,7 +1812,7 @@ function update_contour0_or_logarithmic_scale(index,flag) {
         for (let i = 1; i < 40; i++) {
             hsqc_spectrum.levels[i] = hsqc_spectrum.levels[i - 1] * scale;
             if (hsqc_spectrum.levels[i] > hsqc_spectrum.spectral_max) {
-                hsqc_spectrum.levels = hsqc_spectrum.levels.slice(0, i);
+                hsqc_spectrum.levels = hsqc_spectrum.levels.slice(0, i+1);
                 break;
             }
         }
@@ -1838,7 +1838,7 @@ function update_contour0_or_logarithmic_scale(index,flag) {
         for (let i = 1; i < 40; i++) {
             hsqc_spectrum.negative_levels[i] = hsqc_spectrum.negative_levels[i - 1] * scale;
             if (hsqc_spectrum.negative_levels[i] < hsqc_spectrum.spectral_min) {
-                hsqc_spectrum.negative_levels = hsqc_spectrum.negative_levels.slice(0, i);
+                hsqc_spectrum.negative_levels = hsqc_spectrum.negative_levels.slice(0, i+1);
                 break;
             }
         }
@@ -2094,28 +2094,24 @@ function process_ft_file(arrayBuffer,file_name, spectrum_type) {
         stride = Math.floor(data_size / (1024 * 1024));
     }
     let z_abs = new Float32Array(data_size / stride);
-    let z = new Float32Array(data_size / stride);
     for (var i = 0; i < data_size; i += stride) {
         z_abs[Math.floor(i / stride)] = Math.abs(result.raw_data[i]);
-        z[Math.floor(i / stride)] = result.raw_data[i];
     }
     z_abs.sort();
-    z.sort();
     result.noise_level = z_abs[Math.floor(z_abs.length / 2)];
 
     /**
      * Get max and min of z (z is sorted)
      */
-    result.spectral_max = z[z.length - 1];
-    result.spectral_min = z[0];
+    [result.spectral_max, result.spectral_min] = find_max_min(result.raw_data);
 
     /**
      * In case of reconstructed spectrum from fitting or from NUS, noise_level is usually 0.
-     * In that case, we define noise_level as spectral_max/power(1.3,20)
+     * In that case, we define noise_level as spectral_max/power(1.5,40)
      */
     if(result.noise_level <= Number.MIN_VALUE)
     {
-        result.noise_level = result.spectral_max/Math.pow(1.3,20);
+        result.noise_level = result.spectral_max/Math.pow(1.5,40);
     }
 
     /**
@@ -2124,7 +2120,7 @@ function process_ft_file(arrayBuffer,file_name, spectrum_type) {
     result.levels = new Array(40);
     result.levels[0] = 5.5 * result.noise_level;
     for (let i = 1; i < result.levels.length; i++) {
-        result.levels[i] = 1.3 * result.levels[i - 1];
+        result.levels[i] = 1.5 * result.levels[i - 1];
         if (result.levels[i] > result.spectral_max) {
             result.levels = result.levels.slice(0, i+1);
             break;
@@ -2137,7 +2133,7 @@ function process_ft_file(arrayBuffer,file_name, spectrum_type) {
     result.negative_levels = new Array(40);
     result.negative_levels[0] = -5.5 * result.noise_level;
     for (let i = 1; i < result.negative_levels.length; i++) {
-        result.negative_levels[i] = 1.3 * result.negative_levels[i - 1];
+        result.negative_levels[i] = 1.5 * result.negative_levels[i - 1];
         if (result.negative_levels[i] < result.spectral_min) {
             result.negative_levels = result.negative_levels.slice(0, i+1);
             break;
@@ -2276,6 +2272,27 @@ function Float32Concat(first, second)
     result.set(second, firstLength);
 
     return result;
+}
+
+/**
+ * Find max and min of a Float32Array
+ */
+function find_max_min(data)
+{
+    let max = data[0];
+    let min = data[0];
+    for(let i=1;i<data.length;i++)
+    {
+        if(data[i] > max)
+        {
+            max = data[i];
+        }
+        if(data[i] < min)
+        {
+            min = data[i];
+        }
+    }
+    return [max,min];
 }
 
 /**
