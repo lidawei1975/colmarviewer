@@ -967,6 +967,22 @@ function add_to_list(index) {
         combine_peak_cutoff_input.setAttribute("value", "0.04");
         new_spectrum_div.appendChild(combine_peak_cutoff_label);
         new_spectrum_div.appendChild(combine_peak_cutoff_input);
+
+        /**
+         * Add a maxround input filed (type: int number) with ID "maxround-".concat(index)
+         */
+        let maxround_label = document.createElement("label");
+        maxround_label.setAttribute("for", "maxround-".concat(index));
+        maxround_label.innerText = " Max round: ";
+        let maxround_input = document.createElement("input");
+        maxround_input.setAttribute("type", "number");
+        maxround_input.setAttribute("step", "1");
+        maxround_input.setAttribute("min", "1");
+        maxround_input.setAttribute("id", "maxround-".concat(index));
+        maxround_input.setAttribute("size", "1");
+        maxround_input.setAttribute("value", "50"); //Default value is 50
+        new_spectrum_div.appendChild(maxround_label);
+        new_spectrum_div.appendChild(maxround_input);
         
         /**
          * Add two buttons to call run_Voigt_fitter, with option 0 and 1
@@ -2405,6 +2421,11 @@ function run_Voigt_fitter(spectrum_index,flag)
     document.getElementById("run_voigt_fitter1-".concat(spectrum_index)).disabled = true;
 
     /**
+     * Get maxround input field with ID "maxround-"+spectrum_index
+     */
+    let maxround = parseInt(document.getElementById("maxround-"+spectrum_index).value);
+
+    /**
      * Get number input field with ID "combine_peak_cutoff-"+spectrum_index
      */
     let combine_peak_cutoff = parseFloat(document.getElementById("combine_peak_cutoff-"+spectrum_index).value);
@@ -2434,6 +2455,7 @@ function run_Voigt_fitter(spectrum_index,flag)
         picked_peaks: picked_peaks,
         spectrum_index: spectrum_index,
         combine_peak_cutoff: combine_peak_cutoff,
+        maxround: maxround,
         flag: flag, //0: Voigt, 1: Gaussian
         scale: hsqc_spectra[spectrum_index].scale,
         scale2: hsqc_spectra[spectrum_index].scale2,

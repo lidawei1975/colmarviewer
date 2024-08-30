@@ -92,6 +92,7 @@ onmessage = function (e) {
          */
         let content = ' -noise_level '.concat(e.data.noise_level,' -scale ',e.data.scale,' -scale2 ',e.data.scale2);
         content = content.concat(' -combine ', e.data.combine_peak_cutoff);
+        content = content.concat(' -maxround ', e.data.maxround);
         
 
         /**
