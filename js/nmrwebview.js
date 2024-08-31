@@ -730,10 +730,8 @@ function resize_main_plot(wid, height, padding, margin_left, margin_top)
 /**
  * Drag and drop spectra to reorder them 
  */
-const sortableList =
-    document.getElementById("spectra_list_ol");
+const sortableList = document.getElementById("spectra_list_ol");
 
- 
 sortableList.addEventListener(
     "dragstart",
     (e) => {
@@ -804,12 +802,11 @@ sortableList.addEventListener(
             );}
     });
  
-const getDragAfterElement = (
-    container, y
-) => {
+const getDragAfterElement = (container, y) =>
+{
     const draggableElements = [
         ...container.querySelectorAll(
-            "li:not(.dragging)"
+            ":scope > li:not(.dragging)"
         ),];
 
     return draggableElements.reduce(
