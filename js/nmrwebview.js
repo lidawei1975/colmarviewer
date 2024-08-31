@@ -849,14 +849,17 @@ function add_to_list(index) {
     new_spectrum_div.id = "spectrum-".concat(index);
 
     /**
-     * Add a draggable div to the new spectrum div
+     * Add a draggable div to the new spectrum div, only if the spectrum is experimental
      */
-    let draggable_span = document.createElement("span");
-    draggable_span.draggable = true;
-    draggable_span.classList.add("draggable");
-    draggable_span.appendChild(document.createTextNode("\u2630 Drag me. "));
-    draggable_span.style.cursor = "move";
-    new_spectrum_div.appendChild(draggable_span);
+    if(new_spectrum.spectrum_origin === -1 || new_spectrum.spectrum_origin === -2)
+    {
+        let draggable_span = document.createElement("span");
+        draggable_span.draggable = true;
+        draggable_span.classList.add("draggable");
+        draggable_span.appendChild(document.createTextNode("\u2630 Drag me. "));
+        draggable_span.style.cursor = "move";
+        new_spectrum_div.appendChild(draggable_span);
+    }
 
     /**
      * If this is a reconstructed spectrum, add a button called "Remove me"
@@ -1201,119 +1204,141 @@ function add_to_list(index) {
      */
     new_spectrum_div.appendChild(document.createElement("br"));
 
-    
+
 
     /**
      * Negative contour levels first
      * A input text element with the lowest contour level for contour calculation, whose ID is "contour0-".concat(index)
      */
-        let contour0_input_label_negative = document.createElement("label");
-        contour0_input_label_negative.setAttribute("for", "contour0_negative-".concat(index));
-        contour0_input_label_negative.innerText = "Lowest: ";
-        let contour0_input_negative = document.createElement("input");
-        contour0_input_negative.setAttribute("type", "text");
-        contour0_input_negative.setAttribute("id", "contour0_negative-".concat(index));
-        contour0_input_negative.setAttribute("size", "8");
-        contour0_input_negative.setAttribute("min",0.001);
-        new_spectrum_div.appendChild(contour0_input_label_negative);
-        new_spectrum_div.appendChild(contour0_input_negative);
-    
-    
-        let reduce_contour_button_negative = document.createElement("button");
-        /**
-         * Create a text node with the text ">" and class rotate90
-         */
-        let textnode_negative = document.createTextNode(">");
-        let textdiv_negative = document.createElement("div");
-        textdiv_negative.appendChild(textnode_negative);
-        textdiv_negative.classList.add("rotate90");
-    
-        reduce_contour_button_negative.appendChild(textdiv_negative);
-        reduce_contour_button_negative.onclick = function() { reduce_contour(index,1); };
-        reduce_contour_button_negative.style.marginLeft = "1em";
-        reduce_contour_button_negative.style.marginRight = "1em";
-        /**
-         * Add a tooltip to the button
-         */
-        reduce_contour_button_negative.setAttribute("title", "Insert a new level, which is the current level divided by the logarithmic scale. This is more efficient than full recalculation.");
-        new_spectrum_div.appendChild(reduce_contour_button_negative);
-    
-    
-    
-        /**
-         * A input text element with the logarithmic scale for contour calculation, whose ID is "logarithmic_scale-".concat(index)
-         */
-        let logarithmic_scale_input_label_negative = document.createElement("label");
-        logarithmic_scale_input_label_negative.setAttribute("for", "logarithmic_scale_negative-".concat(index));
-        logarithmic_scale_input_label_negative.innerText = "Scale: ";
-        let logarithmic_scale_input_negative = document.createElement("input");
-        logarithmic_scale_input_negative.setAttribute("type", "text");
-        logarithmic_scale_input_negative.setAttribute("id", "logarithmic_scale_negative-".concat(index));
-        logarithmic_scale_input_negative.setAttribute("value", "1.5");
-        logarithmic_scale_input_negative.setAttribute("size", "3");
-        logarithmic_scale_input_negative.setAttribute("min",1.05);
-        new_spectrum_div.appendChild(logarithmic_scale_input_label_negative);
-        new_spectrum_div.appendChild(logarithmic_scale_input_negative);
-    
-        /**
-         * A button to update the contour plot with the new lowest level and logarithmic scale
-         */
-        let update_contour_button_negative = document.createElement("button");
-        update_contour_button_negative.innerText = "Recalculate";
-        update_contour_button_negative.onclick = function() { update_contour0_or_logarithmic_scale(index,1); };
-        update_contour_button_negative.setAttribute("title","Update the contour plot with the new lowest level and logarithmic scale. This process might be slow.");
-        update_contour_button_negative.style.marginLeft = "1em";
-        update_contour_button_negative.style.marginRight = "1em";
-        new_spectrum_div.appendChild(update_contour_button_negative);
-    
-    
-        /**
-         * A color picker element with the color of the contour plot, whose ID is "contour_color-".concat(index)
-         * Set the color of the picker to the color of the spectrum
-         * Also add an event listener to update the color of the contour plot
-         */
-        let contour_color_label_negative = document.createElement("label");
-        contour_color_label_negative.setAttribute("for", "contour_color_negative-".concat(index));
-        contour_color_label_negative.innerText = "Color: ";
-        let contour_color_input_negative = document.createElement("input");
-        contour_color_input_negative.setAttribute("type", "color");
-        contour_color_input_negative.setAttribute("value", rgbToHex(new_spectrum.spectrum_color_negative));
-        contour_color_input_negative.setAttribute("id", "contour_color_negative-".concat(index));
-        contour_color_input_negative.addEventListener("change", (e) => { update_contour_color(e,index,1); });
-        new_spectrum_div.appendChild(contour_color_label_negative);
-        new_spectrum_div.appendChild(contour_color_input_negative);
-    
-        /**
-         * Add a new line and a slider for the contour level
-         * Add a event listener to update the contour level
-         */
-        let contour_slider_negative = document.createElement("input");
-        contour_slider_negative.setAttribute("type", "range");
-        contour_slider_negative.setAttribute("id", "contour-slider_negative-".concat(index));
-        contour_slider_negative.setAttribute("min", "1");
-        contour_slider_negative.setAttribute("max", "20");
-        contour_slider_negative.setAttribute("value", "1");
-        contour_slider_negative.style.width = "10%";
-        contour_slider_negative.addEventListener("input", (e) => { update_contour_slider(e,index,'negative'); });
-        new_spectrum_div.appendChild(contour_slider_negative);
-    
-        
-    
-        /**
-         * A span element with the current contour level, whose ID is "contour_level-".concat(index)
-         */
-        let contour_level_span_negative = document.createElement("span");
-        contour_level_span_negative.setAttribute("id", "contour_level_negative-".concat(index));
-        contour_level_span_negative.innerText = new_spectrum.levels[0].toFixed(2);
-        new_spectrum_div.appendChild(contour_level_span_negative);
+    let contour0_input_label_negative = document.createElement("label");
+    contour0_input_label_negative.setAttribute("for", "contour0_negative-".concat(index));
+    contour0_input_label_negative.innerText = "Lowest: ";
+    let contour0_input_negative = document.createElement("input");
+    contour0_input_negative.setAttribute("type", "text");
+    contour0_input_negative.setAttribute("id", "contour0_negative-".concat(index));
+    contour0_input_negative.setAttribute("size", "8");
+    contour0_input_negative.setAttribute("min", 0.001);
+    new_spectrum_div.appendChild(contour0_input_label_negative);
+    new_spectrum_div.appendChild(contour0_input_negative);
+
+
+    let reduce_contour_button_negative = document.createElement("button");
+    /**
+     * Create a text node with the text ">" and class rotate90
+     */
+    let textnode_negative = document.createTextNode(">");
+    let textdiv_negative = document.createElement("div");
+    textdiv_negative.appendChild(textnode_negative);
+    textdiv_negative.classList.add("rotate90");
+
+    reduce_contour_button_negative.appendChild(textdiv_negative);
+    reduce_contour_button_negative.onclick = function () { reduce_contour(index, 1); };
+    reduce_contour_button_negative.style.marginLeft = "1em";
+    reduce_contour_button_negative.style.marginRight = "1em";
+    /**
+     * Add a tooltip to the button
+     */
+    reduce_contour_button_negative.setAttribute("title", "Insert a new level, which is the current level divided by the logarithmic scale. This is more efficient than full recalculation.");
+    new_spectrum_div.appendChild(reduce_contour_button_negative);
 
 
 
     /**
-     * Add the new spectrum div to the list of spectra
+     * A input text element with the logarithmic scale for contour calculation, whose ID is "logarithmic_scale-".concat(index)
      */
-    document.getElementById("spectra_list_ol").appendChild(new_spectrum_div);
+    let logarithmic_scale_input_label_negative = document.createElement("label");
+    logarithmic_scale_input_label_negative.setAttribute("for", "logarithmic_scale_negative-".concat(index));
+    logarithmic_scale_input_label_negative.innerText = "Scale: ";
+    let logarithmic_scale_input_negative = document.createElement("input");
+    logarithmic_scale_input_negative.setAttribute("type", "text");
+    logarithmic_scale_input_negative.setAttribute("id", "logarithmic_scale_negative-".concat(index));
+    logarithmic_scale_input_negative.setAttribute("value", "1.5");
+    logarithmic_scale_input_negative.setAttribute("size", "3");
+    logarithmic_scale_input_negative.setAttribute("min", 1.05);
+    new_spectrum_div.appendChild(logarithmic_scale_input_label_negative);
+    new_spectrum_div.appendChild(logarithmic_scale_input_negative);
 
+    /**
+     * A button to update the contour plot with the new lowest level and logarithmic scale
+     */
+    let update_contour_button_negative = document.createElement("button");
+    update_contour_button_negative.innerText = "Recalculate";
+    update_contour_button_negative.onclick = function () { update_contour0_or_logarithmic_scale(index, 1); };
+    update_contour_button_negative.setAttribute("title", "Update the contour plot with the new lowest level and logarithmic scale. This process might be slow.");
+    update_contour_button_negative.style.marginLeft = "1em";
+    update_contour_button_negative.style.marginRight = "1em";
+    new_spectrum_div.appendChild(update_contour_button_negative);
+
+
+    /**
+     * A color picker element with the color of the contour plot, whose ID is "contour_color-".concat(index)
+     * Set the color of the picker to the color of the spectrum
+     * Also add an event listener to update the color of the contour plot
+     */
+    let contour_color_label_negative = document.createElement("label");
+    contour_color_label_negative.setAttribute("for", "contour_color_negative-".concat(index));
+    contour_color_label_negative.innerText = "Color: ";
+    let contour_color_input_negative = document.createElement("input");
+    contour_color_input_negative.setAttribute("type", "color");
+    contour_color_input_negative.setAttribute("value", rgbToHex(new_spectrum.spectrum_color_negative));
+    contour_color_input_negative.setAttribute("id", "contour_color_negative-".concat(index));
+    contour_color_input_negative.addEventListener("change", (e) => { update_contour_color(e, index, 1); });
+    new_spectrum_div.appendChild(contour_color_label_negative);
+    new_spectrum_div.appendChild(contour_color_input_negative);
+
+    /**
+     * Add a new line and a slider for the contour level
+     * Add a event listener to update the contour level
+     */
+    let contour_slider_negative = document.createElement("input");
+    contour_slider_negative.setAttribute("type", "range");
+    contour_slider_negative.setAttribute("id", "contour-slider_negative-".concat(index));
+    contour_slider_negative.setAttribute("min", "1");
+    contour_slider_negative.setAttribute("max", "20");
+    contour_slider_negative.setAttribute("value", "1");
+    contour_slider_negative.style.width = "10%";
+    contour_slider_negative.addEventListener("input", (e) => { update_contour_slider(e, index, 'negative'); });
+    new_spectrum_div.appendChild(contour_slider_negative);
+
+
+
+    /**
+     * A span element with the current contour level, whose ID is "contour_level-".concat(index)
+     */
+    let contour_level_span_negative = document.createElement("span");
+    contour_level_span_negative.setAttribute("id", "contour_level_negative-".concat(index));
+    contour_level_span_negative.innerText = new_spectrum.levels[0].toFixed(2);
+    new_spectrum_div.appendChild(contour_level_span_negative);
+
+    /**
+     * For experimental spectra:
+     * Add a h5 element to hold the title of "Reconstructed spectrum"
+     * Add a ol element to hold reconstructed spectrum
+     */
+    if(new_spectrum.spectrum_origin < 0)
+    {
+        let reconstructed_spectrum_h5 = document.createElement("h5");
+        reconstructed_spectrum_h5.innerText = "Reconstructed spectrum";
+        new_spectrum_div.appendChild(reconstructed_spectrum_h5);
+        let reconstructed_spectrum_ol = document.createElement("ol");
+        reconstructed_spectrum_ol.setAttribute("id", "reconstructed_spectrum_ol-".concat(index));   
+        new_spectrum_div.appendChild(reconstructed_spectrum_ol);
+    }
+
+    /**
+     * Add the new spectrum div to the list of spectra if it is from experimental data
+    */
+    if(hsqc_spectra[index].spectrum_origin < 0)
+    {
+        document.getElementById("spectra_list_ol").appendChild(new_spectrum_div);
+    }
+    /**
+     * If the spectrum is reconstructed, add the new spectrum div to the reconstructed spectrum list
+     */
+    else
+    {
+        document.getElementById("reconstructed_spectrum_ol-".concat(hsqc_spectra[index].spectrum_origin)).appendChild(new_spectrum_div);
+    }
 
     /**
      * initialize slider and text of the lowest contour level visible 
