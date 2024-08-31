@@ -868,51 +868,54 @@ function add_to_list(index) {
         new_spectrum_div.appendChild(remove_button);
     }
     
-    /**
-     * The new DIV will have the following children:
-     * A original index (which is different from the index in the list, because of the order change by drag and drop)
-     * A span element with the spectrum noise level
-     */
-    new_spectrum_div.appendChild(document.createTextNode("Original index: ".concat(index.toString(), ", ")));
-    new_spectrum_div.appendChild(document.createTextNode("Noise: " + new_spectrum.noise_level.toExponential(2) + ","));
-    /**
-     * Add filename as a text node
-     */
-    let fname_text = document.createTextNode(" File name: " + hsqc_spectra[index].filename + " ");
-    new_spectrum_div.appendChild(fname_text);
+    if(new_spectrum.spectrum_origin === -1 || new_spectrum.spectrum_origin === -2)
+    {
+        /**
+         * The new DIV will have the following children:
+         * A original index (which is different from the index in the list, because of the order change by drag and drop)
+         * A span element with the spectrum noise level
+         */
+        new_spectrum_div.appendChild(document.createTextNode("Original index: ".concat(index.toString(), ", ")));
+        new_spectrum_div.appendChild(document.createTextNode("Noise: " + new_spectrum.noise_level.toExponential(4) + ","));
+        /**
+         * Add filename as a text node
+         */
+        let fname_text = document.createTextNode(" File name: " + hsqc_spectra[index].filename + " ");
+        new_spectrum_div.appendChild(fname_text);
 
-    /**
-     * Add two input text element with ID ref1 and ref2, default value is 0 and 0
-     * They also have a label element with text "Ref direct: " and "Ref indirect: "
-     * They also have an onblur event to update the ref_direct and ref_indirect values
-     */
-    let ref_direct_label = document.createElement("label");
-    ref_direct_label.setAttribute("for", "ref1-".concat(index));
-    ref_direct_label.innerText = " Ref direct: ";
-    let ref_direct_input = document.createElement("input");
-    ref_direct_input.setAttribute("type", "text");
-    ref_direct_input.setAttribute("id", "ref1-".concat(index));
-    ref_direct_input.setAttribute("size", "4");
-    ref_direct_input.setAttribute("value", "0.0");
-    ref_direct_input.onblur = function () { adjust_ref(index, 0); };
-    new_spectrum_div.appendChild(ref_direct_label);
-    new_spectrum_div.appendChild(ref_direct_input);
+        /**
+         * Add two input text element with ID ref1 and ref2, default value is 0 and 0
+         * They also have a label element with text "Ref direct: " and "Ref indirect: "
+         * They also have an onblur event to update the ref_direct and ref_indirect values
+         */
+        let ref_direct_label = document.createElement("label");
+        ref_direct_label.setAttribute("for", "ref1-".concat(index));
+        ref_direct_label.innerText = " Ref direct: ";
+        let ref_direct_input = document.createElement("input");
+        ref_direct_input.setAttribute("type", "text");
+        ref_direct_input.setAttribute("id", "ref1-".concat(index));
+        ref_direct_input.setAttribute("size", "4");
+        ref_direct_input.setAttribute("value", "0.0");
+        ref_direct_input.onblur = function () { adjust_ref(index, 0); };
+        new_spectrum_div.appendChild(ref_direct_label);
+        new_spectrum_div.appendChild(ref_direct_input);
 
-    let ref_indirect_label = document.createElement("label");
-    ref_indirect_label.setAttribute("for", "ref2-".concat(index));
-    ref_indirect_label.innerText = " Ref indirect: ";
-    let ref_indirect_input = document.createElement("input");
-    ref_indirect_input.setAttribute("type", "text");
-    ref_indirect_input.setAttribute("id", "ref2-".concat(index));
-    ref_indirect_input.setAttribute("size", "4");
-    ref_indirect_input.setAttribute("value", "0.0");
-    ref_indirect_input.onblur = function () { adjust_ref(index, 1); };
-    new_spectrum_div.appendChild(ref_indirect_label);
-    new_spectrum_div.appendChild(ref_indirect_input);
-    /**
-     * Add a line break
-     */
-    new_spectrum_div.appendChild(document.createElement("br"));
+        let ref_indirect_label = document.createElement("label");
+        ref_indirect_label.setAttribute("for", "ref2-".concat(index));
+        ref_indirect_label.innerText = " Ref indirect: ";
+        let ref_indirect_input = document.createElement("input");
+        ref_indirect_input.setAttribute("type", "text");
+        ref_indirect_input.setAttribute("id", "ref2-".concat(index));
+        ref_indirect_input.setAttribute("size", "4");
+        ref_indirect_input.setAttribute("value", "0.0");
+        ref_indirect_input.onblur = function () { adjust_ref(index, 1); };
+        new_spectrum_div.appendChild(ref_indirect_label);
+        new_spectrum_div.appendChild(ref_indirect_input);
+        /**
+         * Add a line break
+         */
+        new_spectrum_div.appendChild(document.createElement("br"));
+    }
 
 
     /**
@@ -964,7 +967,7 @@ function add_to_list(index) {
         combine_peak_cutoff_input.setAttribute("min", "0.00");
         combine_peak_cutoff_input.setAttribute("id", "combine_peak_cutoff-".concat(index));
         combine_peak_cutoff_input.setAttribute("size", "1");
-        combine_peak_cutoff_input.setAttribute("value", "0.04");
+        combine_peak_cutoff_input.setAttribute("value", "0.1");
         new_spectrum_div.appendChild(combine_peak_cutoff_label);
         new_spectrum_div.appendChild(combine_peak_cutoff_input);
 
@@ -989,14 +992,14 @@ function add_to_list(index) {
          * Default is disabled
          */
         let run_voigt_fitter_button0 = document.createElement("button");
-        run_voigt_fitter_button0.innerText = "Voigt Fit (Voigt)";
+        run_voigt_fitter_button0.innerText = "Voigt Fitting";
         run_voigt_fitter_button0.onclick = function () { run_Voigt_fitter(index, 0); };
         run_voigt_fitter_button0.disabled = true;
         run_voigt_fitter_button0.setAttribute("id", "run_voigt_fitter0-".concat(index));
         new_spectrum_div.appendChild(run_voigt_fitter_button0);
 
         let run_voigt_fitter_button1 = document.createElement("button");
-        run_voigt_fitter_button1.innerText = "Voigt Fit (Gaussian)";
+        run_voigt_fitter_button1.innerText = "Gaussian Fitting";
         run_voigt_fitter_button1.onclick = function () { run_Voigt_fitter(index, 1); };
         run_voigt_fitter_button1.disabled = true;
         run_voigt_fitter_button1.setAttribute("id", "run_voigt_fitter1-".concat(index));
@@ -1012,7 +1015,7 @@ function add_to_list(index) {
      * Add a download button to download the picked peaks. Default is disabled unless it is a reconstructed spectrum
      */
     let download_peaks_button = document.createElement("button");
-    download_peaks_button.innerText = "Download peaks";
+    download_peaks_button.innerText = "Download picked peaks";
     if(new_spectrum.spectrum_origin === -1 || new_spectrum.spectrum_origin === -2){
         download_peaks_button.disabled = true;
     }
@@ -1056,7 +1059,7 @@ function add_to_list(index) {
     new_spectrum_div.appendChild(show_peaks_checkbox);
     let show_peaks_label = document.createElement("label");
     show_peaks_label.setAttribute("for", "show_peaks-".concat(index));
-    show_peaks_label.innerText = "Show peaks";
+    show_peaks_label.innerText = "Show picked peaks";
     new_spectrum_div.appendChild(show_peaks_label);
 
     /**
@@ -1156,6 +1159,32 @@ function add_to_list(index) {
     update_contour_button.style.marginRight = "1em";
     new_spectrum_div.appendChild(update_contour_button);
 
+    /**
+     * Add a new line and a slider for the contour level
+     * Add a event listener to update the contour level
+     */
+    let contour_slider = document.createElement("input");
+    contour_slider.setAttribute("type", "range");
+    contour_slider.setAttribute("id", "contour-slider-".concat(index));
+    contour_slider.setAttribute("min", "1");
+    contour_slider.setAttribute("max", "20");
+    contour_slider.setAttribute("value", "1");
+    contour_slider.style.width = "10%";
+    contour_slider.addEventListener("input", (e) => { update_contour_slider(e, index, 'positive'); });
+    new_spectrum_div.appendChild(contour_slider);
+
+    /**
+     * A span element with the current contour level, whose ID is "contour_level-".concat(index)
+     */
+    let contour_level_span = document.createElement("span");
+    contour_level_span.setAttribute("id", "contour_level-".concat(index));
+    contour_level_span.classList.add("information");
+    contour_level_span.innerText = new_spectrum.levels[0].toExponential(4);
+    new_spectrum_div.appendChild(contour_level_span);
+    /**
+     * Add some spaces
+     */
+    new_spectrum_div.appendChild(document.createTextNode("  "));
 
     /**
      * A color picker element with the color of the contour plot, whose ID is "contour_color-".concat(index)
@@ -1169,33 +1198,10 @@ function add_to_list(index) {
     contour_color_input.setAttribute("type", "color");
     contour_color_input.setAttribute("value", rgbToHex(new_spectrum.spectrum_color));
     contour_color_input.setAttribute("id", "contour_color-".concat(index));
-    contour_color_input.addEventListener("change", (e) => { update_contour_color(e,index,0); });
+    contour_color_input.addEventListener("change", (e) => { update_contour_color(e, index, 0); });
     new_spectrum_div.appendChild(contour_color_label);
     new_spectrum_div.appendChild(contour_color_input);
 
-    /**
-     * Add a new line and a slider for the contour level
-     * Add a event listener to update the contour level
-     */
-    let contour_slider = document.createElement("input");
-    contour_slider.setAttribute("type", "range");
-    contour_slider.setAttribute("id", "contour-slider-".concat(index));
-    contour_slider.setAttribute("min", "1");
-    contour_slider.setAttribute("max", "20");
-    contour_slider.setAttribute("value", "1");
-    contour_slider.style.width = "10%";
-    contour_slider.addEventListener("input", (e) => {update_contour_slider(e,index,'positive'); });
-    new_spectrum_div.appendChild(contour_slider);
-
-    
-
-    /**
-     * A span element with the current contour level, whose ID is "contour_level-".concat(index)
-     */
-    let contour_level_span = document.createElement("span");
-    contour_level_span.setAttribute("id", "contour_level-".concat(index));
-    contour_level_span.innerText = new_spectrum.levels[0].toFixed(2);
-    new_spectrum_div.appendChild(contour_level_span);
     /**
      * Add a line break
      */
@@ -1266,6 +1272,33 @@ function add_to_list(index) {
     update_contour_button_negative.style.marginRight = "1em";
     new_spectrum_div.appendChild(update_contour_button_negative);
 
+    /**
+     * Add a new line and a slider for the contour level
+     * Add a event listener to update the contour level
+     */
+    let contour_slider_negative = document.createElement("input");
+    contour_slider_negative.setAttribute("type", "range");
+    contour_slider_negative.setAttribute("id", "contour-slider_negative-".concat(index));
+    contour_slider_negative.setAttribute("min", "1");
+    contour_slider_negative.setAttribute("max", "20");
+    contour_slider_negative.setAttribute("value", "1");
+    contour_slider_negative.style.width = "10%";
+    contour_slider_negative.addEventListener("input", (e) => { update_contour_slider(e, index, 'negative'); });
+    new_spectrum_div.appendChild(contour_slider_negative);
+
+    /**
+     * A span element with the current contour level, whose ID is "contour_level-".concat(index)
+     */
+    let contour_level_span_negative = document.createElement("span");
+    contour_level_span_negative.setAttribute("id", "contour_level_negative-".concat(index));
+    contour_level_span_negative.innerText = new_spectrum.levels[0].toExponential(4);
+    contour_level_span_negative.classList.add("information");
+    new_spectrum_div.appendChild(contour_level_span_negative);
+
+    /**
+     * Add some spaces
+     */
+    new_spectrum_div.appendChild(document.createTextNode("  "));
 
     /**
      * A color picker element with the color of the contour plot, whose ID is "contour_color-".concat(index)
@@ -1282,30 +1315,6 @@ function add_to_list(index) {
     contour_color_input_negative.addEventListener("change", (e) => { update_contour_color(e, index, 1); });
     new_spectrum_div.appendChild(contour_color_label_negative);
     new_spectrum_div.appendChild(contour_color_input_negative);
-
-    /**
-     * Add a new line and a slider for the contour level
-     * Add a event listener to update the contour level
-     */
-    let contour_slider_negative = document.createElement("input");
-    contour_slider_negative.setAttribute("type", "range");
-    contour_slider_negative.setAttribute("id", "contour-slider_negative-".concat(index));
-    contour_slider_negative.setAttribute("min", "1");
-    contour_slider_negative.setAttribute("max", "20");
-    contour_slider_negative.setAttribute("value", "1");
-    contour_slider_negative.style.width = "10%";
-    contour_slider_negative.addEventListener("input", (e) => { update_contour_slider(e, index, 'negative'); });
-    new_spectrum_div.appendChild(contour_slider_negative);
-
-
-
-    /**
-     * A span element with the current contour level, whose ID is "contour_level-".concat(index)
-     */
-    let contour_level_span_negative = document.createElement("span");
-    contour_level_span_negative.setAttribute("id", "contour_level_negative-".concat(index));
-    contour_level_span_negative.innerText = new_spectrum.levels[0].toFixed(2);
-    new_spectrum_div.appendChild(contour_level_span_negative);
 
     /**
      * For experimental spectra:
@@ -1340,9 +1349,9 @@ function add_to_list(index) {
     /**
      * initialize slider and text of the lowest contour level visible 
      */
-    document.getElementById("contour0-".concat(index)).value = hsqc_spectra[index].levels[0].toFixed(2);
+    document.getElementById("contour0-".concat(index)).value = hsqc_spectra[index].levels[0].toExponential(4);
     document.getElementById("contour-slider-".concat(index)).max = hsqc_spectra[index].levels.length;
-    document.getElementById("contour0_negative-".concat(index)).value = hsqc_spectra[index].negative_levels[0].toFixed(2);
+    document.getElementById("contour0_negative-".concat(index)).value = hsqc_spectra[index].negative_levels[0].toExponential(4);
     document.getElementById("contour-slider_negative-".concat(index)).max = hsqc_spectra[index].negative_levels.length;
 
 }
@@ -1801,7 +1810,7 @@ function reduce_contour(index,flag) {
          */
         document.getElementById("contour-slider-".concat(index)).max = hsqc_spectra[index].levels.length;
         document.getElementById("contour-slider-".concat(index)).value = 1;
-        document.getElementById("contour_level-".concat(index)).innerText = hsqc_spectra[index].levels[0].toFixed(2);
+        document.getElementById("contour_level-".concat(index)).innerText = hsqc_spectra[index].levels[0].toExponential(4);
     }
     else if(flag==1)
     {
@@ -1834,7 +1843,7 @@ function reduce_contour(index,flag) {
          */
         document.getElementById("contour-slider_negative-".concat(index)).max = hsqc_spectra[index].negative_levels.length;
         document.getElementById("contour-slider_negative-".concat(index)).value = 1;
-        document.getElementById("contour_level_negative-".concat(index)).innerText = hsqc_spectra[index].negative_levels[0].toFixed(2);
+        document.getElementById("contour_level_negative-".concat(index)).innerText = hsqc_spectra[index].negative_levels[0].toExponential(4);
     }
 
     my_contour_worker.postMessage({ response_value: hsqc_spectra[index].raw_data, spectrum: spectrum_information });
@@ -1881,7 +1890,7 @@ function update_contour0_or_logarithmic_scale(index,flag) {
          */
         document.getElementById("contour-slider-".concat(index)).max = hsqc_spectrum.levels.length;
         document.getElementById("contour-slider-".concat(index)).value = 1;
-        document.getElementById("contour_level-".concat(index)).innerText = hsqc_spectrum.levels[0].toFixed(2);
+        document.getElementById("contour_level-".concat(index)).innerText = hsqc_spectrum.levels[0].toExponential(4);
     }
     else if(flag==1)
     {
@@ -1905,7 +1914,7 @@ function update_contour0_or_logarithmic_scale(index,flag) {
          */
         document.getElementById("contour-slider_negative-".concat(index)).max = hsqc_spectrum.negative_levels.length;
         document.getElementById("contour-slider_negative-".concat(index)).value = 1;
-        document.getElementById("contour_level_negative-".concat(index)).innerText = hsqc_spectrum.negative_levels[0].toFixed(2);
+        document.getElementById("contour_level_negative-".concat(index)).innerText = hsqc_spectrum.negative_levels[0].toExponential(4);
 
         spectrum_information.levels = hsqc_spectrum.negative_levels;
     }
@@ -1932,7 +1941,7 @@ function update_contour_slider(e,index,flag) {
         /**
          * Update text of corresponding contour_level
          */
-        document.getElementById("contour_level-".concat(index)).innerText = hsqc_spectra[index].levels[level - 1].toFixed(2);
+        document.getElementById("contour_level-".concat(index)).innerText = hsqc_spectra[index].levels[level - 1].toExponential(4);
 
         /**
          * Update the current lowest shown level in main_plot
@@ -1956,7 +1965,7 @@ function update_contour_slider(e,index,flag) {
         /**
          * Update text of corresponding contour_level
          */
-        document.getElementById("contour_level_negative-".concat(index)).innerText = hsqc_spectra[index].levels[level - 1].toFixed(2);
+        document.getElementById("contour_level_negative-".concat(index)).innerText = hsqc_spectra[index].levels[level - 1].toExponential(4);
 
         /**
          * Update the current lowest shown level in main_plot
