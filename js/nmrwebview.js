@@ -1399,7 +1399,22 @@ my_contour_worker.onmessage = (e) => {
                 y_ppm_ref: hsqc_spectra[e.data.spectrum_index].y_ppm_ref,
             });
             add_to_list(e.data.spectrum_index);
-            main_plot.spectral_order.push(e.data.spectrum_index);
+            /**
+             * For experimental spectra, we add the index to the end of main_plot.spectral_order array
+             */
+            if(e.data.spectrum_origin<0)
+            {
+                main_plot.spectral_order.push(e.data.spectrum_index);
+            }
+            /**
+             * For reconstructed spectra, we first find location of the spectrum_origin in main_plot.spectral_order array
+             * Then insert the index of the new spectrum after the location
+             */
+            else
+            {
+                let index = main_plot.spectral_order.indexOf(e.data.spectrum_origin);
+                main_plot.spectral_order.splice(index+1,0,e.data.spectrum_index);
+            }
             main_plot.redraw_contour();
         }
         else if(e.data.contour_sign === 1)
@@ -1751,6 +1766,7 @@ function reduce_contour(index,flag) {
         n_indirect: hsqc_spectra[index].n_indirect,
         spectrum_type: "partial",
         spectrum_index: index,
+        spectrum_origin: hsqc_spectra[index].spectrum_origin,
         contour_sign: flag
     };
 
@@ -1837,6 +1853,7 @@ function update_contour0_or_logarithmic_scale(index,flag) {
         n_indirect: hsqc_spectrum.n_indirect,
         spectrum_type: "full",
         spectrum_index: index,
+        spectrum_origin: hsqc_spectrum.spectrum_origin,
         contour_sign: flag,
     };
 
@@ -2286,6 +2303,7 @@ function draw_spectrum(result_spectrum)
          */
         spectrum_type: "full",
         spectrum_index: spectrum_index,
+        spectrum_origin: result_spectrum.spectrum_origin,
         contour_sign: 0
     };
     my_contour_worker.postMessage({ response_value: result_spectrum.raw_data, spectrum: spectrum_information });
@@ -2687,9 +2705,12 @@ function remove_spectrum_caller(index)
 function remove_spectrum(index)
 {
     /**
-     * Remove it from the list
+     * Remove all children of the <li> element with id "spectrum-index"
+     * but keep the <li> element, because main_plot.spectrum_order can't reduce the length
+     * Also set it hidden
      */
-    document.getElementById("spectrum-".concat(index)).remove();
+    document.getElementById("spectrum-".concat(index)).innerHTML = "";
+    document.getElementById("spectrum-".concat(index)).style.display = "none";
 
     /**
      * Because we make extensive use of spectrum index and we don't want to change the index of the spectrum

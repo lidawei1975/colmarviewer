@@ -65,4 +65,5 @@
         workerResult.spectrum_type = spectrum.spectrum_type;
         workerResult.spectrum_index = spectrum.spectrum_index;
         workerResult.contour_sign = spectrum.contour_sign;
+        workerResult.spectrum_origin = spectrum.spectrum_origin;
     }
