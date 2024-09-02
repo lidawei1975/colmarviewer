@@ -26,6 +26,16 @@ var pseudo3d_fitted_peaks = ""; // pseudo 3D fitted peaks, a long multi-line str
 var total_number_of_experimental_spectra = 0; //total number of experimental spectra
 
 /**
+ * ft2 file drop processor
+ */
+var ft2_file_drop_processor;
+
+/**
+* fid file drop processor for the time domain spectra
+*/
+var fid_drop_process;
+
+/**
  * DOM div for the processing message
  */
 var oOutput;
@@ -118,6 +128,7 @@ class file_drop_processor {
     constructor() {
         this.supportsFileSystemAccessAPI = 'getAsFileSystemHandle' in DataTransferItem.prototype;
         this.supportsWebkitGetAsEntry = 'webkitGetAsEntry' in DataTransferItem.prototype;
+        this.container = new DataTransfer();
     }
 
     drop_area(drop_area_id) {
@@ -211,14 +222,13 @@ class file_drop_processor {
          */
         let file_extension = file.name.split('.').pop();    
         if (this.file_extension==file_extension) {
-            let container = new DataTransfer();
-            container.items.add(file);
+            this.container.items.add(file);
             let file_id = this.files_id[this.file_extension.indexOf(file_extension)];
-            document.getElementById(file_id).files = container.files;
+            document.getElementById(file_id).files = this.container.files;
             /**
              * Simulate the change event
              */
-            document.getElementById(file_id).dispatchEvent(new Event('change'));
+            // document.getElementById(file_id).dispatchEvent(new Event('change'));
         }
 
     }
@@ -331,9 +341,9 @@ $(document).ready(function () {
     plot_div_resize_observer.observe(document.getElementById("vis_parent")); 
 
     /**
-     * Initialize the file drop processor for the frequency domain spectra
+     * ft2 file drop processor
      */
-    new file_drop_processor()
+    ft2_file_drop_processor = new file_drop_processor()
     .drop_area('file_area') /** id of dropzone */
     .files_name([]) /** file names to be searched from upload. It is empty because we will use file_extension*/
     .file_extension("ft2")  /** file extenstion to be searched from upload */
@@ -341,41 +351,83 @@ $(document).ready(function () {
     .init();
 
     /**
-     * INitialize the file drop processor for the time domain spectra
-     */
-    new file_drop_processor()
+    * INitialize the file drop processor for the time domain spectra
+    */
+    fid_drop_process = new file_drop_processor()
     .drop_area('fid_file_area') /** id of dropzone */
     .files_name(["acqu2s", "acqu3s", "acqus", "ser", "fid"])  /** file names to be searched from upload */
     .files_id(["acquisition_file2","acquisition_file2", "acquisition_file", "fid_file", "fid_file"]) /** Corresponding file element IDs */
     .init();
 
+
+
+
     /**
      * When use selected a file, read the file and process it
      */
-    document.getElementById('userfile').addEventListener('change', function () {
+    document.getElementById('ft2_file_form').addEventListener('submit', function (e) {
+        e.preventDefault();
 
         /**
-         * If no file is selected, do nothing
+         * Clear file_drop_processor container
+         * clearData() does not work ???
          */
-        if (this.files.length === 0) {
-            return;
+        ft2_file_drop_processor.container = new DataTransfer();
+        
+        /**
+         * Collect all file names
+         */
+        let file_names = [];
+        for(let i=0;i<this.querySelector('input[type="file"]').files.length;i++)
+        {
+            file_names.push(this.querySelector('input[type="file"]').files[i].name);
         }
+        /**
+         * Sort the file names, keep the index
+         */
+        let index_array = Array.from(Array(file_names.length).keys());
+        index_array.sort(function(a,b){
+            return file_names[a].localeCompare(file_names[b]);
+        });
 
+        console.log(index_array);
 
         /**
-         * if filename end .ft2, it is a spectrum, otherwise, do nothing
+         * To keep order, we will read the files one by one using a chain of promises
          */
-        if (!this.files[0].name.endsWith(".ft2")) {
-            alert("Please select a .ft2 file");
-            return;
-        }
-
-        read_file_and_process_ft2('userfile')
-            .then((result_spectrum) => {
-
-                draw_spectrum(result_spectrum);
-  
+        let chain = Promise.resolve();
+        for(let i=0;i<this.querySelector('input[type="file"]').files.length;i++)
+        {
+            let ii = index_array[i];
+            
+            chain = chain.then(() => {
+                    console.log("read file",this.querySelector('input[type="file"]').files[ii].name);
+                    /**
+                     * If not a .ft2 file. resolve the promise
+                     */
+                    if(!this.querySelector('input[type="file"]').files[ii].name.endsWith(".ft2"))
+                    {
+                        return Promise.resolve(null);
+                    }
+                    else
+                    {
+                        return read_file_and_process_ft2(this.querySelector('input[type="file"]').files[ii]);
+                    }
+            }).then((result_spectrum) => {
+                if(result_spectrum !== null){
+                    draw_spectrum(result_spectrum);
+                }
+                /**
+                 * If it is the last file, clear the file input
+                 */
+                if(i===this.querySelector('input[type="file"]').files.length-1)
+                {
+                    document.getElementById('userfile').value = "";
+                }
+            }).catch((err) => {
+                console.log(err);
             });
+        }
     });
 
 
@@ -2139,9 +2191,8 @@ function update_contour_color(e,index,flag) {
 
 
 
-const read_file_and_process_ft2 = (file_id) => {
+const read_file_and_process_ft2 = (file) => {
     return new Promise((resolve, reject) => {
-        let file = document.getElementById(file_id).files[0];
         if (file) {
             var reader = new FileReader();
             reader.onload = function () {

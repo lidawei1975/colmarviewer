@@ -126,7 +126,10 @@
 
                 <div id="file_area" class="drop-area" style="width: 1200px;">
                     <h4>Or upload frequency domain spectra:</h4>
-                    <label for="userfile">Frequency domain spectral file (.ft2) </label><input type="file" multiple id="userfile"><br>
+                    <form id="ft2_file_form" action="" enctype="multipart/form-data">
+                        <label for="userfile">Frequency domain spectral file (.ft2) </label><input type="file" multiple id="userfile"><br>
+                        <input type="submit" id="button_ft2_process" value="Upload and process spectra"></br>
+                    </form>
                     <label class="information"> You can also drag and drop spectral file(s) in nmrPipe format or folder
                         contains them here.</label>
                 </div>
