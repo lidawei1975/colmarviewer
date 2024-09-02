@@ -194,6 +194,84 @@ onmessage = function (e) {
             scale2: e.data.scale2
         });
     }
+
+    /**
+     * initial_peaks and all_files are received, run pseudo-3D fitting using api.voigt_fit
+     */
+    else if (e.data.initial_peaks && e.data.all_files) {
+        console.log('Initial peaks and all files received');
+        /**
+         * Save the initial peaks to the virtual file system
+         * voigt_fit program suppose to read the json format peak file as
+         * {"picked_peaks": [{"cs_x": 1.0, "cs_y": 2.0, "index": 1287.6, sigmax: 1, sigmay: 1}, ...] }
+         */
+        let picked_peaks = { picked_peaks: e.data.initial_peaks};
+        Module['FS_createDataFile']('/', 'peaks.json', JSON.stringify(picked_peaks), true, true, true);
+
+        /**
+         * Save all files in e.data.all_files to the virtual file system,
+         * name them as test1.ft2, test2.ft2, test3.ft2, ...
+         */
+        for (let i = 0; i < e.data.all_files.length; i++) {
+            Module['FS_createDataFile']('/', 'test'.concat(i + 1, '.ft2'), e.data.all_files[i], true, true, true);
+        }
+
+        /**
+         * Write a file named "arguments_pseudo_3D.txt" to the virtual file system
+         * save -noise_level, -scale and -scale2
+         */
+        let content = ' -recon no -out fitted.tab -noise_level '.concat(e.data.noise_level,' -scale ',e.data.scale,' -scale2 ',e.data.scale2);
+        content = content.concat(' -maxround ', e.data.maxround);
+        /**
+         * If flag is 0, add -method voigt to the content
+         * else add -method gaussian
+         */
+        if (e.data.flag === 0) {
+            content = content.concat(' -method voigt ');
+        }
+        else {
+            content = content.concat(' -method gaussian ');
+        }
+        /**
+         * Add "-in test1.ft2 test2.ft2 test3.ft2 ..." to the content
+         */
+        content = content.concat(' -in ');
+        for (let i = 0; i < e.data.all_files.length; i++) {
+            content = content.concat(' test'.concat(i + 1, '.ft2 '));
+        }
+
+        console.log(content);
+
+        Module['FS_createDataFile']('/', 'argument_voigt_fit.txt', content, true, true, true);
+        console.log('Initial peaks and spectral files saved to virtual file system');
+
+
+        /**
+         * Run voigt_fit function
+         */
+        this.postMessage({ stdout: "Running pseudo-3D fitting" });
+        api.voigt_fit();
+        console.log('Finished running web assembly code');
+        /**
+         * Remove the input file from the virtual file system
+         * Read file peaks.json, parse it and send it back to the main script
+         */
+        FS.unlink('peaks.json');
+        FS.unlink('argument_voigt_fit.txt');
+        for(let i=0; i<e.data.all_files.length; i++)   {
+            FS.unlink('test'.concat(i+1, '.ft2'));
+        }
+
+        let peaks = FS.readFile('fitted.tab', { encoding: 'utf8' });
+        FS.unlink('fitted.tab');
+
+        /**
+         * Read the file recon_voigt_hsqc.ft2 
+         */
+        postMessage({
+            pseudo3d_fitted_peaks: peaks, //peaks is a very long string with multiple lines
+        });
+    }
 }
 
 

@@ -22,6 +22,8 @@ var stage = 1; // Because we have only one stage in this program, we set it to 1
 var tooldiv; //tooltip div
 var current_spectrum_index_of_peaks = -1; //index of the spectrum that is currently showing peaks, -1 means none
 var current_flag_of_peaks = 'picked'; //flag of the peaks that is currently showing, 'picked' or 'fitted
+var pseudo3d_fitted_peaks = ""; // pseudo 3D fitted peaks, a long multi-line string 
+var total_number_of_experimental_spectra = 0; //total number of experimental spectra
 
 /**
  * DOM div for the processing message
@@ -483,7 +485,82 @@ $(document).ready(function () {
         }
     });
 
+    /**
+     * On click event for the show_peaks checkbox
+     */
+    document.getElementById("show_pseudo3d_peaks").addEventListener('change', function () {
+        if (this.checked) {
+            /**
+             * Show the picked peaks
+             */
+            show_hide_peaks(-2, 'fitted', true);
+        }
+        else {
+            /**
+             * Hide the picked peaks
+             */
+            show_hide_peaks(-2, 'picked', false);
+        }
+    });
+
 });
+
+/**
+ * When user click button to run pseudo 3D fitting
+ */
+function run_pseudo3d(flag) {
+
+    /**
+     * Get initial peaks from current_spectrum_index_of_peaks and current_flag_of_peaks
+     */
+    if (current_spectrum_index_of_peaks === -1) {
+        alert("Please select a initial peak list to run pseudo 3D fitting");
+        return;
+    }
+
+    let initial_peaks;
+    if (current_flag_of_peaks === 'picked') {
+        initial_peaks = hsqc_spectra[current_spectrum_index_of_peaks].picked_peaks;
+    }
+    else {
+        initial_peaks = hsqc_spectra[current_spectrum_index_of_peaks].fitted_peaks;
+    }
+
+    /**
+     * Get input field "max_round" value (number type)
+     */
+    let max_round = parseInt(document.getElementById("max_round").value);
+
+    /**
+     * Check all spectra, collect the ones that are experimental
+     * Save their header and raw data like this: 
+     * Combine hsqc_spectra[index].raw_data and hsqc_spectra[index].header into one Float32Array
+     * Convert to Uint8Array to be transferred to the worker: let data_uint8 = new Uint8Array(data.buffer);
+     */
+    let all_files = [];
+    for (let i = 0; i < hsqc_spectra.length; i++) {
+        if (hsqc_spectra[i].spectrum_origin === -1 || hsqc_spectra[i].spectrum_origin === -2) {
+            let data = new Float32Array(hsqc_spectra[i].header.length + hsqc_spectra[i].raw_data.length);
+            data.set(hsqc_spectra[i].header, 0);
+            data.set(hsqc_spectra[i].raw_data, hsqc_spectra[i].header.length);
+            let data_uint8 = new Uint8Array(data.buffer);
+            all_files.push(data_uint8);
+        }
+    }
+
+    /**
+     * Send the initial peaks, all_files to the worker
+     */
+    webassembly_worker.postMessage({
+        initial_peaks: initial_peaks,
+        all_files: all_files,
+        noise_level: hsqc_spectra[current_spectrum_index_of_peaks].noise_level,
+        scale: hsqc_spectra[current_spectrum_index_of_peaks].scale,
+        scale2: hsqc_spectra[current_spectrum_index_of_peaks].scale2,
+        flag: flag, //0: voigt, 1: Gaussian
+        maxround: max_round,
+    });
+}
 
 
 webassembly_worker.onmessage = function (e) {
@@ -652,6 +729,46 @@ webassembly_worker.onmessage = function (e) {
         let arrayBuffer = new Uint8Array(e.data.file_data).buffer;
         let result_spectrum = process_ft_file(arrayBuffer,"from_fid.ft2",-2);
         draw_spectrum(result_spectrum);
+        /**
+         * Clear the processing message
+         */
+        document.getElementById("webassembly_message").innerText = "";
+    }
+
+    /**
+     * If result is pseudo3d_fitted_peaks, it is from the pseudo 3D fitting
+     */
+    else if (e.data.pseudo3d_fitted_peaks) {
+        console.log("Pseudo 3D fitted peaks received");
+        pseudo3d_fitted_peaks = e.data.pseudo3d_fitted_peaks;
+
+        /**
+         * Enable the download fitted peaks button and show the fitted peaks button
+         */
+        document.getElementById("button_download_fitted_peaks").disabled = false;
+        document.getElementById("show_pseudo3d_peaks").disabled = false;
+
+        /**
+         * Uncheck all other show peaks checkboxes
+         */
+        for(let i=0;i<hsqc_spectra.length;i++)
+        {
+            /**
+             * -3 means removed spectrum, all DOM element for removed spectrum is also removed
+             */
+            if(hsqc_spectra[i].spectrum_origin !== -3)
+            {
+                document.getElementById("show_peaks-".concat(i)).checked = false;
+                document.getElementById("show_fitted_peaks-".concat(i)).checked = false;
+            }
+        }
+
+        /**
+         * Uncheck the show_peaks checkbox then simulate a click event to show the peaks (with updated peaks from fitted_peaks)
+         */
+        document.getElementById("show_pseudo3d_peaks").checked = false;
+        document.getElementById("show_pseudo3d_peaks").click();
+
         /**
          * Clear the processing message
          */
@@ -1353,6 +1470,20 @@ function add_to_list(index) {
     document.getElementById("contour-slider-".concat(index)).max = hsqc_spectra[index].levels.length;
     document.getElementById("contour0_negative-".concat(index)).value = hsqc_spectra[index].negative_levels[0].toExponential(4);
     document.getElementById("contour-slider_negative-".concat(index)).max = hsqc_spectra[index].negative_levels.length;
+
+
+    if(new_spectrum.spectrum_origin === -1 || new_spectrum.spectrum_origin === -2)
+    {
+        total_number_of_experimental_spectra += 1;
+        /**
+         * If we have 2 or more experimental spectra, we enable the run_Voigt_fitter button
+         */
+        if(total_number_of_experimental_spectra >= 2)
+        {
+            document.getElementById("button_run_pseudo3d_gaussian").disabled = false;
+            document.getElementById("button_run_pseudo3d_voigt").disabled = false;
+        }
+    }
 
 }
 
@@ -2604,6 +2735,11 @@ function show_hide_peaks(index,flag,b_show)
         }
     }
 
+    if(index==-2)
+    {
+        return; //index -2 is the pseudo 3D peaks. to be implemented
+    }
+
     if(b_show)
     {
         current_spectrum_index_of_peaks = index;
@@ -2639,6 +2775,24 @@ function show_hide_peaks(index,flag,b_show)
      * There is no need to redraw the contour plot
      */
 }
+
+/**
+ * Download pseudo 3D peak fitting result
+ */
+function download_pseudo3d()
+{
+    /**
+     * var pseudo3d_fitted_peaks is a long multi-line string in .tab format, 
+     * we only need to save it as a text file
+     */
+    let blob = new Blob([pseudo3d_fitted_peaks], { type: 'text/plain' });
+    let url = URL.createObjectURL(blob);
+    let a = document.createElement('a');
+    a.href = url;
+    a.download = "pseudo3d.tab";
+    a.click();
+}
+
 
 /**
  * Generate a list of peaks in nmrPipe .tab format

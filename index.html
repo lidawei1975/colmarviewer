@@ -126,8 +126,7 @@
 
                 <div id="file_area" class="drop-area" style="width: 1200px;">
                     <h4>Or upload frequency domain spectra:</h4>
-                    <label for="userfile">Frequency domain spectral file (.ft2) </label><input type="file"
-                        id="userfile"><br>
+                    <label for="userfile">Frequency domain spectral file (.ft2) </label><input type="file" multiple id="userfile"><br>
                     <label class="information"> You can also drag and drop spectral file(s) in nmrPipe format or folder
                         contains them here.</label>
                 </div>
@@ -136,6 +135,20 @@
                     <h4>Uploaded Spectra:</h4>
                     <ol id="spectra_list_ol" type="1">
                     </ol>
+                    <div id="pseudo-3D-area">
+                        <label for="max_round">Max round of pseudo-3D fitting: </label>
+                        <input type="number" id="max_round" value="50" min="1" max="1000">
+                        <button id="button_run_pseudo3d_gaussian" disabled onclick="run_pseudo3d(1)">Run Gaussian pseudo-3D fitting of all spectra</button>
+                        <button id="button_run_pseudo3d_voigt" disabled onclick="run_pseudo3d(0)">Run Voigt pseudo-3D fitting of all spectra</button>
+                        <button id="button_download_fitted_peaks" disabled onclick="download_pseudo3d()">Download pseudo-3D fitting result</button>
+                        <br>
+                        <input type="checkbox" id="show_pseudo3d_peaks" disabled>
+                        <label for="show_pseudo3d_peaks"> Show pseudo-3D fitting result</label>
+                        <br>
+                        <label class="information">Use this button to run pseudo-3D on all experimental spectra. The current showing peak list 
+                            will be used as the initial guess. You can download pseudo-3D fitting result after finished.</label>
+                        </label>
+                    </div>  
                 </div>
 
 
