@@ -132,6 +132,13 @@
             margin: 5px;
         }
 
+        span.information {
+            font-weight: bold;
+            color: #220ddc;
+            display: inline-block;
+            width: 6em;
+        }
+
         textarea {
             resize: auto;
             min-height : 300px;

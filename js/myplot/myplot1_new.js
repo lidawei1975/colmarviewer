@@ -671,11 +671,8 @@ plotit.prototype.set_peak_level = function (level) {
  * Set peaks for the plot
  */
 plotit.prototype.add_peaks = function (spectrum,flag) {
-
-
     this.spectrum = spectrum;
     this.peak_flag = flag;
-
     this.draw_peaks();
 }
 
