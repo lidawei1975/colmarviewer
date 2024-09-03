@@ -11,87 +11,123 @@
 
     <div id="body">
 
-        <span id="contour_message" ></span>
-        <span id="webassembly_message" ></span>
+        <span id="contour_message"></span>
+        <span id="webassembly_message"></span>
 
         <div id="section1" style=" Padding: 10px; width: min-content;">
             <div>
                 <h1>Web based two-dimensional NMR spectra viewer</h1>
-                <h2>with processing and peak picking</h2>
+                <h2>with processing, peak picking, peak fitting and pseudo-3D fitting</h2>
             </div>
 
             <div id="instructions" class="drop-area-neighbor" style="width: 1200px;  margin:0 auto;">
                 <details>
                     <summary>Instructions</summary>
-                    <p>1. This is a web-based tool to view and process 2D NMR spectra. This tool is part of the frontend
-                        of
-                        the more
-                        advanced <a href="https://spin.ccic.osu.edu">COLMAR deep picker</a> server.</p>
-                    <p>2. Upload the 2D NMR spectra in .ft2 format using the "Choose File" button above. Additional
-                        files
-                        can be added by repeating this process. You can also drag and drop a .ft2 file into the dashed
-                        area
-                        titled "Uploaded Spectra". If you drop a folder, all .ft2 files within the folder will be
-                        processed
-                        sequentially.</p>
-                    <p>3. User can also upload Bruker time domain data for processing.
-                        To do so, drag and drop the folder (such as "2", "4", which contains fid, acqus, acqu2s files)
-                        into the dashed area titled "Upload Bruker time domain data for processing".
-                        Alternatively, click the "Choose File" button to select the files.
-                        Then click the "Upload fid files for processing" button. The server will automatically process
-                        the
-                        data and generate
-                        the 2D NMR spectra.
-                        The user can then download the processed ft2 file
-                        for further analysis.</p>
-                    <p>4. The server will automatically estimate the noise level of each uploaded spectrum. By default,
-                        the
-                        lowest contour level is set at 5.5 times the noise level and each subsequent level is 1.3 times
-                        the
-                        previous level, until reaching the spectral maximum. Users can adjust both values and
-                        recalculate.
-                        Users can also click on the down button to add one more contour level (current lowest level /
-                        Logarithmic scale) at the beginning of all levels. This process is more efficient because there
-                        is
-                        no need to recalculate all other levels. The slider can be used to set the lowest visible
-                        contour
-                        level, without recalculation. Users can also change the color of each spectrum.</p>
-                    <p>5. Users can brush an area in the main plot to zoom in, and use buttons to zoom out, zoom back,
-                        or
-                        reset all zooms.</p>
-                    <p>6. User can drag and drop spectrum to re-order them on the plot</p>
-                    <p>7. User can show Horizontal and Vertical cross sections of the last spectrum in the spectral
-                        list.
-                    </p>
-                    <p>8. This program utilizes WebWorker and WebAssemble, which can't be loaded automatically when runs
-                        locally
-                        unless you add required command line to Google Chrome. To do so,
-                        right click on the Google Chrome icon, select "Properties", and add
-                        "--allow-file-access-from-files"
-                        to the
-                        end of the "Target" field to be like this: "C:\Program
-                        Files\Google\Chrome\Application\chrome.exe"
-                        --allow-file-access-from-files
-                        then click "Apply" or "OK". After this, click the Google Chrome icon to run the browser first
-                        before
-                        loading. Unfortunately,
-                        it poses a security risk by adding this option. Therefore, do NOT load any local files unless
-                        you
-                        are sure they are safe.
-                    </p>
+                    <p>
+                    <details>
+                        <summary>How to view 2D NMR spectra:</summary>
+                        <p>1. This is a web-based tool to view and process 2D NMR spectra. This tool is part of the
+                            frontend
+                            of the more advanced <a href="https://spin.ccic.osu.edu">COLMAR deep picker</a> server.</p>
+                        <p>2. Upload one or more 2D NMR spectra in .ft2 format using the "Choose File" button above.
+                            Additional
+                            files
+                            can be added by repeating this process. You can also drag and drop nmrPipe ft2 files into
+                            the dashed
+                            area
+                            titled "Uploaded Spectra". If you drop a folder, all .ft2 files within the folder will be
+                            processed sequentially.</p>
+                        <p>3. The server will automatically estimate the noise level of each uploaded spectrum. By
+                            default,
+                            the
+                            lowest contour level is set at 5.5 times the noise level and each subsequent level is 1.5
+                            times
+                            the
+                            previous level, until reaching the spectral maximum. Users can adjust both values and
+                            recalculate.
+                            Users can also click on the down button to add one more contour level (current lowest level
+                            /
+                            Logarithmic scale) at the beginning of all levels. This process is more efficient because
+                            there
+                            is
+                            no need to recalculate all other levels. The slider can be used to set the lowest visible
+                            contour
+                            level, without recalculation. Users can also change the color of each spectrum.</p>
+                        <p>4. Users can brush an area in the main plot to zoom in, and use buttons to zoom out, zoom
+                            back,
+                            or
+                            reset all zooms.</p>
+                        <p>6. User can drag and drop spectrum to re-order them on the plot</p>
+                        <p>7. User can show Horizontal and Vertical cross sections of the last spectrum in the spectral
+                            list.
+                        </p>
+                    </details>
+
                     <p>
                         <details>
-                            <summary>9. Pseudo-3D work flow:</summary>
-                            <p>1. Upload first plane of your pseudo-3D experiment</p>
-                            <p>2. Adjust lowest contour level then run Deep Picker, only peaks above lowest contour will be picked.</p>
-                            <p>3. Edit peaks if necessary</p>
-                            <p>4. Run Voigt_fitter to optimize peaks. Repeat step 2-4 if necessary</p>
-                            <p>5. Upload remaining planes of your pseudo-3D experiment and make sure fitted peaks of plane 1 is visible</p>
-                            <p>6. Run pseudo-3D fitting</p>
-                            <p>6. Make sure pseudo-3D fitted peaks are visible, then optionally you can upload an assignment file (Sparky .list), which will be transferred to the fitted peaks of pseudo-3D fitting.</p>
-                            <p>7. Download result from pseudo-3D fitting</p>
+                            <summary>How to run Deep Picker and Voigt Fitter</summary>
+                            <p>1. For each experiment, click on "DEEP Picker" to run peak picking. The current lowest contour level will be used as minimal peak height cutoff.</p>
+                            <p>2. After Deep Picker finishes, you can edit the picked peaks by (1) dragging them to the correct position or removing them by dragging them to empty spectral region; (2) remove all peaks in an area by
+                                brushing; (3) add a new peak by clicking on the plot. </p>
+                            <p>3. Click on the button to run either Voigt profile or Gaussian profile peak fitting. </p>
+                            <p>4. After fitting, a reconstructed spectrum will be added to the plot, which can be removed. The picked and fitted peak list will also be associated to this new spectrum.</p>
+                            <p>5. You rerun DEEP Picker and Peak Fitting, using new parameters. Each new peak fitting will create a new reconstructed spectrum.</p>
+                            <p>5. You can download the picked, fitted peaks list and show or hide them by clicking the buttons and checkboxes.</p>
+                        </details>
+
+                    </p>
+
+                    <p>
+                    <details>
+                        <summary> Pseudo-3D work flow:</summary>
+                        <p>1. Upload first plane of your pseudo-3D experiment</p>
+                        <p>2. Adjust lowest contour level then run Deep Picker, only peaks above lowest contour will be
+                            picked.</p>
+                        <p>3. Edit peaks if necessary</p>
+                        <p>4. Run Voigt_fitter to optimize peaks. Repeat step 2-4 if necessary</p>
+                        <p>5. Upload remaining planes of your pseudo-3D experiment and make sure fitted peaks of plane 1
+                            is visible</p>
+                        <p>6. Run pseudo-3D fitting</p>
+                        <p>7. Make sure pseudo-3D fitted peaks are visible, then optionally you can upload an assignment
+                            file (Sparky .list), which will be transferred to the fitted peaks of pseudo-3D fitting.</p>
+                        <p>8. Download result from pseudo-3D fitting</p>
+                    </details>
+                    </p>
+                    <p>
+                    <details>
+                        <summary>How to run COLMAR Viewer locally</summary>
+                        <p>
+                            This program utilizes WebWorker and WebAssemble, which can't be loaded automatically
+                            when runs
+                            locally unless you add required command line to Google Chrome. To do so,
+                            right click on the Google Chrome icon, select "Properties", and add
+                            "--allow-file-access-from-files"
+                            to the end of the "Target" field to be like this: "C:\Program
+                            Files\Google\Chrome\Application\chrome.exe"
+                            --allow-file-access-from-files
+                            then click "Apply" or "OK". After this, click the Google Chrome icon to run the browser
+                            first
+                            before loading. Unfortunately,
+                            it poses a security risk by adding this option. Therefore, do NOT load any local files
+                            unless
+                            you are sure they are safe.
+                        </p>
+                    </details>
+                    </p>
+
+                    <p>
+                        <details>
+                            <summary>How to process spectrum from Bruker time domain data. (Experimental, still in development)</summary>
                         </details>
                     </p>
+
+                    <p>
+                        <details>
+                            <summary> Frq:</summary>
+                            <p>Pseudo-3D fitting takes for ever to finish, what should I do? </p>
+                        </details>
+                    </p>
+
                 </details>
             </div>
         </div>
@@ -102,7 +138,8 @@
                 <div id="assignment_area" class="drop-area-neighbor" style="width: 1200px;">
                     <h4>Assignment:</h4>
                     <form id="assignment_form" action="" enctype="multipart/form-data">
-                        <label for="assignment">Assignment file (.list): </label><input type="file" id="assignment_file"><br>
+                        <label for="assignment">Assignment file (.list): </label><input type="file"
+                            id="assignment_file"><br>
                         <button id="button_upload_assignment">Upload assignment file</button>
                         <br>
                     </form>
@@ -150,7 +187,8 @@
                 <div id="file_area" class="drop-area" style="width: 1200px;">
                     <h4>Or upload frequency domain spectra:</h4>
                     <form id="ft2_file_form" action="" enctype="multipart/form-data">
-                        <label for="userfile">Frequency domain spectral file (.ft2) </label><input type="file" multiple id="userfile"><br>
+                        <label for="userfile">Frequency domain spectral file (.ft2) </label><input type="file" multiple
+                            id="userfile"><br>
                         <input type="submit" id="button_ft2_process" value="Upload and process spectra"></br>
                     </form>
                     <label class="information"> You can also drag and drop spectral file(s) in nmrPipe format or folder
@@ -164,17 +202,22 @@
                     <div id="pseudo-3D-area">
                         <label for="max_round">Max round of pseudo-3D fitting: </label>
                         <input type="number" id="max_round" value="50" min="1" max="1000">
-                        <button id="button_run_pseudo3d_gaussian" disabled onclick="run_pseudo3d(1)">Run Gaussian pseudo-3D fitting of all spectra</button>
-                        <button id="button_run_pseudo3d_voigt" disabled onclick="run_pseudo3d(0)">Run Voigt pseudo-3D fitting of all spectra</button>
-                        <button id="button_download_fitted_peaks" disabled onclick="download_pseudo3d()">Download pseudo-3D fitting result</button>
+                        <button id="button_run_pseudo3d_gaussian" disabled onclick="run_pseudo3d(1)">Run Gaussian
+                            pseudo-3D fitting of all spectra</button>
+                        <button id="button_run_pseudo3d_voigt" disabled onclick="run_pseudo3d(0)">Run Voigt pseudo-3D
+                            fitting of all spectra</button>
+                        <button id="button_download_fitted_peaks" disabled onclick="download_pseudo3d()">Download
+                            pseudo-3D fitting result</button>
                         <br>
                         <input type="checkbox" id="show_pseudo3d_peaks" disabled>
                         <label for="show_pseudo3d_peaks"> Show pseudo-3D fitting result</label>
                         <br>
-                        <label class="information">Use this button to run pseudo-3D on all experimental spectra. The current showing peak list 
-                            will be used as the initial guess. You can download pseudo-3D fitting result after finished.</label>
+                        <label class="information">Use this button to run pseudo-3D on all experimental spectra. The
+                            current showing peak list
+                            will be used as the initial guess. You can download pseudo-3D fitting result after
+                            finished.</label>
                         </label>
-                    </div>  
+                    </div>
                 </div>
 
 

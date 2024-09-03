@@ -12,7 +12,7 @@ try {
 catch (err) {
     console.log(err);
     if (typeof (my_contour_worker) === "undefined" || typeof (webassembly_worker) === "undefined") {
-        alert("Failed to load WebWorker, probably due to browser incompatibility. Please use a modern browser, if you run this program locally, please read last paragraph of instructions");
+        alert("Failed to load WebWorker, probably due to browser incompatibility. Please use a modern browser, if you run this program locally, please read the instructions titled 'How to run COLMAR Viewer locally'");
     }
 }
 
