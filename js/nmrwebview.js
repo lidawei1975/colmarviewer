@@ -385,12 +385,23 @@ $(document).ready(function () {
          */
         let file = document.getElementById('assignment_file').files[0];
         if (file) {
+
+            let fitted_peaks_tab;
+            if(current_spectrum_index_of_peaks == -2) //pseudo 3D fitted peaks
+            {
+                fitted_peaks_tab = pseudo3d_fitted_peaks_tab;
+            }
+            else
+            {
+                fitted_peaks_tab = hsqc_spectra[current_spectrum_index_of_peaks].fitted_peaks_tab;
+            }
+
             var reader = new FileReader();
             reader.onload = function () {
                 var data = reader.result;
                 webassembly_worker.postMessage({
                     assignment: data,
-                    fitted_peaks_tab: hsqc_spectra[current_spectrum_index_of_peaks].fitted_peaks_tab,
+                    fitted_peaks_tab: fitted_peaks_tab,
                     current_spectrum_index_of_peaks: current_spectrum_index_of_peaks,
                 });
             };
