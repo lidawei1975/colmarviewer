@@ -220,7 +220,7 @@ onmessage = function (e) {
          * Write a file named "arguments_pseudo_3D.txt" to the virtual file system
          * save -noise_level, -scale and -scale2
          */
-        let content = ' -recon no -out fitted.tab -noise_level '.concat(e.data.noise_level,' -scale ',e.data.scale,' -scale2 ',e.data.scale2);
+        let content = ' -v 0 -recon no -out fitted.tab -noise_level '.concat(e.data.noise_level,' -scale ',e.data.scale,' -scale2 ',e.data.scale2);
         content = content.concat(' -maxround ', e.data.maxround);
         /**
          * If flag is 0, add -method voigt to the content

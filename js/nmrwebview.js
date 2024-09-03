@@ -18,8 +18,7 @@ catch (err) {
 
 
 var main_plot = null; //hsqc plot object
-var stage = 1; // Because we have only one stage in this program, we set it to 1 (shared code with other programs, which may have more than one stage)
-var tooldiv; //tooltip div
+var tooldiv; //tooltip div (used by myplot1_new.js, this is not a good practice, but it is a quick fix)
 var current_spectrum_index_of_peaks = -1; //index of the spectrum that is currently showing peaks, -1 means none
 var current_flag_of_peaks = 'picked'; //flag of the peaks that is currently showing, 'picked' or 'fitted
 var pseudo3d_fitted_peaks = ""; // pseudo 3D fitted peaks, a long multi-line string 
@@ -601,6 +600,17 @@ function run_pseudo3d(flag) {
     }
 
     /**
+     * Disable the download fitted peaks buttons to run pseudo 3D fitting
+     */
+    document.getElementById("button_run_pseudo3d_gaussian").disabled = true;
+    document.getElementById("button_run_pseudo3d_voigt").disabled = true;
+
+    /**
+     * Show the processing message to let user know the fitting is running
+     */
+    document.getElementById("webassembly_message").innerText = "Running pseudo 3D fitting, please wait...";
+
+    /**
      * Send the initial peaks, all_files to the worker
      */
     webassembly_worker.postMessage({
@@ -763,8 +773,8 @@ webassembly_worker.onmessage = function (e) {
         draw_spectrum(result_spectrum);
 
         /**
- * Clear the processing message
- */
+         * Clear the processing message
+         */
         document.getElementById("webassembly_message").innerText = "";
     }
 
@@ -825,6 +835,11 @@ webassembly_worker.onmessage = function (e) {
          * Clear the processing message
          */
         document.getElementById("webassembly_message").innerText = "";
+        /**
+         * Re-enable the run pseudo 3D buttons
+         */
+        document.getElementById("button_run_pseudo3d_gaussian").disabled = false;
+        document.getElementById("button_run_pseudo3d_voigt").disabled = false;
     }
 
     else{
@@ -1277,6 +1292,7 @@ function add_to_list(index) {
     contour0_input.setAttribute("id", "contour0-".concat(index));
     contour0_input.setAttribute("size", "8");
     contour0_input.setAttribute("min",0.001);
+    contour0_input.setAttribute("value", new_spectrum.levels[0].toExponential(4));
     new_spectrum_div.appendChild(contour0_input_label);
     new_spectrum_div.appendChild(contour0_input);
 
@@ -1336,20 +1352,31 @@ function add_to_list(index) {
     contour_slider.setAttribute("type", "range");
     contour_slider.setAttribute("id", "contour-slider-".concat(index));
     contour_slider.setAttribute("min", "1");
-    contour_slider.setAttribute("max", "20");
-    contour_slider.setAttribute("value", "1");
+    contour_slider.setAttribute("max", hsqc_spectra[index].levels.length.toString());
     contour_slider.style.width = "10%";
     contour_slider.addEventListener("input", (e) => { update_contour_slider(e, index, 'positive'); });
-    new_spectrum_div.appendChild(contour_slider);
-
+    
     /**
      * A span element with the current contour level, whose ID is "contour_level-".concat(index)
      */
     let contour_level_span = document.createElement("span");
     contour_level_span.setAttribute("id", "contour_level-".concat(index));
     contour_level_span.classList.add("information");
-    contour_level_span.innerText = new_spectrum.levels[0].toExponential(4);
+    
+    if(total_number_of_experimental_spectra<=4)
+    {
+        contour_slider.setAttribute("value", "1");
+        contour_level_span.innerText = new_spectrum.levels[0].toExponential(4);
+    }
+    else
+    {
+        contour_slider.setAttribute("value", (hsqc_spectra[index].levels.length).toString());
+        contour_level_span.innerText = new_spectrum.levels[hsqc_spectra[index].levels.length-1].toExponential(4);
+    }
+    new_spectrum_div.appendChild(contour_slider);
     new_spectrum_div.appendChild(contour_level_span);
+
+
     /**
      * Add some spaces
      */
@@ -1380,7 +1407,7 @@ function add_to_list(index) {
 
     /**
      * Negative contour levels first
-     * A input text element with the lowest contour level for contour calculation, whose ID is "contour0-".concat(index)
+     * A input text element with the lowest contour level for contour calculation
      */
     let contour0_input_label_negative = document.createElement("label");
     contour0_input_label_negative.setAttribute("for", "contour0_negative-".concat(index));
@@ -1390,6 +1417,7 @@ function add_to_list(index) {
     contour0_input_negative.setAttribute("id", "contour0_negative-".concat(index));
     contour0_input_negative.setAttribute("size", "8");
     contour0_input_negative.setAttribute("min", 0.001);
+    contour0_input_negative.setAttribute("value", new_spectrum.negative_levels[0].toExponential(4));
     new_spectrum_div.appendChild(contour0_input_label_negative);
     new_spectrum_div.appendChild(contour0_input_negative);
 
@@ -1449,19 +1477,30 @@ function add_to_list(index) {
     contour_slider_negative.setAttribute("type", "range");
     contour_slider_negative.setAttribute("id", "contour-slider_negative-".concat(index));
     contour_slider_negative.setAttribute("min", "1");
-    contour_slider_negative.setAttribute("max", "20");
-    contour_slider_negative.setAttribute("value", "1");
+    contour_slider_negative.setAttribute("max", hsqc_spectra[index].negative_levels.length.toString());
     contour_slider_negative.style.width = "10%";
     contour_slider_negative.addEventListener("input", (e) => { update_contour_slider(e, index, 'negative'); });
-    new_spectrum_div.appendChild(contour_slider_negative);
+    
 
     /**
      * A span element with the current contour level, whose ID is "contour_level-".concat(index)
      */
     let contour_level_span_negative = document.createElement("span");
     contour_level_span_negative.setAttribute("id", "contour_level_negative-".concat(index));
-    contour_level_span_negative.innerText = new_spectrum.levels[0].toExponential(4);
     contour_level_span_negative.classList.add("information");
+
+    if(total_number_of_experimental_spectra<=4)
+    {
+        contour_slider_negative.setAttribute("value", "1");
+        contour_level_span_negative.innerText = new_spectrum.negative_levels[0].toExponential(4);
+    }
+    else
+    {
+        contour_slider_negative.setAttribute("value", (hsqc_spectra[index].negative_levels.length).toString());
+        contour_level_span_negative.innerText = new_spectrum.negative_levels[hsqc_spectra[index].negative_levels.length-1].toExponential(4);
+    }
+
+    new_spectrum_div.appendChild(contour_slider_negative);
     new_spectrum_div.appendChild(contour_level_span_negative);
 
     /**
@@ -1515,15 +1554,6 @@ function add_to_list(index) {
         document.getElementById("reconstructed_spectrum_ol-".concat(hsqc_spectra[index].spectrum_origin)).appendChild(new_spectrum_div);
     }
 
-    /**
-     * initialize slider and text of the lowest contour level visible 
-     */
-    document.getElementById("contour0-".concat(index)).value = hsqc_spectra[index].levels[0].toExponential(4);
-    document.getElementById("contour-slider-".concat(index)).max = hsqc_spectra[index].levels.length;
-    document.getElementById("contour0_negative-".concat(index)).value = hsqc_spectra[index].negative_levels[0].toExponential(4);
-    document.getElementById("contour-slider_negative-".concat(index)).max = hsqc_spectra[index].negative_levels.length;
-
-
     if(new_spectrum.spectrum_origin === -1 || new_spectrum.spectrum_origin === -2)
     {
         total_number_of_experimental_spectra += 1;
@@ -1572,7 +1602,22 @@ my_contour_worker.onmessage = (e) => {
             main_plot.levels_length.push(e.data.levels_length);
             main_plot.polygon_length.push(e.data.polygon_length);
             main_plot.colors.push(hsqc_spectra[e.data.spectrum_index].spectrum_color);
-            main_plot.contour_lbs.push(0);
+
+            /**
+             * Default contour level is 0, when total_number_of_experimental_spectra <=5
+             */
+            if(total_number_of_experimental_spectra <= 4)
+            {
+                main_plot.contour_lbs.push(0);
+            }
+            else
+            {
+                /**
+                 * Set to highest level to avoid too many contour plots
+                 */
+                let highest_level = hsqc_spectra[e.data.spectrum_index].levels.length - 1;
+                main_plot.contour_lbs.push(highest_level);
+            }
 
             /**
              * Keep track of the start of the points array (Float32Array)
@@ -1617,7 +1662,14 @@ my_contour_worker.onmessage = (e) => {
             main_plot.levels_length_negative.push(e.data.levels_length);
             main_plot.polygon_length_negative.push(e.data.polygon_length);
             main_plot.colors_negative.push(hsqc_spectra[e.data.spectrum_index].spectrum_color_negative);
-            main_plot.contour_lbs_negative.push(0);
+
+            if(total_number_of_experimental_spectra <= 4){
+                main_plot.contour_lbs_negative.push(0);
+            }
+            else{
+                let highest_level = hsqc_spectra[e.data.spectrum_index].negative_levels.length - 1;
+                main_plot.contour_lbs_negative.push(highest_level);
+            }
 
             /**
              * Keep track of the start of the points array (Float32Array)
