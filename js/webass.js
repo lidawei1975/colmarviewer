@@ -10,6 +10,7 @@ const api = {
     deep: Module.cwrap("deep", "number", []),
     fid_phase: Module.cwrap("fid_phase", "number", []),
     voigt_fit: Module.cwrap("voigt_fit", "number", []),
+    peak_match: Module.cwrap("peak_match", "number", []),
 };
 
 /**
@@ -90,7 +91,7 @@ onmessage = function (e) {
          * Write a file named "argument_voigt_fit.txt" to the virtual file system
          * save -noise_level, -scale and -scale2 
          */
-        let content = ' -noise_level '.concat(e.data.noise_level,' -scale ',e.data.scale,' -scale2 ',e.data.scale2);
+        let content = ' -out fitted.json fitted.tab -noise_level '.concat(e.data.noise_level,' -scale ',e.data.scale,' -scale2 ',e.data.scale2);
         content = content.concat(' -combine ', e.data.combine_peak_cutoff);
         content = content.concat(' -maxround ', e.data.maxround);
         
@@ -123,9 +124,10 @@ onmessage = function (e) {
         FS.unlink('hsqc.ft2');
         FS.unlink('peaks.json');
         FS.unlink('argument_voigt_fit.txt');
-        let r = FS.readFile('fitted.json', { encoding: 'utf8' });
-        let peaks = JSON.parse(r);
+        let peaks = JSON.parse(FS.readFile('fitted.json', { encoding: 'utf8' }));
+        let peaks_tab = FS.readFile('fitted.tab', { encoding: 'utf8' });
         FS.unlink('fitted.json');
+        FS.unlink('fitted.tab');
 
         /**
          * If the flag is 0, read the file recon_voigt_hsqc.ft2 
@@ -146,6 +148,7 @@ onmessage = function (e) {
         FS.unlink(filename);
         postMessage({
             fitted_peaks: peaks,
+            fitted_peaks_tab: peaks_tab, //peaks_tab is a very long string with multiple lines (in nmrPipe tab format)
             spectrum_index: e.data.spectrum_index,
             recon_spectrum: file_data,
             scale: e.data.scale,
@@ -220,7 +223,7 @@ onmessage = function (e) {
          * Write a file named "arguments_pseudo_3D.txt" to the virtual file system
          * save -noise_level, -scale and -scale2
          */
-        let content = ' -v 0 -recon no -out fitted.tab -noise_level '.concat(e.data.noise_level,' -scale ',e.data.scale,' -scale2 ',e.data.scale2);
+        let content = ' -v 0 -recon no -out fitted.tab fitted.json -noise_level '.concat(e.data.noise_level,' -scale ',e.data.scale,' -scale2 ',e.data.scale2);
         content = content.concat(' -maxround ', e.data.maxround);
         /**
          * If flag is 0, add -method voigt to the content
@@ -262,14 +265,64 @@ onmessage = function (e) {
             FS.unlink('test'.concat(i+1, '.ft2'));
         }
 
-        let peaks = FS.readFile('fitted.tab', { encoding: 'utf8' });
+        let peaks_tab = FS.readFile('fitted.tab', { encoding: 'utf8' });
+        let peaks = JSON.parse(FS.readFile('fitted.json', { encoding: 'utf8' }));
         FS.unlink('fitted.tab');
+        FS.unlink('fitted.json');
 
         /**
          * Read the file recon_voigt_hsqc.ft2 
          */
         postMessage({
-            pseudo3d_fitted_peaks: peaks, //peaks is a very long string with multiple lines
+            pseudo3d_fitted_peaks: peaks, 
+            pseudo3d_fitted_peaks_tab: peaks_tab, //peaks_tab is a very long string with multiple lines (in nmrPipe tab format)
+        });
+    }
+
+    /**
+     * assignment and fitted_peaks_tab are received. Run api.peak_match to transfer the assignment to the fitted peaks
+     */
+    else if(e.data.assignment && e.data.fitted_peaks_tab) {
+        console.log('Assignment and fitted peaks tab received');
+        /**
+         * Save the assignment to the virtual file system
+         */
+        Module['FS_createDataFile']('/', 'assignment.list', e.data.assignment, true, true, true);
+
+        /**
+         * Save the fitted_peaks_tab to the virtual file system
+         */
+        Module['FS_createDataFile']('/', 'fitted_peaks_tab.tab', e.data.fitted_peaks_tab, true, true, true);
+
+        /**
+         * Write a file named "arguments_peak_match.txt" to the virtual file system
+         */
+        let content = ' -in2 fitted_peaks_tab.tab -in1 assignment.list -out assigned.tab -out-ass assignment.txt';
+        Module['FS_createDataFile']('/', 'arguments_peak_match.txt', content, true, true, true);
+        console.log(content);
+
+        console.log('Assignment and fitted peaks tab saved to virtual file system');
+        /**
+         * Run peak_match function
+         */
+        this.postMessage({ stdout: "Running peak_match function" });
+        api.peak_match();
+        console.log('Finished running web assembly code of assignment transfer');
+        /**
+         * Remove the input files from the virtual file system
+         * Read file matched_peaks.tab, parse it and send it back to the main script
+         */
+        FS.unlink('assignment.list');
+        FS.unlink('fitted_peaks_tab.tab');
+        FS.unlink('arguments_peak_match.txt');
+        let matched_peaks_tab = FS.readFile('assigned.tab', { encoding: 'utf8' });
+        let assignment = FS.readFile('assignment.txt',{ encoding: 'utf8' });
+        FS.unlink('assigned.tab');
+        FS.unlink('assignment.txt');
+        postMessage({
+            matched_peaks_tab: matched_peaks_tab,
+            assignment: assignment,
+            current_spectrum_index_of_peaks: e.data.current_spectrum_index_of_peaks
         });
     }
 }

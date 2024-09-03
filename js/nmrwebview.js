@@ -19,9 +19,10 @@ catch (err) {
 
 var main_plot = null; //hsqc plot object
 var tooldiv; //tooltip div (used by myplot1_new.js, this is not a good practice, but it is a quick fix)
-var current_spectrum_index_of_peaks = -1; //index of the spectrum that is currently showing peaks, -1 means none
+var current_spectrum_index_of_peaks = -1; //index of the spectrum that is currently showing peaks, -1 means none, -2 means pseudo 3D fitted peaks
 var current_flag_of_peaks = 'picked'; //flag of the peaks that is currently showing, 'picked' or 'fitted
-var pseudo3d_fitted_peaks = ""; // pseudo 3D fitted peaks, a long multi-line string 
+var pseudo3d_fitted_peaks_tab = ""; // pseudo 3D fitted peaks, a long multi-line string 
+var pseudo3d_fitted_peaks = []; //pseudo 3D fitted peaks, JSON array
 var total_number_of_experimental_spectra = 0; //total number of experimental spectra
 
 /**
@@ -358,7 +359,47 @@ $(document).ready(function () {
     .files_id(["acquisition_file2","acquisition_file2", "acquisition_file", "fid_file", "fid_file"]) /** Corresponding file element IDs */
     .init();
 
+    /**
+     * Upload a file with assignment information. 
+     * Assignment will be transfer to current showing fitted peaks
+     */
+    document.getElementById('assignment_form').addEventListener('submit', function (e) {
+        e.preventDefault();
 
+        /**
+         * Do nothing if no spectrum is showing fitted peaks
+         */
+        if (current_spectrum_index_of_peaks === -1) {
+            alert("Please select a spectrum to upload assignment");
+            return;
+        }
+
+        if(current_flag_of_peaks === 'picked')
+        {
+            alert("Please show fitted peaks to upload assignment");
+            return;
+        }
+
+        /**
+         * Read the file (text file) then send it to the worker, together with the current spectrum's fitted_peaks_tab
+         */
+        let file = document.getElementById('assignment_file').files[0];
+        if (file) {
+            var reader = new FileReader();
+            reader.onload = function () {
+                var data = reader.result;
+                webassembly_worker.postMessage({
+                    assignment: data,
+                    fitted_peaks_tab: hsqc_spectra[current_spectrum_index_of_peaks].fitted_peaks_tab,
+                    current_spectrum_index_of_peaks: current_spectrum_index_of_peaks,
+                });
+            };
+            reader.onerror = function (e) {
+                console.log("Error reading file");
+            };
+            reader.readAsText(file);
+        }
+    });
 
 
     /**
@@ -717,6 +758,7 @@ webassembly_worker.onmessage = function (e) {
     else if (e.data.fitted_peaks && e.data.recon_spectrum) {
         console.log("Fitted peaks and recon_spectrum received");
         hsqc_spectra[e.data.spectrum_index].fitted_peaks = e.data.fitted_peaks.fitted_peaks; //The double fitted_peaks is correct
+        hsqc_spectra[e.data.spectrum_index].fitted_peaks_tab = e.data.fitted_peaks_tab; //a string of fitted peaks in nmrPipe format
 
         /**
          * Enable run deep picker and run voigt fitter buttons
@@ -802,7 +844,8 @@ webassembly_worker.onmessage = function (e) {
      */
     else if (e.data.pseudo3d_fitted_peaks) {
         console.log("Pseudo 3D fitted peaks received");
-        pseudo3d_fitted_peaks = e.data.pseudo3d_fitted_peaks;
+        pseudo3d_fitted_peaks_tab = e.data.pseudo3d_fitted_peaks_tab;
+        pseudo3d_fitted_peaks =  e.data.pseudo3d_fitted_peaks.fitted_peaks; //The double fitted_peaks is correct 
 
         /**
          * Enable the download fitted peaks button and show the fitted peaks button
@@ -840,6 +883,19 @@ webassembly_worker.onmessage = function (e) {
          */
         document.getElementById("button_run_pseudo3d_gaussian").disabled = false;
         document.getElementById("button_run_pseudo3d_voigt").disabled = false;
+    }
+
+    else if(e.data.assignment)
+    {
+        console.log("Assignment transfer received.");
+        if(current_spectrum_index_of_peaks == -2) //pseudo 3D fitted peaks
+        {
+            pseudo3d_fitted_peaks_tab = e.data.matched_peaks_tab;
+        }
+        else
+        {
+            hsqc_spectra[current_spectrum_index_of_peaks].fitted_peaks_tab = e.data.matched_peaks_tab;
+        }
     }
 
     else{
@@ -2838,12 +2894,30 @@ function show_hide_peaks(index,flag,b_show)
         }
     }
 
-    if(index==-2)
+    /**
+     * If index is not -2, we need to uncheck the checkbox of pseudo 3D peaks
+     */
+    if(index!==-2)
     {
-        return; //index -2 is the pseudo 3D peaks. to be implemented
+        document.getElementById("show_pseudo3d_peaks").checked = false;
     }
 
-    if(b_show)
+
+    if(index==-2 && b_show)
+    {
+        current_spectrum_index_of_peaks = index;
+        current_flag_of_peaks = 'fitted';
+        /**
+         * flag is always 'fitted' for pseudo 3D peaks.
+         * First define a dummy hsqc_spectrum object. When flag is fitted, main_plot will only use fitted_peaks of the spectrum
+         */
+        let pseudo3d_spectrum = new spectrum();
+        pseudo3d_spectrum.fitted_peaks = pseudo3d_fitted_peaks;
+
+        main_plot.add_peaks(pseudo3d_spectrum,'fitted');
+    }
+
+    else if(b_show)
     {
         current_spectrum_index_of_peaks = index;
         current_flag_of_peaks = flag;
@@ -2888,7 +2962,7 @@ function download_pseudo3d()
      * var pseudo3d_fitted_peaks is a long multi-line string in .tab format, 
      * we only need to save it as a text file
      */
-    let blob = new Blob([pseudo3d_fitted_peaks], { type: 'text/plain' });
+    let blob = new Blob([pseudo3d_fitted_peaks_tab], { type: 'text/plain' });
     let url = URL.createObjectURL(blob);
     let a = document.createElement('a');
     a.href = url;
@@ -2902,49 +2976,52 @@ function download_pseudo3d()
  */
 function download_peaks(spectrum_index,flag)
 {
-    let file_buffer = "VARS INDEX X_AXIS Y_AXIS X_PPM Y_PPM HEIGHT\nFORMAT %5d %9.3f %9.3f %10.6f %10.6f %+e\n";
+    let file_buffer;
 
-    let peaks;
     if(flag === 'picked')
     {
-        peaks = hsqc_spectra[spectrum_index].picked_peaks;
+        let peaks = hsqc_spectra[spectrum_index].picked_peaks;
+        file_buffer = "VARS INDEX X_AXIS Y_AXIS X_PPM Y_PPM XW YW HEIGHT\nFORMAT %5d %9.3f %9.3f %10.6f %10.6f %7.3f %7.3f %+e\n";
+        for(let i=0;i<peaks.length;i++)
+        {   
+            /**
+             * Get points from ppm. Do not apply the reference ppm here !!
+             */
+            let x_point = Math.round((peaks[i].cs_x - hsqc_spectra[spectrum_index].x_ppm_start) / hsqc_spectra[spectrum_index].x_ppm_step);
+            let y_point = Math.round((peaks[i].cs_y - hsqc_spectra[spectrum_index].y_ppm_start) / hsqc_spectra[spectrum_index].y_ppm_step);
+            /**
+             * Get FWHH from sigma and gamma as
+             *  width = 0.5346 * gammax * 2 + sqrt(0.2166 * 4 * gammax * gammax + sigmax * sigmax * 8 * 0.6931);
+             */
+            let xw = 0.5346 * peaks[i].gammax * 2 + Math.sqrt(0.2166 * 4 * peaks[i].gammax * peaks[i].gammax + peaks[i].sigmax * peaks[i].sigmax * 8 * 0.6931);
+            let yw = 0.5346 * peaks[i].gammay * 2 + Math.sqrt(0.2166 * 4 * peaks[i].gammay * peaks[i].gammay + peaks[i].sigmay * peaks[i].sigmay * 8 * 0.6931);
+    
+            /**
+             * This is a peak object peaks[i] example for picked peaks.
+             * cs_x: 1.241449 ==> X_PPM, need to add x_ppm_ref
+             * cs_y : 20.02922 ==> Y_PPM, need to add y_ppm_ref
+             * gammax : 0.61602
+             * gammay : 0.40042
+             * index : 8000088.5 ==> HEIGHT
+             * sigmax : 1.304711
+             * sigmay : 1.530022
+             * type : 1
+             * i will be the index of the peak
+            */
+            file_buffer += (i+1).toFixed(0).padStart(5) + " ";
+            file_buffer += x_point.toFixed(3).padStart(9) + " ";
+            file_buffer += y_point.toFixed(3).padStart(9) + " ";
+            file_buffer += (peaks[i].cs_x + hsqc_spectra[spectrum_index].x_ppm_ref).toFixed(6).padStart(10) + " ";
+            file_buffer += (peaks[i].cs_y + hsqc_spectra[spectrum_index].y_ppm_ref).toFixed(6).padStart(10) + " ";
+            file_buffer += xw.toFixed(3).padStart(7) + " ";
+            file_buffer += yw.toFixed(3).padStart(7) + " ";
+            file_buffer += peaks[i].index.toExponential(6) + " ";
+            file_buffer += "\n";
+        }
     }
     else if(flag === 'fitted')
     {
-        peaks = hsqc_spectra[spectrum_index].fitted_peaks;
-        /**
-         * cs_x,cx_y,index,type,intergral,intergral2, 
-         * sigmax,sigmay (gammax,gammay if voigt fitting) are the properties of a peak object
-         */
-    }
-
-    for(let i=0;i<peaks.length;i++)
-    {   
-        /**
-         * Get points from ppm. Do not apply the reference ppm here !!
-         */
-        let x_point = Math.round((peaks[i].cs_x - hsqc_spectra[spectrum_index].x_ppm_start) / hsqc_spectra[spectrum_index].x_ppm_step);
-        let y_point = Math.round((peaks[i].cs_y - hsqc_spectra[spectrum_index].y_ppm_start) / hsqc_spectra[spectrum_index].y_ppm_step);
-
-        /**
-         * This is a peak object peaks[i] example for picked peaks.
-         * cs_x: 1.241449 ==> X_PPM, need to add x_ppm_ref
-         * cs_y : 20.02922 ==> Y_PPM, need to add y_ppm_ref
-         * gammax : 0.61602
-         * gammay : 0.40042
-         * index : 8000088.5 ==> HEIGHT
-         * sigmax : 1.304711
-         * sigmay : 1.530022
-         * type : 1
-         * i will be the index of the peak
-        */
-        file_buffer += (i+1).toFixed(0).padStart(5) + " ";
-        file_buffer += x_point.toFixed(3).padStart(9) + " ";
-        file_buffer += y_point.toFixed(3).padStart(9) + " ";
-        file_buffer += (peaks[i].cs_x + hsqc_spectra[spectrum_index].x_ppm_ref).toFixed(6).padStart(10) + " ";
-        file_buffer += (peaks[i].cs_y + hsqc_spectra[spectrum_index].y_ppm_ref).toFixed(6).padStart(10) + " ";
-        file_buffer += peaks[i].index.toExponential(6) + " ";
-        file_buffer += "\n";
+        file_buffer = hsqc_spectra[spectrum_index].fitted_peaks_tab;
     }
 
     let blob = new Blob([file_buffer], { type: 'text/plain' });
