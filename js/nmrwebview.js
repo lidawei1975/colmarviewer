@@ -2902,7 +2902,7 @@ function download_pseudo3d()
  */
 function download_peaks(spectrum_index,flag)
 {
-    let file_buffer = "VARS INDEX X_PPM Y_PPM HEIGHT\nFORMAT %5d %10.6f %10.6f %+e\n";
+    let file_buffer = "VARS INDEX X_AXIS Y_AXIS X_PPM Y_PPM HEIGHT\nFORMAT %5d %9.3f %9.3f %10.6f %10.6f %+e\n";
 
     let peaks;
     if(flag === 'picked')
@@ -2912,12 +2912,22 @@ function download_peaks(spectrum_index,flag)
     else if(flag === 'fitted')
     {
         peaks = hsqc_spectra[spectrum_index].fitted_peaks;
+        /**
+         * cs_x,cx_y,index,type,intergral,intergral2, 
+         * sigmax,sigmay (gammax,gammay if voigt fitting) are the properties of a peak object
+         */
     }
 
     for(let i=0;i<peaks.length;i++)
-    {
+    {   
         /**
-         * This is a peak object peaks[i] example
+         * Get points from ppm. Do not apply the reference ppm here !!
+         */
+        let x_point = Math.round((peaks[i].cs_x - hsqc_spectra[spectrum_index].x_ppm_start) / hsqc_spectra[spectrum_index].x_ppm_step);
+        let y_point = Math.round((peaks[i].cs_y - hsqc_spectra[spectrum_index].y_ppm_start) / hsqc_spectra[spectrum_index].y_ppm_step);
+
+        /**
+         * This is a peak object peaks[i] example for picked peaks.
          * cs_x: 1.241449 ==> X_PPM, need to add x_ppm_ref
          * cs_y : 20.02922 ==> Y_PPM, need to add y_ppm_ref
          * gammax : 0.61602
@@ -2929,9 +2939,11 @@ function download_peaks(spectrum_index,flag)
          * i will be the index of the peak
         */
         file_buffer += (i+1).toFixed(0).padStart(5) + " ";
+        file_buffer += x_point.toFixed(3).padStart(9) + " ";
+        file_buffer += y_point.toFixed(3).padStart(9) + " ";
         file_buffer += (peaks[i].cs_x + hsqc_spectra[spectrum_index].x_ppm_ref).toFixed(6).padStart(10) + " ";
         file_buffer += (peaks[i].cs_y + hsqc_spectra[spectrum_index].y_ppm_ref).toFixed(6).padStart(10) + " ";
-        file_buffer += peaks[i].index.toExponential() + " ";
+        file_buffer += peaks[i].index.toExponential(6) + " ";
         file_buffer += "\n";
     }
 
