@@ -322,7 +322,6 @@ onmessage = function (e) {
         postMessage({
             matched_peaks_tab: matched_peaks_tab,
             assignment: assignment,
-            current_spectrum_index_of_peaks: e.data.current_spectrum_index_of_peaks
         });
     }
 }

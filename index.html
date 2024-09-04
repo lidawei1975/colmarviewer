@@ -88,7 +88,7 @@
                         <p>5. Upload remaining planes of your pseudo-3D experiment and make sure fitted peaks of plane 1
                             is visible</p>
                         <p>6. Run pseudo-3D fitting</p>
-                        <p>7. Make sure pseudo-3D fitted peaks are visible, then optionally you can upload an assignment
+                        <p>7. Optionally you can upload an assignment
                             file (Sparky .list), which will be transferred to the fitted peaks of pseudo-3D fitting.</p>
                         <p>8. Download result from pseudo-3D fitting</p>
                     </details>
@@ -117,14 +117,23 @@
 
                     <p>
                         <details>
-                            <summary>How to process spectrum from Bruker time domain data. (Experimental, still in development)</summary>
+                            <summary>How to process spectrum from Bruker time domain data. (Experimental features, still in development)</summary>
                         </details>
                     </p>
 
                     <p>
                         <details>
-                            <summary> Frq:</summary>
-                            <p>Pseudo-3D fitting takes for ever to finish, what should I do? </p>
+                            <summary> FAQ</summary>
+                            <p>1. Background peak picking/fitting get stuck.</p>
+                            <p>WebAssemble has a hard memory limit of 4GB, if your spectrum is very huge with lots of peaks, Deep Picker 
+                                or Voigt Fitter may get stuck because of out of memory. You can try to reduce size(ZF) or increase lowest contour level.</p>
+                            </p>
+                            <p>2. Pseudo-3D fitting takes for ever to finish</p>
+                            <p>The pseudo-3D fitting is a relative expensive operation, requiring a lot of computation
+                                power. Because Web WebAssemble is single-threaded and has limited memory, 
+                                it is not suitable for large pseudo-3D fitting. If you have a large pseudo-3D experiment, 
+                                probably you can still use COLMAR Viewer to optimize initial peak list form the 1st plane then run
+                            pseudo-3D fitting using standalone Voigt Fitter program. </p>
                         </details>
                     </p>
 
@@ -134,17 +143,6 @@
 
         <div id="section2">
             <div id="section21">
-
-                <div id="assignment_area" class="drop-area-neighbor" style="width: 1200px;">
-                    <h4>Assignment:</h4>
-                    <form id="assignment_form" action="" enctype="multipart/form-data">
-                        <label for="assignment">Assignment file (.list): </label><input type="file"
-                            id="assignment_file"><br>
-                        <button id="button_upload_assignment">Upload assignment file</button>
-                        <br>
-                    </form>
-                </div>
-
                 <div id="fid_file_area" class="drop-area" style="width: 1200px;">
                     <form id="fid_file_form" action="" enctype="multipart/form-data">
                         <h4>Upload Bruker time domain data for processing:</h4>
@@ -204,13 +202,14 @@
                         <input type="number" id="max_round" value="50" min="1" max="1000">
                         <button id="button_run_pseudo3d_gaussian" disabled onclick="run_pseudo3d(1)">Run Gaussian
                             pseudo-3D fitting of all spectra</button>
-                        <button id="button_run_pseudo3d_voigt" disabled onclick="run_pseudo3d(0)">Run Voigt pseudo-3D
-                            fitting of all spectra</button>
-                        <button id="button_download_fitted_peaks" disabled onclick="download_pseudo3d()">Download
-                            pseudo-3D fitting result</button>
+                        <button id="button_run_pseudo3d_voigt" disabled onclick="run_pseudo3d(0)">Run Voigt pseudo-3D fitting of all spectra</button>
                         <br>
+                        <button id="button_download_fitted_peaks" disabled onclick="download_pseudo3d(0)">Download pseudo-3D fitted peaks</button>
+                        <button id="button_download_fitted_peaks_ass" disabled onclick="download_pseudo3d(1)">Download pseudo-3D fitted peaks (with assignment)</button>
                         <input type="checkbox" id="show_pseudo3d_peaks" disabled>
                         <label for="show_pseudo3d_peaks"> Show pseudo-3D fitting result</label>
+                        <br>
+                        <label for="assignment">Upload an peak file with assignment information to be transferred to pseudo-3D fitted peaks (.list): </label><input type="file" disabled id="assignment_file"><br>
                         <br>
                         <label class="information">Use this button to run pseudo-3D on all experimental spectra. The
                             current showing peak list
