@@ -198,12 +198,12 @@ class file_drop_processor {
              * if the file is acqu3s, it will replace the acqu2s file
              * if the file is acqu2s, it will be added if currently acqu2s is empty, otherwise it will be ignored
              */
-            if (file_id === "hsqc_acquisition_file2" && file.name === "acqu3s") {
+            if (file_id === "acquisition_file2" && file.name === "acqu3s") {
                 document.getElementById(file_id).files = container.files;
             }
-            else if(file_id === "hsqc_acquisition_file2" && file.name === "acqu2s")
+            else if(file_id === "acquisition_file2" && file.name === "acqu2s")
             {
-                if(document.getElementById("hsqc_acquisition_file2").files.length === 0)
+                if(document.getElementById("acquisition_file2").files.length === 0)
                 {
                     document.getElementById(file_id).files = container.files;
                 }
@@ -287,21 +287,18 @@ class file_drop_processor {
     }
 };
 
-const read_file = (file_id) => {
+const read_file = (file) => {
     return new Promise((resolve, reject) => {
 
-        let file = document.getElementById(file_id).files[0];
-        if (file) {
-            var reader = new FileReader();
-            reader.onload = function () {
-                var data = new Uint8Array(reader.result);
-                return resolve(data);
-            };
-            reader.onerror = function (e) {
-                reject("Error reading file");
-            };
-            reader.readAsArrayBuffer(file);
-        }
+        var reader = new FileReader();
+        reader.onload = function () {
+            return resolve(reader.result);
+        };
+        reader.onerror = function (e) {
+            reject("Error reading file");
+        };
+        reader.readAsArrayBuffer(file);
+
     });
 }
 
@@ -353,6 +350,7 @@ $(document).ready(function () {
     .drop_area('fid_file_area') /** id of dropzone */
     .files_name(["acqu2s", "acqu3s", "acqus", "ser", "fid"])  /** file names to be searched from upload */
     .files_id(["acquisition_file2","acquisition_file2", "acquisition_file", "fid_file", "fid_file"]) /** Corresponding file element IDs */
+    .file_extension([])  /** file extensions to be searched from upload */
     .init();
 
     /**
@@ -436,14 +434,15 @@ $(document).ready(function () {
                      */
                     if(this.querySelector('input[type="file"]').files[ii].name.endsWith(".ft2") || this.querySelector('input[type="file"]').files[ii].name.endsWith(".ft3"))
                     {
-                        return read_file_and_process_ft2(this.querySelector('input[type="file"]').files[ii]);
+                        return read_file(this.querySelector('input[type="file"]').files[ii]);
                     }
                     else
                     {
                         return Promise.resolve(null);
                     }
-            }).then((result_spectrum) => {
-                if(result_spectrum !== null){
+            }).then((file_data) => {
+                if(file_data !== null){
+                    let result_spectrum = process_ft_file(file_data,this.querySelector('input[type="file"]').files[ii].name,-1);
                     draw_spectrum(result_spectrum);
                 }
                 /**
@@ -470,9 +469,19 @@ $(document).ready(function () {
          */
         e.preventDefault();
 
-        let promises = [read_file('acquisition_file'), read_file('acquisition_file2'), read_file('fid_file')];
+        let acquisition_file = document.getElementById('acquisition_file').files[0];
+        let acquisition_file2 = document.getElementById('acquisition_file2').files[0];
+        let fid_file = document.getElementById('fid_file').files[0];
+
+        let promises = [read_file(acquisition_file), read_file(acquisition_file2), read_file(fid_file)];
         Promise.all(promises)
             .then((result) => {
+
+                /**
+                 * For each element in result (raw data of the files), we will convert it to Uint8Array
+                 * so that they can be transferred to the worker
+                 */
+                let file_data =[new Uint8Array(result[0]), new Uint8Array(result[1]),new Uint8Array(result[2])];
 
                 /**
                  * Clear file input
@@ -503,7 +512,7 @@ $(document).ready(function () {
                  * Result is an array of Uint8Array
                  */
                 webassembly_worker.postMessage({
-                    file_data: result,
+                    file_data: file_data,
                     acquisition_seq: acquisition_seq,
                     neg_imaginary: neg_imaginary,
                     zf_direct: zf_direct,
@@ -2286,32 +2295,6 @@ function update_contour_color(e,index,flag) {
     
     main_plot.redraw_contour();
 }
-
-
-
-const read_file_and_process_ft2 = (file) => {
-    return new Promise((resolve, reject) => {
-        if (file) {
-            var reader = new FileReader();
-            reader.onload = function () {
-                var arrayBuffer = reader.result;
-
-                // var data = new Uint8Array(reader.result);
-                // Module['FS_createDataFile']('/', 'test.ft2', data, true, true, true);
-
-                let result = process_ft_file(arrayBuffer, file.name,-1);
-                resolve(result);
-            };
-            reader.onerror = function (e) {
-                reject("Error reading file");
-            };
-            reader.readAsArrayBuffer(file);
-        }
-        else {
-            reject("No file selected");
-        }
-    });
-} //end of read_file_and_process_ft2
 
 /**
  * Process the raw file data of a 2D FT spectrum
