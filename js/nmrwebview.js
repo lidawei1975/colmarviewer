@@ -220,9 +220,10 @@ class file_drop_processor {
 
         /**
          * Only if the dropped file's extension is as predefined, we will attach it to the corresponding file input
+         * this.file_extension is an array of file extensions
          */
-        let file_extension = file.name.split('.').pop();    
-        if (this.file_extension==file_extension) {
+        let file_extension = file.name.split('.').pop();   
+        if (this.file_extension.includes(file_extension)) {
             this.container.items.add(file);
             let file_id = this.files_id[this.file_extension.indexOf(file_extension)];
             document.getElementById(file_id).files = this.container.files;
@@ -293,13 +294,7 @@ const read_file = (file_id) => {
         if (file) {
             var reader = new FileReader();
             reader.onload = function () {
-
                 var data = new Uint8Array(reader.result);
-                /**
-                 * We will use the file_id as the file name. 
-                 * Save them to the virtual file system for webassembly to read
-                 */
-                // Module['FS_createDataFile']('/', file_id, data, true, true, true);
                 return resolve(data);
             };
             reader.onerror = function (e) {
@@ -347,8 +342,8 @@ $(document).ready(function () {
     ft2_file_drop_processor = new file_drop_processor()
     .drop_area('file_area') /** id of dropzone */
     .files_name([]) /** file names to be searched from upload. It is empty because we will use file_extension*/
-    .file_extension("ft2")  /** file extenstion to be searched from upload */
-    .files_id(["userfile"]) /** Corresponding file element IDs */
+    .file_extension(["ft2","ft3"])  /** file extensions to be searched from upload */
+    .files_id(["userfile","userfile"]) /** Corresponding file element IDs */
     .init();
 
     /**
@@ -437,15 +432,15 @@ $(document).ready(function () {
             chain = chain.then(() => {
                     console.log("read file",this.querySelector('input[type="file"]').files[ii].name);
                     /**
-                     * If not a .ft2 file. resolve the promise
+                     * If not a .ft2 file or .ft3 file, resolve the promise
                      */
-                    if(!this.querySelector('input[type="file"]').files[ii].name.endsWith(".ft2"))
+                    if(this.querySelector('input[type="file"]').files[ii].name.endsWith(".ft2") || this.querySelector('input[type="file"]').files[ii].name.endsWith(".ft3"))
                     {
-                        return Promise.resolve(null);
+                        return read_file_and_process_ft2(this.querySelector('input[type="file"]').files[ii]);
                     }
                     else
                     {
-                        return read_file_and_process_ft2(this.querySelector('input[type="file"]').files[ii]);
+                        return Promise.resolve(null);
                     }
             }).then((result_spectrum) => {
                 if(result_spectrum !== null){
