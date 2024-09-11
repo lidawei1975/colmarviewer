@@ -144,52 +144,32 @@ var m4 = {
 
 class webgl_contour_plot2 {
 
-    constructor(canvas_id) {
+    constructor(canvas_id,points,colors) {
 
         this.canvas = document.querySelector("#" + canvas_id);
         this.gl = this.canvas.getContext("webgl");
         if (!this.gl) {
             alert("No WebGL");
         }
-        /**
-         * camera define zoom and pan of the camera. We don't need rotation for this application
-         */
-        this.camera = {
-            x: 0,
-            y: 0,
-            zoom_x: 1,
-            zoom_y: 1,
-        };
-
-
-        /**
-         * wheel zoom global variables
-         */
-        this.viewProjectionMat;
-        /**
-         * Pan the camera by tracking mouse click and mouse move
-         */
-        this.startInvViewProjMat;
-        this.startCamera;
-        this.startPos;
-        this.startClipPos;
-        this.startMousePos;
 
         let vertex_shader_2d = `
                 attribute vec4 a_position;
+                attribute vec4 a_color;
                 uniform mat4 u_matrix;
+                varying vec4 v_color;
                 void main() {
                 // Multiply the position by the matrix.
                 gl_Position = u_matrix * a_position;
+                v_color = a_color;
                 }
             `;
 
         let fragment_shader_2d = `
-            precision mediump float;
-            uniform vec4 u_color;
-            void main() {
-            gl_FragColor = u_color;
-            }
+                precision mediump float;
+                varying vec4 v_color;
+                void main() {
+                gl_FragColor = v_color;
+                }
             `;
 
         // setup GLSL program
@@ -199,29 +179,60 @@ class webgl_contour_plot2 {
         this.positionLocation = this.gl.getAttribLocation(this.program, "a_position");
 
         // lookup uniforms
-        this.colorLocation = this.gl.getUniformLocation(this.program, "u_color");
+        this.colorLocation = this.gl.getAttribLocation(this.program, "a_color");
         this.matrixLocation = this.gl.getUniformLocation(this.program, "u_matrix");
 
         // Create a buffer to put positions in
         this.positionBuffer = this.gl.createBuffer();
-        // Bind it to ARRAY_BUFFER (think of it as ARRAY_BUFFER = positionBuffer)
+        //bind the buffer
         this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.positionBuffer);
+        //NEXT, need to set data
+        this.gl.bufferData(this.gl.ARRAY_BUFFER, points, this.gl.STATIC_DRAW);
 
-        /**
-         * Tell it to use our program (pair of shaders)
-         * For our simple 2d program, we will only use one program. 
-         * So we don't need to call gl.useProgram(program) every time we draw
-         */
+
+        // Create a buffer to put colors in
+        this.colorBuffer = this.gl.createBuffer();
+        //bind the buffer
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.colorBuffer);
+        this.gl.bufferData(this.gl.ARRAY_BUFFER, colors, this.gl.STATIC_DRAW);
+            
+        this.rotation_x = 40;
+        this.rotation_y = 25;
+        this.rotation_z = 325;
+
+    };
+
+    radToDeg(r) {
+        return r * 180 / Math.PI;
+      };
+    
+    degToRad(d) {
+        return d * Math.PI / 180;
+      };
+
+    /**
+     * Draw the scene.
+     */
+    drawScene() {
+        webglUtils.resizeCanvasToDisplaySize(this.gl.canvas);
+
+        this.gl.viewport(0, 0, this.gl.canvas.width, this.gl.canvas.height);
+
+        // Clear the canvas. Set background color to white
+        this.gl.clearColor(1, 1, 1, 1);
+        this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
+
+        // Turn on culling. By default backfacing triangles
+        // will be culled.
+        this.gl.enable(this.gl.CULL_FACE);
+
+         // Enable the depth buffer
+        this.gl.enable(this.gl.DEPTH_TEST);
+
         this.gl.useProgram(this.program);
 
-        // Turn on the attribute
+
         this.gl.enableVertexAttribArray(this.positionLocation);
-
-        /**
-         * Disable the scissor test.
-         */
-        this.gl.disable(this.gl.SCISSOR_TEST);
-
         // Bind the position buffer.
         this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.positionBuffer);
 
@@ -237,46 +248,25 @@ class webgl_contour_plot2 {
         var offset = 0;        // start at the beginning of the buffer
         this.gl.vertexAttribPointer(this.positionLocation, size, type, normalize, stride, offset);
 
-        this.polygon_length = [];
-    };
-
-    /**
-     * Set buffer data and draw the scene
-     * @param {Float32Array} points
-     */
-    set_data(points) {
-
-        this.gl.bufferData(this.gl.ARRAY_BUFFER, points, this.gl.STATIC_DRAW);
-    };
-
-    radToDeg(r) {
-        return r * 180 / Math.PI;
-      };
-    
-    degToRad(d) {
-        return d * Math.PI / 180;
-      };
+      
+        // Turn on the color attribute
+        this.gl.enableVertexAttribArray(this.colorLocation);
+        // Bind the color buffer.
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.colorBuffer);
+        // Tell the attribute how to get data out of colorBuffer (ARRAY_BUFFER)
+        var size = 3;                 // 3 components per iteration
+        var type = this.gl.UNSIGNED_BYTE;  // the data is 8bit unsigned values
+        var normalize = true;         // normalize the data (convert from 0-255 to 0-1)
+        var stride = 0;               // 0 = move forward size * sizeof(type) each iteration to get the next position
+        var offset = 0;               // start at the beginning of the buffer
+        this.gl.vertexAttribPointer(this.colorLocation, size, type, normalize, stride, offset);
 
 
-    /**
-     * Draw the scene.
-     */
-    drawScene() {
-        webglUtils.resizeCanvasToDisplaySize(this.gl.canvas);
-
-        this.gl.viewport(0, 0, this.gl.canvas.width, this.gl.canvas.height);
-
-        // Clear the canvas. Set background color to white
-        this.gl.clearColor(1, 1, 1, 1);
-        this.gl.clear(this.gl.COLOR_BUFFER_BIT);
 
         var translation = [45, 150, 0];
-        var rotation = [this.degToRad(40), this.degToRad(25), this.degToRad(360)];
+        var rotation = [this.degToRad(this.rotation_x), this.degToRad(this.rotation_y), this.degToRad(this.rotation_z)];
         var scale = [1, 1, 1];
-        var color = [Math.random(), Math.random(), Math.random(), 1];
-
-        this.gl.uniform4fv(this.colorLocation, color);
-
+        
         var matrix = m4.projection(this.gl.canvas.clientWidth, this.gl.canvas.clientHeight, 400);
         matrix = m4.translate(matrix, translation[0], translation[1], translation[2]);
         matrix = m4.xRotate(matrix, rotation[0]);
@@ -284,19 +274,13 @@ class webgl_contour_plot2 {
         matrix = m4.zRotate(matrix, rotation[2]);
         matrix = m4.scale(matrix, scale[0], scale[1], scale[2]);
 
-        console.log(this.gl.canvas.clientWidth);
-        console.log(this.gl.canvas.clientHeight);
-
-        console.log(matrix);
-
         this.gl.uniformMatrix4fv(this.matrixLocation, false, matrix);
 
-        var primitiveType = this.gl.TRIANGLES;
 
         // Draw the geometry.
         var primitiveType = this.gl.TRIANGLES;
         var offset = 0;
-        var count = 18;  // 6 triangles in the 'F', 3 points per triangle
+        var count = 16*6;  // 6 triangles in the 'F', 3 points per triangle
         this.gl.drawArrays(primitiveType, offset, count);
     };
 
