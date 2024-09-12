@@ -735,8 +735,7 @@ webassembly_worker.onmessage = function (e) {
          * Enable peak picking (we disabled it when starting deep picker) and peak fitting buttons
          */
         document.getElementById("run_deep_picker-".concat(e.data.spectrum_index)).disabled = false;
-        document.getElementById("run_voigt_fitter0-".concat(e.data.spectrum_index)).disabled = false;
-        document.getElementById("run_voigt_fitter1-".concat(e.data.spectrum_index)).disabled = false;
+        document.getElementById("run_voigt_fitter-".concat(e.data.spectrum_index)).disabled = false;
         /**
          * Enable, set it as unchecked then simulate a click event to show the peaks
          */
@@ -762,8 +761,7 @@ webassembly_worker.onmessage = function (e) {
          * Enable run deep picker and run voigt fitter buttons
          */
         document.getElementById("run_deep_picker-".concat(e.data.spectrum_index)).disabled = false;
-        document.getElementById("run_voigt_fitter0-".concat(e.data.spectrum_index)).disabled = false;
-        document.getElementById("run_voigt_fitter1-".concat(e.data.spectrum_index)).disabled = false;
+        document.getElementById("run_voigt_fitter-".concat(e.data.spectrum_index)).disabled = false;
 
         /**
          * Enable the download fitted peaks button and show the fitted peaks button
@@ -804,6 +802,7 @@ webassembly_worker.onmessage = function (e) {
          */
         result_spectrum.picked_peaks = hsqc_spectra[e.data.spectrum_index].picked_peaks;
         result_spectrum.fitted_peaks = hsqc_spectra[e.data.spectrum_index].fitted_peaks;
+        result_spectrum.fitted_peaks_tab = hsqc_spectra[e.data.spectrum_index].fitted_peaks_tab;
 
         /**
          * Also copy scale and scale2 from the original spectrum, which are used to run deep picker and peak fitting
@@ -1190,8 +1189,17 @@ function add_to_list(index) {
         let deep_picker_button = document.createElement("button");
         deep_picker_button.setAttribute("id", "run_deep_picker-".concat(index));
         deep_picker_button.innerText = "DEEP Picker";
-        deep_picker_button.onclick = function () { run_DEEP_Picker(index); };
+        deep_picker_button.onclick = function () { run_DEEP_Picker(index,0); };
         new_spectrum_div.appendChild(deep_picker_button);
+
+        /**
+         * Add a run_Simple_Picker button to run simple picker. Default is enabled
+         */
+        let simple_picker_button = document.createElement("button");
+        simple_picker_button.setAttribute("id", "run_simple_picker-".concat(index));
+        simple_picker_button.innerText = "Simple Picker";
+        simple_picker_button.onclick = function () { run_DEEP_Picker(index,1); };
+        new_spectrum_div.appendChild(simple_picker_button);
 
         /**
          * Add a combine_peak cutoff input filed with ID "combine_peak_cutoff-".concat(index)
@@ -1227,22 +1235,52 @@ function add_to_list(index) {
         new_spectrum_div.appendChild(maxround_input);
         
         /**
-         * Add two buttons to call run_Voigt_fitter, with option 0 and 1
+         * Add one buttons to call run_Voigt_fitter, with option 0,1, or 2
          * Default is disabled
          */
+        let run_voigt_fitter_select = document.createElement("select");
+        run_voigt_fitter_select.setAttribute("id", "run_voigt_fitter_select-".concat(index));
+        let run_voigt_fitter_select_label = document.createElement("label");
+        run_voigt_fitter_select_label.setAttribute("for", "run_voigt_fitter_select-".concat(index));
+        run_voigt_fitter_select_label.innerText = " Peak profile: ";
+        /**
+         * Add three options: Voigt, Gaussian, and Voigt_Lorentzian
+         */
+        let voigt_option = document.createElement("option");
+        voigt_option.setAttribute("value", "0");
+        voigt_option.innerText = "Voigt";
+        run_voigt_fitter_select.appendChild(voigt_option);
+
+        let gaussian_option = document.createElement("option");
+        gaussian_option.setAttribute("value", "1");
+        gaussian_option.innerText = "Gaussian";
+        run_voigt_fitter_select.appendChild(gaussian_option);
+
+        let voigt_lorentzian_option = document.createElement("option");
+        voigt_lorentzian_option.setAttribute("value", "2");
+        voigt_lorentzian_option.innerText = "Voigt_Lorentzian";
+        run_voigt_fitter_select.appendChild(voigt_lorentzian_option);
+        
+        
+        new_spectrum_div.appendChild(run_voigt_fitter_select_label);
+        new_spectrum_div.appendChild(run_voigt_fitter_select);
+
         let run_voigt_fitter_button0 = document.createElement("button");
-        run_voigt_fitter_button0.innerText = "Voigt Fitting";
-        run_voigt_fitter_button0.onclick = function () { run_Voigt_fitter(index, 0); };
+        run_voigt_fitter_button0.innerText = "Peak Fitting";
+        run_voigt_fitter_button0.onclick = function () { 
+            /**
+             * Get the value of run_voigt_fitter_options: 0, 1, or 2
+             */
+            let index = parseInt(this.id.split("-")[1]);
+            let run_voigt_fitter_select = document.getElementById("run_voigt_fitter_select-".concat(index));
+            let option = parseInt(run_voigt_fitter_select.value);
+            run_Voigt_fitter(index, option); 
+        };
         run_voigt_fitter_button0.disabled = true;
-        run_voigt_fitter_button0.setAttribute("id", "run_voigt_fitter0-".concat(index));
+        run_voigt_fitter_button0.setAttribute("id", "run_voigt_fitter-".concat(index));
         new_spectrum_div.appendChild(run_voigt_fitter_button0);
 
-        let run_voigt_fitter_button1 = document.createElement("button");
-        run_voigt_fitter_button1.innerText = "Gaussian Fitting";
-        run_voigt_fitter_button1.onclick = function () { run_Voigt_fitter(index, 1); };
-        run_voigt_fitter_button1.disabled = true;
-        run_voigt_fitter_button1.setAttribute("id", "run_voigt_fitter1-".concat(index));
-        new_spectrum_div.appendChild(run_voigt_fitter_button1);
+       
 
         /**
          * Add a new line
@@ -2707,14 +2745,13 @@ async function download_plot()
  * Call DEEP Picker to run peaks picking the spectrum
  * @param {int} spectrum_index: index of the spectrum in hsqc_spectra array
  */
-function run_DEEP_Picker(spectrum_index)
+function run_DEEP_Picker(spectrum_index,flag)
 {
     /**
      * Disable the buttons to run deep picker and voigt fitter
      */
     document.getElementById("run_deep_picker-".concat(spectrum_index)).disabled = true;
-    document.getElementById("run_voigt_fitter0-".concat(spectrum_index)).disabled = true;
-    document.getElementById("run_voigt_fitter1-".concat(spectrum_index)).disabled = true;
+    document.getElementById("run_voigt_fitter-".concat(spectrum_index)).disabled = true;
 
 
     /**
@@ -2745,7 +2782,8 @@ function run_DEEP_Picker(spectrum_index)
         spectrum_index: spectrum_index,
         scale: scale,
         scale2: scale2,
-        noise_level: noise_level
+        noise_level: noise_level,
+        flag: flag //0: DEEP Picker, 1: Simple Picker
     });
     /**
  * Let user know the processing is started
@@ -2764,8 +2802,7 @@ function run_Voigt_fitter(spectrum_index,flag)
      * Disable the buttons to run deep picker and voigt fitter
      */
     document.getElementById("run_deep_picker-".concat(spectrum_index)).disabled = true;
-    document.getElementById("run_voigt_fitter0-".concat(spectrum_index)).disabled = true;
-    document.getElementById("run_voigt_fitter1-".concat(spectrum_index)).disabled = true;
+    document.getElementById("run_voigt_fitter-".concat(spectrum_index)).disabled = true;
 
     /**
      * Get maxround input field with ID "maxround-"+spectrum_index
@@ -2803,7 +2840,7 @@ function run_Voigt_fitter(spectrum_index,flag)
         spectrum_index: spectrum_index,
         combine_peak_cutoff: combine_peak_cutoff,
         maxround: maxround,
-        flag: flag, //0: Voigt, 1: Gaussian
+        flag: flag, //0: Voigt, 1: Gaussian, 2: Voigt_Lorentzian
         scale: hsqc_spectra[spectrum_index].scale,
         scale2: hsqc_spectra[spectrum_index].scale2,
         noise_level: hsqc_spectra[spectrum_index].noise_level

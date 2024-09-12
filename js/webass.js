@@ -8,6 +8,7 @@ importScripts('webdp.js');
 const api = {
     version: Module.cwrap("version", "number", []),
     deep: Module.cwrap("deep", "number", []),
+    simple_picking: Module.cwrap("simple_picking", "number", []),
     fid_phase: Module.cwrap("fid_phase", "number", []),
     voigt_fit: Module.cwrap("voigt_fit", "number", []),
     peak_match: Module.cwrap("peak_match", "number", []),
@@ -98,14 +99,19 @@ onmessage = function (e) {
 
         /**
          * If flag is 0, add -method voigt to the content
-         * else add -method gaussian
+         * else if flag is 1, add -method gaussian
+         * else, add -method voigt_lorentz
          */
         if (e.data.flag === 0) {
             content = content.concat(' -method voigt ');
         }
-        else {
+        else if (e.data.flag === 1){
             content = content.concat(' -method gaussian ');
         }
+        else {
+            content = content.concat(' -method voigt-lorentz ');
+        }
+
         console.log(content);
 
         Module['FS_createDataFile']('/', 'argument_voigt_fit.txt', content, true, true, true);
@@ -138,9 +144,13 @@ onmessage = function (e) {
         {
             filename='recon_voigt_hsqc.ft2';
         }
-        else
+        else if(e.data.flag === 1)
         {
             filename='recon_gaussian_hsqc.ft2';
+        }
+        else
+        {
+            filename='recon_voigt_lorentz_hsqc.ft2';
         }
 
         const file_data = FS.readFile(filename, { encoding: 'binary' });
@@ -171,15 +181,29 @@ onmessage = function (e) {
          * Write a file named "arguments_dp.txt" to the virtual file system
          * save -noise_level, -scale and -scale2
          */
-        let content = ' -noise_level '.concat(e.data.noise_level,' -scale ',e.data.scale,' -scale2 ',e.data.scale2);
-        Module['FS_createDataFile']('/', 'arguments_dp.txt', content, true, true, true);
+        if(e.data.flag === 0)
+        {
+            let content = ' -noise_level '.concat(e.data.noise_level,' -scale ',e.data.scale,' -scale2 ',e.data.scale2);
+            Module['FS_createDataFile']('/', 'arguments_dp.txt', content, true, true, true);
+        }
+        else 
+        {
+            let content = ' -out peaks.json -noise_level '.concat(e.data.noise_level,' -scale ',e.data.scale);   
+            Module['FS_createDataFile']('/', 'arguments_simple_picking.txt', content, true, true, true);
+        }
 
         console.log('Spectrum data saved to virtual file system');
         /**
          * Run deep function
          */
-        this.postMessage({ stdout: "Running deep function" });
-        api.deep();
+        if(e.data.flag === 0){
+            this.postMessage({ stdout: "Running deep function" });
+            api.deep();
+        }
+        else{
+            this.postMessage({ stdout: "Running simple picking" });
+            api.simple_picking();
+        }
         console.log('Finished running web assembly code');
         /**
          * Remove the input file from the virtual file system
@@ -189,7 +213,12 @@ onmessage = function (e) {
         let r=FS.readFile('peaks.json', {encoding: 'utf8'});
         let peaks=JSON.parse(r);
         FS.unlink('peaks.json');
-        FS.unlink('arguments_dp.txt');
+        if(e.data.flag === 0){
+            FS.unlink('arguments_dp.txt');
+        }
+        else {
+            FS.unlink('arguments_simple_picking.txt');
+        }
         postMessage({
             peaks: peaks,
             spectrum_index: e.data.spectrum_index,
