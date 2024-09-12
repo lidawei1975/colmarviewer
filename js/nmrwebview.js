@@ -1190,8 +1190,17 @@ function add_to_list(index) {
         let deep_picker_button = document.createElement("button");
         deep_picker_button.setAttribute("id", "run_deep_picker-".concat(index));
         deep_picker_button.innerText = "DEEP Picker";
-        deep_picker_button.onclick = function () { run_DEEP_Picker(index); };
+        deep_picker_button.onclick = function () { run_DEEP_Picker(index,0); };
         new_spectrum_div.appendChild(deep_picker_button);
+
+        /**
+         * Add a run_Simple_Picker button to run simple picker. Default is enabled
+         */
+        let simple_picker_button = document.createElement("button");
+        simple_picker_button.setAttribute("id", "run_simple_picker-".concat(index));
+        simple_picker_button.innerText = "Simple Picker";
+        simple_picker_button.onclick = function () { run_DEEP_Picker(index,1); };
+        new_spectrum_div.appendChild(simple_picker_button);
 
         /**
          * Add a combine_peak cutoff input filed with ID "combine_peak_cutoff-".concat(index)
@@ -2707,7 +2716,7 @@ async function download_plot()
  * Call DEEP Picker to run peaks picking the spectrum
  * @param {int} spectrum_index: index of the spectrum in hsqc_spectra array
  */
-function run_DEEP_Picker(spectrum_index)
+function run_DEEP_Picker(spectrum_index,flag)
 {
     /**
      * Disable the buttons to run deep picker and voigt fitter
@@ -2745,7 +2754,8 @@ function run_DEEP_Picker(spectrum_index)
         spectrum_index: spectrum_index,
         scale: scale,
         scale2: scale2,
-        noise_level: noise_level
+        noise_level: noise_level,
+        flag: flag //0: DEEP Picker, 1: Simple Picker
     });
     /**
  * Let user know the processing is started
