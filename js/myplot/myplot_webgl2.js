@@ -152,6 +152,8 @@ class webgl_contour_plot2 {
             alert("No WebGL");
         }
 
+        this.data_length = points.length/3;
+
         let vertex_shader_2d = `
                 attribute vec4 a_position;
                 attribute vec4 a_color;
@@ -263,7 +265,7 @@ class webgl_contour_plot2 {
 
 
 
-        var translation = [45, 150, 0];
+        var translation = [245, 250, 80];
         var rotation = [this.degToRad(this.rotation_x), this.degToRad(this.rotation_y), this.degToRad(this.rotation_z)];
         var scale = [1, 1, 1];
         
@@ -280,7 +282,7 @@ class webgl_contour_plot2 {
         // Draw the geometry.
         var primitiveType = this.gl.TRIANGLES;
         var offset = 0;
-        var count = 16*6;  // 6 triangles in the 'F', 3 points per triangle
+        var count =this.data_length;
         this.gl.drawArrays(primitiveType, offset, count);
     };
 
