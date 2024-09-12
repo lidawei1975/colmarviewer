@@ -99,14 +99,19 @@ onmessage = function (e) {
 
         /**
          * If flag is 0, add -method voigt to the content
-         * else add -method gaussian
+         * else if flag is 1, add -method gaussian
+         * else, add -method voigt_lorentz
          */
         if (e.data.flag === 0) {
             content = content.concat(' -method voigt ');
         }
-        else {
+        else if (e.data.flag === 1){
             content = content.concat(' -method gaussian ');
         }
+        else {
+            content = content.concat(' -method voigt-lorentz ');
+        }
+
         console.log(content);
 
         Module['FS_createDataFile']('/', 'argument_voigt_fit.txt', content, true, true, true);
@@ -139,9 +144,13 @@ onmessage = function (e) {
         {
             filename='recon_voigt_hsqc.ft2';
         }
-        else
+        else if(e.data.flag === 1)
         {
             filename='recon_gaussian_hsqc.ft2';
+        }
+        else
+        {
+            filename='recon_voigt_lorentz_hsqc.ft2';
         }
 
         const file_data = FS.readFile(filename, { encoding: 'binary' });
