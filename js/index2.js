@@ -35,32 +35,33 @@ function get_data(heat_data,xdim,ydim)
 {
     var data = new Float32Array(xdim*ydim*6*3);
 
-    var step = 1;
+    var step1 = 1/16;
+    var step2 = 1;
 
     for(let i=0;i<xdim;i++){
         for(let j=0;j<ydim;j++){
-            data[(i*ydim+j)*6*3] = i*step;
-            data[(i*ydim+j)*6*3+1] = j*step;
+            data[(i*ydim+j)*6*3] = i*step1;
+            data[(i*ydim+j)*6*3+1] = j*step2;
             data[(i*ydim+j)*6*3+2] = heat_data[i*ydim+j];
 
-            data[(i*ydim+j)*6*3+3] = (i+1)*step;
-            data[(i*ydim+j)*6*3+4] = j*step;
+            data[(i*ydim+j)*6*3+3] = (i+1)*step1;
+            data[(i*ydim+j)*6*3+4] = j*step2;
             data[(i*ydim+j)*6*3+5] = heat_data[(i+1)*ydim+j];
 
-            data[(i*ydim+j)*6*3+6] = i*step;
-            data[(i*ydim+j)*6*3+7] = (j+1)*step;
+            data[(i*ydim+j)*6*3+6] = i*step1;
+            data[(i*ydim+j)*6*3+7] = (j+1)*step2
             data[(i*ydim+j)*6*3+8] = heat_data[i*ydim+j+1];
 
-            data[(i*ydim+j)*6*3+9] = (i+1)*step;
-            data[(i*ydim+j)*6*3+10] = j*step;
+            data[(i*ydim+j)*6*3+9] = (i+1)*step1;
+            data[(i*ydim+j)*6*3+10] = j*step2;
             data[(i*ydim+j)*6*3+11] = heat_data[(i+1)*ydim+j];
 
-            data[(i*ydim+j)*6*3+12] = (i+1)*step;
-            data[(i*ydim+j)*6*3+13] = (j+1)*step;
+            data[(i*ydim+j)*6*3+12] = (i+1)*step1;
+            data[(i*ydim+j)*6*3+13] = (j+1)*step2;
             data[(i*ydim+j)*6*3+14] = heat_data[(i+1)*ydim+j+1];
 
-            data[(i*ydim+j)*6*3+15] = i*step;
-            data[(i*ydim+j)*6*3+16] = (j+1)*step;
+            data[(i*ydim+j)*6*3+15] = i*step1;
+            data[(i*ydim+j)*6*3+16] = (j+1)*step2;
             data[(i*ydim+j)*6*3+17] = heat_data[i*ydim+j+1];
         }
     }
