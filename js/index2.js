@@ -35,8 +35,8 @@ function get_data(heat_data,xdim,ydim)
 {
     var data = new Float32Array(xdim*ydim*6*3);
 
-    var step1 = 1/16;
-    var step2 = 1;
+    var step1 = 4;
+    var step2 = 4;
 
     for(let i=0;i<xdim;i++){
         for(let j=0;j<ydim;j++){
@@ -44,25 +44,25 @@ function get_data(heat_data,xdim,ydim)
             data[(i*ydim+j)*6*3+1] = j*step2;
             data[(i*ydim+j)*6*3+2] = heat_data[i*ydim+j];
 
-            data[(i*ydim+j)*6*3+3] = (i+1)*step1;
-            data[(i*ydim+j)*6*3+4] = j*step2;
-            data[(i*ydim+j)*6*3+5] = heat_data[(i+1)*ydim+j];
+            data[(i*ydim+j)*6*3+6] = (i+1)*step1;
+            data[(i*ydim+j)*6*3+7] = j*step2;
+            data[(i*ydim+j)*6*3+8] = heat_data[(i+1)*ydim+j];
 
-            data[(i*ydim+j)*6*3+6] = i*step1;
-            data[(i*ydim+j)*6*3+7] = (j+1)*step2
-            data[(i*ydim+j)*6*3+8] = heat_data[i*ydim+j+1];
+            data[(i*ydim+j)*6*3+3] = i*step1;
+            data[(i*ydim+j)*6*3+4] = (j+1)*step2
+            data[(i*ydim+j)*6*3+5] = heat_data[i*ydim+j+1];
 
             data[(i*ydim+j)*6*3+9] = (i+1)*step1;
             data[(i*ydim+j)*6*3+10] = j*step2;
             data[(i*ydim+j)*6*3+11] = heat_data[(i+1)*ydim+j];
 
-            data[(i*ydim+j)*6*3+12] = (i+1)*step1;
-            data[(i*ydim+j)*6*3+13] = (j+1)*step2;
-            data[(i*ydim+j)*6*3+14] = heat_data[(i+1)*ydim+j+1];
-
-            data[(i*ydim+j)*6*3+15] = i*step1;
+            data[(i*ydim+j)*6*3+15] = (i+1)*step1;
             data[(i*ydim+j)*6*3+16] = (j+1)*step2;
-            data[(i*ydim+j)*6*3+17] = heat_data[i*ydim+j+1];
+            data[(i*ydim+j)*6*3+17] = heat_data[(i+1)*ydim+j+1];
+
+            data[(i*ydim+j)*6*3+12] = i*step1;
+            data[(i*ydim+j)*6*3+13] = (j+1)*step2;
+            data[(i*ydim+j)*6*3+14] = heat_data[i*ydim+j+1];
         }
     }
     return data;
@@ -74,7 +74,16 @@ function get_color(heat_data,xdim,ydim)
 
     for(let i=0;i<xdim;i++){
         for(let j=0;j<ydim;j++){
-            let color = Math.floor(heat_data[i*ydim+j]/100*255);
+            let color = Math.floor(heat_data[i*ydim+j]/200*250);
+
+            /**
+             * if color < 0, set color to 0
+             */
+            if(color < 0)
+            {
+                color = 0;
+            }
+
             colors[(i*ydim+j)*6*3] = color;
             colors[(i*ydim+j)*6*3+1] = 0;
             colors[(i*ydim+j)*6*3+2] = 255-color;
@@ -130,6 +139,47 @@ $(document).ready(function () {
         main_plot.drawScene();
     });
 
+    /**
+     * Add event listener for range sliders translation_x, translation_y, translation_z
+     */
+    document.getElementById('translation_x').addEventListener('input', function () {
+        main_plot.translation_x = this.value;
+        main_plot.drawScene();
+    });
+
+    document.getElementById('translation_y').addEventListener('input', function () {
+        main_plot.translation_y = this.value;
+        main_plot.drawScene();
+    });
+
+    document.getElementById('translation_z').addEventListener('input', function () {
+        main_plot.translation_z = this.value;
+        main_plot.drawScene();
+    });
+
+    /**
+     * Add event listener for range sliders scale_x, scale_y, scale_z
+     */
+    document.getElementById('scale_x').addEventListener('input', function () {
+        main_plot.scale_x = this.value;
+        main_plot.drawScene();
+    });
+
+    document.getElementById('scale_y').addEventListener('input', function () {
+        main_plot.scale_y = this.value;
+        main_plot.drawScene();
+    });
+
+    document.getElementById('scale_z').addEventListener('input', function () {
+        main_plot.scale_z = this.value;
+        main_plot.drawScene();
+    });
+
+    /**
+     * Add event listener for file input
+     */
+
+
     document.getElementById('ft2_file_form').addEventListener('submit', function (e) {
         e.preventDefault();
         var file = document.getElementById('userfile').files[0];
@@ -147,8 +197,8 @@ $(document).ready(function () {
 
             let xdim = spe.n_direct;
             let ydim = spe.n_indirect;
-            let data = get_data(new_spectrum_data,xdim,ydim);
-            let colors = get_color(new_spectrum_data,xdim,ydim);
+            let data = get_data(new_spectrum_data,ydim,xdim);
+            let colors = get_color(new_spectrum_data,ydim,xdim);
             main_plot = new webgl_contour_plot2('canvas1',data,colors);
             main_plot.drawScene();
 

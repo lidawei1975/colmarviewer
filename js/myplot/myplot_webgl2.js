@@ -198,9 +198,17 @@ class webgl_contour_plot2 {
         this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.colorBuffer);
         this.gl.bufferData(this.gl.ARRAY_BUFFER, colors, this.gl.STATIC_DRAW);
             
-        this.rotation_x = 40;
-        this.rotation_y = 25;
-        this.rotation_z = 325;
+        this.rotation_x = 0;
+        this.rotation_y = 0;
+        this.rotation_z = 0;
+
+        this.translation_x = 100;
+        this.translation_y = 100;
+        this.translation_z = 0;
+
+        this.scale_x = 1;
+        this.scale_y = 1;
+        this.scale_z = 0.1;
 
     };
 
@@ -265,9 +273,9 @@ class webgl_contour_plot2 {
 
 
 
-        var translation = [245, 250, 80];
+        var translation = [this.translation_x, this.translation_y, this.translation_z];
         var rotation = [this.degToRad(this.rotation_x), this.degToRad(this.rotation_y), this.degToRad(this.rotation_z)];
-        var scale = [1, 1, 1];
+        var scale = [this.scale_x, this.scale_y, this.scale_z];
         
         var matrix = m4.projection(this.gl.canvas.clientWidth, this.gl.canvas.clientHeight, 400);
         matrix = m4.translate(matrix, translation[0], translation[1], translation[2]);
