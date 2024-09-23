@@ -74,7 +74,7 @@ function get_color(heat_data,xdim,ydim)
 
     for(let i=0;i<xdim;i++){
         for(let j=0;j<ydim;j++){
-            let color = Math.floor(heat_data[i*ydim+j]/200*250);
+            let color = Math.floor(heat_data[i*ydim+j]);
 
             /**
              * if color < 0, set color to 0
@@ -188,11 +188,19 @@ $(document).ready(function () {
             var spe = process_ft_file(e.target.result, "test.ft2", 0);
 
             /**
-             * Rescale spe.raw_data to [0,200], using spe.spectral_max 
+             * Rescale spe.raw_data to [0,250], using spe.spectral_max and spe.spectral_min
              */
             let new_spectrum_data = new Float32Array(spe.raw_data.length);
             for (let i = 0; i < spe.raw_data.length; i++) {
-                new_spectrum_data[i] = 200 * spe.raw_data[i]/spe.spectral_max;
+                new_spectrum_data[i] = 250 * (spe.raw_data[i] - spe.spectral_min) / (spe.spectral_max - spe.spectral_min);
+            }
+
+            /**
+             * Define log_spectrum_data as log of new_spectrum_data + 1
+             */
+            let log_spectrum_data = new Float32Array(new_spectrum_data.length);
+            for (let i = 0; i < new_spectrum_data.length; i++) {
+                log_spectrum_data[i] = 40*Math.log(new_spectrum_data[i] + 80);
             }
 
             let xdim = spe.n_direct;

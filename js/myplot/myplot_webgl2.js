@@ -234,7 +234,7 @@ class webgl_contour_plot2 {
 
         // Turn on culling. By default backfacing triangles
         // will be culled.
-        this.gl.enable(this.gl.CULL_FACE);
+        // this.gl.enable(this.gl.CULL_FACE);
 
          // Enable the depth buffer
         this.gl.enable(this.gl.DEPTH_TEST);
@@ -276,13 +276,19 @@ class webgl_contour_plot2 {
         var translation = [this.translation_x, this.translation_y, this.translation_z];
         var rotation = [this.degToRad(this.rotation_x), this.degToRad(this.rotation_y), this.degToRad(this.rotation_z)];
         var scale = [this.scale_x, this.scale_y, this.scale_z];
+
+
+        console.log("translation: ", translation);
+        console.log("rotation: ", rotation);
+        console.log("scale: ", scale);
         
-        var matrix = m4.projection(this.gl.canvas.clientWidth, this.gl.canvas.clientHeight, 400);
+        var matrix = m4.projection(this.gl.canvas.clientWidth, this.gl.canvas.clientHeight, -4000);
         matrix = m4.translate(matrix, translation[0], translation[1], translation[2]);
         matrix = m4.xRotate(matrix, rotation[0]);
         matrix = m4.yRotate(matrix, rotation[1]);
         matrix = m4.zRotate(matrix, rotation[2]);
         matrix = m4.scale(matrix, scale[0], scale[1], scale[2]);
+        matrix = m4.translate(matrix, -149*4, -110*4, 0);
 
         this.gl.uniformMatrix4fv(this.matrixLocation, false, matrix);
 
