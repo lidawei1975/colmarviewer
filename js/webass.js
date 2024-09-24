@@ -336,7 +336,7 @@ onmessage = function (e) {
          * which contain 4 numbers: xdim, ydim, xscale, yscale
          */
         let content = ' '.concat(e.data.bin_size[0],' ',e.data.bin_size[1],' ',e.data.bin_size[2],' ',e.data.bin_size[3]);
-        Module['FS_createDataFile']('/', 'cubic_spline_infor.txt', content, true, true, true);
+        Module['FS_createDataFile']('/', 'cubic_spline_info.txt', content, true, true, true);
 
         /**
          * Write a file named "cubic_spline_spect.bin" to the virtual file system, size is 4*xdim*ydim
@@ -355,13 +355,15 @@ onmessage = function (e) {
          * Remove the input files from the virtual file system
          * Read file cubic_spline.txt, parse it and send it back to the main script
          */
-        FS.unlink('cubic_spline_infor.txt');
+        FS.unlink('cubic_spline_info.txt');
         FS.unlink('cubic_spline_spect.bin');
         let cubic_spline_data = FS.readFile('cubic_spline_new_spect.bin', { encoding: 'binary' });
         FS.unlink('cubic_spline_new_spect.bin');
 
         postMessage({
             cubic_spline_data: cubic_spline_data,
+            ydim: e.data.bin_size[0]*e.data.bin_size[2],
+            xdim: e.data.bin_size[1]*e.data.bin_size[3],
         });
 
     }

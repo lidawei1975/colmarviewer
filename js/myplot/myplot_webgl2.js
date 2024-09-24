@@ -2,6 +2,18 @@
 
 var m4 = {
 
+    perspective: function(fieldOfViewInRadians, aspect, near, far) {
+      var f = Math.tan(Math.PI * 0.5 - 0.5 * fieldOfViewInRadians);
+      var rangeInv = 1.0 / (near - far);
+
+      return [
+        f / aspect, 0, 0, 0,
+        0, f, 0, 0,
+        0, 0, (near + far) * rangeInv, -1,
+        0, 0, near * far * rangeInv * 2, 0
+      ];
+    },
+
     projection: function(width, height, depth) {
       // Note: This matrix flips the Y axis so 0 is at the top.
       return [
@@ -202,13 +214,15 @@ class webgl_contour_plot2 {
         this.rotation_y = 0;
         this.rotation_z = 0;
 
-        this.translation_x = 100;
-        this.translation_y = 100;
-        this.translation_z = 0;
+        this.translation_x = 20;
+        this.translation_y = 20;
+        this.translation_z = -5000;
 
         this.scale_x = 1;
         this.scale_y = 1;
-        this.scale_z = 0.1;
+        this.scale_z = 1;
+
+        this.fov = 10;
 
     };
 
@@ -282,13 +296,29 @@ class webgl_contour_plot2 {
         console.log("rotation: ", rotation);
         console.log("scale: ", scale);
         
-        var matrix = m4.projection(this.gl.canvas.clientWidth, this.gl.canvas.clientHeight, -4000);
+        // var matrix = m4.projection(this.gl.canvas.clientWidth, this.gl.canvas.clientHeight, -4000);
+        // matrix = m4.translate(matrix, translation[0], translation[1], translation[2]);
+        // matrix = m4.xRotate(matrix, rotation[0]);
+        // matrix = m4.yRotate(matrix, rotation[1]);
+        // matrix = m4.zRotate(matrix, rotation[2]);
+        // matrix = m4.scale(matrix, scale[0], scale[1], scale[2]);
+        // matrix = m4.translate(matrix, -149*4, -110*4, 0);
+
+
+        // Compute the matrix
+        var fieldOfViewRadians = this.degToRad(this.fov);
+        var aspect = this.gl.canvas.clientWidth / this.gl.canvas.clientHeight;
+        var zNear = 1;
+        var zFar = 6000;
+        var matrix = m4.perspective(fieldOfViewRadians, aspect, zNear, zFar);
         matrix = m4.translate(matrix, translation[0], translation[1], translation[2]);
         matrix = m4.xRotate(matrix, rotation[0]);
         matrix = m4.yRotate(matrix, rotation[1]);
         matrix = m4.zRotate(matrix, rotation[2]);
         matrix = m4.scale(matrix, scale[0], scale[1], scale[2]);
-        matrix = m4.translate(matrix, -149*4, -110*4, 0);
+        matrix = m4.translate(matrix, -149*4, -108*4, 0);
+
+
 
         this.gl.uniformMatrix4fv(this.matrixLocation, false, matrix);
 

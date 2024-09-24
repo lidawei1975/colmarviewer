@@ -1,3 +1,22 @@
+
+/**
+ * Make sure we can load WebWorker
+*/
+
+var webassembly_worker;
+
+try {
+    webassembly_worker = new Worker('./js/webass.js');
+}
+catch (err) {
+    console.log(err);
+    if ( typeof (webassembly_worker) === "undefined") {
+        alert("Failed to load WebWorker, probably due to browser incompatibility. Please use a modern browser, if you run this program locally, please read the instructions titled 'How to run COLMAR Viewer locally'");
+    }
+}
+
+
+
 class spectrum {
     constructor() {
         this.header = new Float32Array(512); //header of the spectrum, 512 float32 numbers
@@ -35,8 +54,8 @@ function get_data(heat_data,xdim,ydim)
 {
     var data = new Float32Array(xdim*ydim*6*3);
 
-    var step1 = 4;
-    var step2 = 4;
+    var step1 = 1;
+    var step2 = 1;
 
     for(let i=0;i<xdim;i++){
         for(let j=0;j<ydim;j++){
@@ -77,36 +96,48 @@ function get_color(heat_data,xdim,ydim)
             let color = Math.floor(heat_data[i*ydim+j]);
 
             /**
-             * if color < 0, set color to 0
+             * strip color. 
+             * 0-10: white
+             * 11-20: black
+             * 21-30: white
+             * 31-40: black
+             * 41-50: white
+             * ...
              */
-            if(color < 0)
+            let color_strip = Math.floor(color/4);
+            if(color_strip % 2 == 0)
+            {
+                color = 255;
+            }
+            else
             {
                 color = 0;
             }
 
+
             colors[(i*ydim+j)*6*3] = color;
-            colors[(i*ydim+j)*6*3+1] = 0;
-            colors[(i*ydim+j)*6*3+2] = 255-color;
+            colors[(i*ydim+j)*6*3+1] = color;
+            colors[(i*ydim+j)*6*3+2] = color;
 
             colors[(i*ydim+j)*6*3+3] = color;
             colors[(i*ydim+j)*6*3+4] = 0;
-            colors[(i*ydim+j)*6*3+5] = 255-color;
+            colors[(i*ydim+j)*6*3+5] = color;
 
             colors[(i*ydim+j)*6*3+6] = color;
-            colors[(i*ydim+j)*6*3+7] = 0;
-            colors[(i*ydim+j)*6*3+8] = 255-color;
+            colors[(i*ydim+j)*6*3+7] = color;
+            colors[(i*ydim+j)*6*3+8] = color;
 
             colors[(i*ydim+j)*6*3+9] = color;
-            colors[(i*ydim+j)*6*3+10] = 0;
-            colors[(i*ydim+j)*6*3+11] = 255-color;
+            colors[(i*ydim+j)*6*3+10] = color;
+            colors[(i*ydim+j)*6*3+11] = color;
 
             colors[(i*ydim+j)*6*3+12] = color;
-            colors[(i*ydim+j)*6*3+13] = 0;
-            colors[(i*ydim+j)*6*3+14] = 255-color;
+            colors[(i*ydim+j)*6*3+13] = color;
+            colors[(i*ydim+j)*6*3+14] = color;
 
             colors[(i*ydim+j)*6*3+15] = color;
-            colors[(i*ydim+j)*6*3+16] = 0;
-            colors[(i*ydim+j)*6*3+17] = 255-color;
+            colors[(i*ydim+j)*6*3+16] = color;
+            colors[(i*ydim+j)*6*3+17] = color;
         }
     }
     return colors;
@@ -160,18 +191,23 @@ $(document).ready(function () {
     /**
      * Add event listener for range sliders scale_x, scale_y, scale_z
      */
-    document.getElementById('scale_x').addEventListener('input', function () {
-        main_plot.scale_x = this.value;
-        main_plot.drawScene();
-    });
+    // document.getElementById('scale_x').addEventListener('input', function () {
+    //     main_plot.scale_x = this.value;
+    //     main_plot.drawScene();
+    // });
 
-    document.getElementById('scale_y').addEventListener('input', function () {
-        main_plot.scale_y = this.value;
-        main_plot.drawScene();
-    });
+    // document.getElementById('scale_y').addEventListener('input', function () {
+    //     main_plot.scale_y = this.value;
+    //     main_plot.drawScene();
+    // });
 
     document.getElementById('scale_z').addEventListener('input', function () {
         main_plot.scale_z = this.value;
+        main_plot.drawScene();
+    });
+
+    document.getElementById('fov').addEventListener('input', function () {
+        main_plot.fov = this.value;
         main_plot.drawScene();
     });
 
@@ -205,15 +241,49 @@ $(document).ready(function () {
 
             let xdim = spe.n_direct;
             let ydim = spe.n_indirect;
+
+            // /**
+            //  * Cubic spline interpolation
+            //  */
+            // let xdim_new = 4 * xdim;
+            // let ydim_new = 4 * ydim;
+
+            // webassembly_worker.postMessage({
+            //    bin_size: [ydim, xdim, 4,4],
+            //    bin_data: new_spectrum_data,
+            // });
+
             let data = get_data(new_spectrum_data,ydim,xdim);
             let colors = get_color(new_spectrum_data,ydim,xdim);
             main_plot = new webgl_contour_plot2('canvas1',data,colors);
             main_plot.drawScene();
-
         };
         reader.readAsArrayBuffer(file);
     });
 });
+
+
+webassembly_worker.onmessage = function (e) {
+
+     /**
+     * if result is stdout, it is the processing message
+     */
+     if (e.data.stdout) {
+        console.log(e.data.stdout);
+    }
+
+    else {
+
+        let new_spectrum_data = new Float32Array(e.data.cubic_spline_data.buffer);
+        let new_xdim = e.data.xdim;
+        let new_ydim = e.data.ydim;
+
+        let data = get_data(new_spectrum_data,new_ydim,new_xdim);
+        let colors = get_color(new_spectrum_data,new_ydim,new_xdim);
+        main_plot = new webgl_contour_plot2('canvas1',data,colors);
+        main_plot.drawScene();
+    }
+};
 
 function process_ft_file(arrayBuffer,file_name, spectrum_type) {
 
