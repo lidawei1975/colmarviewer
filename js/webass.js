@@ -11,6 +11,7 @@ const api = {
     fid_phase: Module.cwrap("fid_phase", "number", []),
     voigt_fit: Module.cwrap("voigt_fit", "number", []),
     peak_match: Module.cwrap("peak_match", "number", []),
+    cubic_spline: Module.cwrap("cubic_spline", "number",[]),
 };
 
 /**
@@ -323,6 +324,46 @@ onmessage = function (e) {
             matched_peaks_tab: matched_peaks_tab,
             assignment: assignment,
         });
+    }
+    /**
+     * bin_data and bin_size are received. Run cubic_spline function to interpolate the data
+     */
+    else if(e.data.bin_data && e.data.bin_size) {
+        console.log('Bin data and bin size received');
+
+        /**
+         * Write a file named "cubic_spline_infor.txt" to the virtual file system
+         * which contain 4 numbers: xdim, ydim, xscale, yscale
+         */
+        let content = ' '.concat(e.data.bin_size[0],' ',e.data.bin_size[1],' ',e.data.bin_size[2],' ',e.data.bin_size[3]);
+        Module['FS_createDataFile']('/', 'cubic_spline_infor.txt', content, true, true, true);
+
+        /**
+         * Write a file named "cubic_spline_spect.bin" to the virtual file system, size is 4*xdim*ydim
+         */
+        Module['FS_createDataFile']('/', 'cubic_spline_spect.bin', e.data.bin_data, true, true, true);
+        console.log('Bin data and infor saved to virtual file system');
+        
+        
+        /**
+         * Run cubic_spline function
+         */
+        this.postMessage({ stdout: "Running cubic_spline function" });
+        api.cubic_spline();
+        console.log('Finished running web assembly code of cubic spline interpolation');
+        /**
+         * Remove the input files from the virtual file system
+         * Read file cubic_spline.txt, parse it and send it back to the main script
+         */
+        FS.unlink('cubic_spline_infor.txt');
+        FS.unlink('cubic_spline_spect.bin');
+        let cubic_spline_data = FS.readFile('cubic_spline_new_spect.bin', { encoding: 'binary' });
+        FS.unlink('cubic_spline_new_spect.bin');
+
+        postMessage({
+            cubic_spline_data: cubic_spline_data,
+        });
+
     }
 }
 
