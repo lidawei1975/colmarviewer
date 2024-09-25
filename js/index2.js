@@ -57,31 +57,65 @@ function get_data(heat_data,xdim,ydim)
     var step1 = 1;
     var step2 = 1;
 
+    var scale = 0.85;
+
     for(let i=0;i<xdim;i++){
         for(let j=0;j<ydim;j++){
-            data[(i*ydim+j)*6*3] = i*step1;
-            data[(i*ydim+j)*6*3+1] = j*step2;
-            data[(i*ydim+j)*6*3+2] = heat_data[i*ydim+j]*0.8;
 
-            data[(i*ydim+j)*6*3+6] = (i+1)*step1;
-            data[(i*ydim+j)*6*3+7] = j*step2;
-            data[(i*ydim+j)*6*3+8] = heat_data[(i+1)*ydim+j]*0.8;
+            if(heat_data[i*ydim+j] + heat_data[(i+1)*ydim+j+1] > heat_data[i*ydim+j+1] + heat_data[(i+1)*ydim+j])
+            {
+                data[(i*ydim+j)*6*3] = i*step1;
+                data[(i*ydim+j)*6*3+1] = j*step2;
+                data[(i*ydim+j)*6*3+2] = heat_data[i*ydim+j]*scale;
 
-            data[(i*ydim+j)*6*3+3] = i*step1;
-            data[(i*ydim+j)*6*3+4] = (j+1)*step2
-            data[(i*ydim+j)*6*3+5] = heat_data[i*ydim+j+1]*0.8;
+                data[(i*ydim+j)*6*3+6] = (i+1)*step1;
+                data[(i*ydim+j)*6*3+7] = j*step2;
+                data[(i*ydim+j)*6*3+8] = heat_data[(i+1)*ydim+j]*scale;
 
-            data[(i*ydim+j)*6*3+9] = (i+1)*step1;
-            data[(i*ydim+j)*6*3+10] = j*step2;
-            data[(i*ydim+j)*6*3+11] = heat_data[(i+1)*ydim+j]*0.8;
+                data[(i*ydim+j)*6*3+3] = i*step1;
+                data[(i*ydim+j)*6*3+4] = (j+1)*step2
+                data[(i*ydim+j)*6*3+5] = heat_data[i*ydim+j+1]*scale;
 
-            data[(i*ydim+j)*6*3+15] = (i+1)*step1;
-            data[(i*ydim+j)*6*3+16] = (j+1)*step2;
-            data[(i*ydim+j)*6*3+17] = heat_data[(i+1)*ydim+j+1]*0.8;
+                data[(i*ydim+j)*6*3+9] = (i+1)*step1;
+                data[(i*ydim+j)*6*3+10] = j*step2;
+                data[(i*ydim+j)*6*3+11] = heat_data[(i+1)*ydim+j]*scale;
 
-            data[(i*ydim+j)*6*3+12] = i*step1;
-            data[(i*ydim+j)*6*3+13] = (j+1)*step2;
-            data[(i*ydim+j)*6*3+14] = heat_data[i*ydim+j+1]*0.8;
+                data[(i*ydim+j)*6*3+15] = (i+1)*step1;
+                data[(i*ydim+j)*6*3+16] = (j+1)*step2;
+                data[(i*ydim+j)*6*3+17] = heat_data[(i+1)*ydim+j+1]*scale;
+
+                data[(i*ydim+j)*6*3+12] = i*step1;
+                data[(i*ydim+j)*6*3+13] = (j+1)*step2;
+                data[(i*ydim+j)*6*3+14] = heat_data[i*ydim+j+1]*scale;
+            }
+            else
+            {
+                data[(i*ydim+j)*6*3] = i*step1;
+                data[(i*ydim+j)*6*3+1] = j*step2;
+                data[(i*ydim+j)*6*3+2] = heat_data[i*ydim+j]*scale;
+
+                data[(i*ydim+j)*6*3+6] = (i+1)*step1;
+                data[(i*ydim+j)*6*3+7] = (j+1)*step2;
+                data[(i*ydim+j)*6*3+8] = heat_data[(i+1)*ydim+j+1]*scale;
+
+                data[(i*ydim+j)*6*3+3] = i*step1;
+                data[(i*ydim+j)*6*3+4] = (j+1)*step2;
+                data[(i*ydim+j)*6*3+5] = heat_data[i*ydim+j+1]*scale;
+
+                data[(i*ydim+j)*6*3+9] = i*step1;
+                data[(i*ydim+j)*6*3+10] = j*step2;
+                data[(i*ydim+j)*6*3+11] = heat_data[i*ydim+j]*scale;
+
+                data[(i*ydim+j)*6*3+15] = (i+1)*step1;
+                data[(i*ydim+j)*6*3+16] = j*step2;
+                data[(i*ydim+j)*6*3+17] = heat_data[(i+1)*ydim+j]*scale;
+
+                data[(i*ydim+j)*6*3+12] = (i+1)*step1;
+                data[(i*ydim+j)*6*3+13] = (j+1)*step2;
+                data[(i*ydim+j)*6*3+14] = heat_data[(i+1)*ydim+j+1]*scale;
+                
+            }
+
         }
     }
     return data;
@@ -288,7 +322,7 @@ $(document).ready(function () {
 function get_contour_data(xdim,ydim,levels,data)
 {
     let polygons = d3.contours()
-        // .smooth(false)
+        .smooth(false)
         .size([xdim, ydim])
         .thresholds(levels)(data);
 
