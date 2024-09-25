@@ -61,27 +61,27 @@ function get_data(heat_data,xdim,ydim)
         for(let j=0;j<ydim;j++){
             data[(i*ydim+j)*6*3] = i*step1;
             data[(i*ydim+j)*6*3+1] = j*step2;
-            data[(i*ydim+j)*6*3+2] = heat_data[i*ydim+j];
+            data[(i*ydim+j)*6*3+2] = heat_data[i*ydim+j]*0.8;
 
             data[(i*ydim+j)*6*3+6] = (i+1)*step1;
             data[(i*ydim+j)*6*3+7] = j*step2;
-            data[(i*ydim+j)*6*3+8] = heat_data[(i+1)*ydim+j];
+            data[(i*ydim+j)*6*3+8] = heat_data[(i+1)*ydim+j]*0.8;
 
             data[(i*ydim+j)*6*3+3] = i*step1;
             data[(i*ydim+j)*6*3+4] = (j+1)*step2
-            data[(i*ydim+j)*6*3+5] = heat_data[i*ydim+j+1];
+            data[(i*ydim+j)*6*3+5] = heat_data[i*ydim+j+1]*0.8;
 
             data[(i*ydim+j)*6*3+9] = (i+1)*step1;
             data[(i*ydim+j)*6*3+10] = j*step2;
-            data[(i*ydim+j)*6*3+11] = heat_data[(i+1)*ydim+j];
+            data[(i*ydim+j)*6*3+11] = heat_data[(i+1)*ydim+j]*0.8;
 
             data[(i*ydim+j)*6*3+15] = (i+1)*step1;
             data[(i*ydim+j)*6*3+16] = (j+1)*step2;
-            data[(i*ydim+j)*6*3+17] = heat_data[(i+1)*ydim+j+1];
+            data[(i*ydim+j)*6*3+17] = heat_data[(i+1)*ydim+j+1]*0.8;
 
             data[(i*ydim+j)*6*3+12] = i*step1;
             data[(i*ydim+j)*6*3+13] = (j+1)*step2;
-            data[(i*ydim+j)*6*3+14] = heat_data[i*ydim+j+1];
+            data[(i*ydim+j)*6*3+14] = heat_data[i*ydim+j+1]*0.8;
         }
     }
     return data;
@@ -93,51 +93,42 @@ function get_color(heat_data,xdim,ydim)
 
     for(let i=0;i<xdim;i++){
         for(let j=0;j<ydim;j++){
-            let color = Math.floor(heat_data[i*ydim+j]);
+            let data = Math.floor(heat_data[i*ydim+j]);
 
             /**
-             * strip color. 
-             * 0-10: white
-             * 11-20: black
-             * 21-30: white
-             * 31-40: black
-             * 41-50: white
-             * ...
+             * Color-map from gray-red to red
+             * If data < 128, color is [data*2, data*2, data*2]
+             * If data >= 128, color is [data,0,0]
              */
-            let color_strip = Math.floor(color/4);
-            if(color_strip % 2 == 0)
-            {
-                color = 255;
-            }
-            else
-            {
-                color = 0;
-            }
+            let color = [255-data,255-data,255-data];
+           
+            
 
+            colors[(i*ydim+j)*6*3] = color[0];
+            colors[(i*ydim+j)*6*3+1] = color[1];
+            colors[(i*ydim+j)*6*3+2] = color[2];
 
-            colors[(i*ydim+j)*6*3] = color;
-            colors[(i*ydim+j)*6*3+1] = color;
-            colors[(i*ydim+j)*6*3+2] = color;
+            colors[(i*ydim+j)*6*3+3] = color[0];
+            colors[(i*ydim+j)*6*3+4] = color[1];
+            colors[(i*ydim+j)*6*3+5] = color[2];
 
-            colors[(i*ydim+j)*6*3+3] = color;
-            colors[(i*ydim+j)*6*3+4] = 0;
-            colors[(i*ydim+j)*6*3+5] = color;
+            colors[(i*ydim+j)*6*3+6] = color[0];
+            colors[(i*ydim+j)*6*3+7] = color[1];
+            colors[(i*ydim+j)*6*3+8] = color[2];
 
-            colors[(i*ydim+j)*6*3+6] = color;
-            colors[(i*ydim+j)*6*3+7] = color;
-            colors[(i*ydim+j)*6*3+8] = color;
+            colors[(i*ydim+j)*6*3+9] = color[0];
+            colors[(i*ydim+j)*6*3+10] = color[1];
+            colors[(i*ydim+j)*6*3+11] = color[2];
 
-            colors[(i*ydim+j)*6*3+9] = color;
-            colors[(i*ydim+j)*6*3+10] = color;
-            colors[(i*ydim+j)*6*3+11] = color;
+            colors[(i*ydim+j)*6*3+12] = color[0];
+            colors[(i*ydim+j)*6*3+13] = color[1];
+            colors[(i*ydim+j)*6*3+14] = color[2];
 
-            colors[(i*ydim+j)*6*3+12] = color;
-            colors[(i*ydim+j)*6*3+13] = color;
-            colors[(i*ydim+j)*6*3+14] = color;
+            colors[(i*ydim+j)*6*3+15] = color[0];
+            colors[(i*ydim+j)*6*3+16] = color[1];
+            colors[(i*ydim+j)*6*3+17] = color[2];
 
-            colors[(i*ydim+j)*6*3+15] = color;
-            colors[(i*ydim+j)*6*3+16] = color;
-            colors[(i*ydim+j)*6*3+17] = color;
+           
         }
     }
     return colors;
@@ -255,12 +246,92 @@ $(document).ready(function () {
 
             let data = get_data(new_spectrum_data,ydim,xdim);
             let colors = get_color(new_spectrum_data,ydim,xdim);
-            main_plot = new webgl_contour_plot2('canvas1',data,colors);
+
+            let data_length = data.length;
+
+            let levels =[10,15,20,30,50,70,100,140,200];
+
+            /**
+             * Calculate contour lines
+             */
+            let workerResult = get_contour_data(xdim,ydim,levels,new_spectrum_data);
+
+            let line_data = workerResult.points;
+
+            /**
+             * Uniform blue color for all contour lines
+             */
+            let line_color = new Uint8Array(line_data.length);
+            for(let i=0;i<line_color.length/3;i++)
+            {
+                line_color[i*3] = 0;
+                line_color[i*3+1] = 0;
+                line_color[i*3+2] = 255;
+            }
+
+           
+            data = Float32Concat(data,line_data);
+            colors = Uint8Concat(colors,line_color);
+
+            /**
+             * clear workerResult.points
+             */
+            workerResult.points = new Float32Array(0);
+
+            main_plot = new webgl_contour_plot2('canvas1',data,colors,data_length,workerResult);
             main_plot.drawScene();
         };
         reader.readAsArrayBuffer(file);
     });
 });
+
+function get_contour_data(xdim,ydim,levels,data)
+{
+    let polygons = d3.contours()
+        // .smooth(false)
+        .size([xdim, ydim])
+        .thresholds(levels)(data);
+
+    let polygon_2d = [];
+
+    let workerResult = {};
+
+
+    workerResult.polygon_length = [];
+    workerResult.levels_length = [];
+
+
+    for (let m = 0; m < polygons.length; m++) {
+        for (let i = 0; i < polygons[m].coordinates.length; i++) {
+            for (let j = 0; j < polygons[m].coordinates[i].length; j++) {
+                let coors2 = polygons[m].coordinates[i][j];
+                let coors3 = [];
+                /**
+                 * coors2 is an array of length 2, representing a point in 2D
+                 * We need to convert it to 3D by adding a z value
+                 */
+                for (let k = 0; k < coors2.length; k++) {
+                    coors3.push([coors2[k][0], coors2[k][1], levels[m]]);
+                }
+                polygon_2d = polygon_2d.concat(coors3);
+                workerResult.polygon_length.push(polygon_2d.length);
+            }
+        }
+        workerResult.levels_length.push(workerResult.polygon_length.length);
+    }
+    
+
+    let polygon_1d = new Array(polygon_2d.length * 3);
+
+    for (let i = 0; i < polygon_2d.length; i++) {
+        polygon_1d[i * 3] = polygon_2d[i][1]; //x value
+        polygon_1d[i * 3 + 1] = polygon_2d[i][0]; //y value
+        polygon_1d[i * 3 + 2] = polygon_2d[i][2]; //z value
+    }
+    workerResult.points = new Float32Array(polygon_1d);
+
+    return workerResult;
+}
 
 
 webassembly_worker.onmessage = function (e) {
@@ -476,4 +547,31 @@ function find_max_min(data)
         }
     }
     return [max,min];
+}
+
+
+/**
+ * Concat two float32 arrays into one
+ * @returns the concatenated array
+ */
+function Float32Concat(first, second)
+{
+    var firstLength = first.length,
+    result = new Float32Array(firstLength + second.length);
+
+    result.set(first);
+    result.set(second, firstLength);
+
+    return result;
+}
+
+function Uint8Concat(first, second)
+{
+    var firstLength = first.length,
+    result = new Uint8Array(firstLength + second.length);
+
+    result.set(first);
+    result.set(second, firstLength);
+
+    return result;
 }

@@ -156,7 +156,7 @@ var m4 = {
 
 class webgl_contour_plot2 {
 
-    constructor(canvas_id,points,colors) {
+    constructor(canvas_id,points,colors,data_length,contour_result) {
 
         this.canvas = document.querySelector("#" + canvas_id);
         this.gl = this.canvas.getContext("webgl");
@@ -164,7 +164,12 @@ class webgl_contour_plot2 {
             alert("No WebGL");
         }
 
-        this.data_length = points.length/3;
+        this.data_length = data_length/3; // number of triangles
+
+        this.line_data_length = points.length/3 - this.data_length; // number of lines
+
+        this.levels_length = contour_result.levels_length;
+        this.polygon_length = contour_result.polygon_length;
 
         let vertex_shader_2d = `
                 attribute vec4 a_position;
@@ -265,7 +270,7 @@ class webgl_contour_plot2 {
          * In our case, the data will not change, so we will use STATIC_DRAW in load_file() call
          * and we only need to call vertexAttribPointer once when initializing the program
          */
-        var size = 3;          // 2 components per iteration
+        var size = 3;          // 3 components per iteration
         var type = this.gl.FLOAT;   // the data is 32bit floats
         var normalize = false; // don't normalize the data
         var stride = 0;        // 0 = move forward size * sizeof(type) each iteration to get the next position
@@ -318,16 +323,40 @@ class webgl_contour_plot2 {
         matrix = m4.scale(matrix, scale[0], scale[1], scale[2]);
         matrix = m4.translate(matrix, -149*4, -108*4, 0);
 
-
-
         this.gl.uniformMatrix4fv(this.matrixLocation, false, matrix);
 
-
-        // Draw the geometry.
+        // Draw all the triangles
         var primitiveType = this.gl.TRIANGLES;
         var offset = 0;
         var count =this.data_length;
         this.gl.drawArrays(primitiveType, offset, count);
+
+        // Draw addtional lines
+        // this.gl.drawArrays(this.gl.LINE_STRIP, this.data_length, this.line_data_length);
+
+        /**
+             * Draw the positive contour plot, one level at a time
+             */
+        for(var m=0; m < this.levels_length.length; m++)
+        {
+            let i_start = 0;
+            let i_stop = this.levels_length[m];
+            /**
+             * Draw the contour plot, one polygon at a time
+             */
+            for (var i = i_start; i < i_stop; i++)
+            {   
+                let point_start = 0;
+                if(i>0)
+                {
+                    point_start = this.polygon_length[i-1];
+                }
+                let count = this.polygon_length[i] - point_start;
+                this.gl.drawArrays(this.gl.LINE_STRIP, this.data_length + point_start, count);
+            }
+        }
+
+
     };
 
 };
