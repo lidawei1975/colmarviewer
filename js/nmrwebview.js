@@ -89,6 +89,11 @@ class spectrum {
         this.median_sigmay = 1.0;
         this.median_gammax = 1.0;
         this.median_gammay = 1.0;
+
+        /**
+         * Control the display of the spectrum
+         */
+        this.visible = true; //visible or not
     }
 };
 
@@ -974,9 +979,9 @@ sortableList.addEventListener(
     "dragstart",
     (e) => {
         /**
-         * We will move the parent element of the dragged item
+         * We will move the parent element (div)'s parent (li) of the dragged item
          */
-        draggedItem = e.target.parentElement;
+        draggedItem = e.target.parentElement.parentElement
         setTimeout(() => {
             e.target.parentElement.style.display =
                 "none";
@@ -1071,27 +1076,84 @@ const getDragAfterElement = (container, y) =>
     ).element;
 };
 
+function minimize_spectrum(button,index)
+{
+    let spectrum_div = document.getElementById("spectrum-".concat(index)).querySelector("div");
+    let minimize_button = button;
+    if(minimize_button.innerText === "-")
+    {
+        minimize_button.innerText = "+";
+        spectrum_div.style.height = "1.75rem";
+        spectrum_div.style.overflow = "clip";
+        /**
+         * Also set lbs to hide all contours for this spectrum
+         */
+        hsqc_spectra[index].visible = false;
 
+        /**
+         * Loop all spectra, find children of this spectrum, hide them too
+         */
+        for(let i=0;i<hsqc_spectra.length;i++)
+        {
+            if(hsqc_spectra[i].spectrum_origin === index)
+            {
+                hsqc_spectra[i].visible = false;
+            }
+        }
+
+
+        main_plot.redraw_contour();
+    }
+    else
+    {
+        minimize_button.innerText = "-";
+        spectrum_div.style.height = "auto";
+        hsqc_spectra[index].visible = true;
+
+        /**
+         * Loop all spectra, find children of this spectrum, show them too
+         */
+        for(let i=0;i<hsqc_spectra.length;i++)
+        {
+            if(hsqc_spectra[i].spectrum_origin === index)
+            {
+                hsqc_spectra[i].visible = true;
+            }
+        }
+
+        main_plot.redraw_contour();
+    }
+
+}
 
 
 function add_to_list(index) {
     let new_spectrum = hsqc_spectra[index];
-    let new_spectrum_div = document.createElement("li");
+    let new_spectrum_div_list = document.createElement("li");
+    let new_spectrum_div = document.createElement("div");
 
     /**
      * Assign a ID to the new spectrum div
      */
-    new_spectrum_div.id = "spectrum-".concat(index);
+    new_spectrum_div_list.id = "spectrum-".concat(index);
 
     /**
      * Add a draggable div to the new spectrum div, only if the spectrum is experimental
      */
     if(new_spectrum.spectrum_origin === -1 || new_spectrum.spectrum_origin === -2)
     {
+        /**
+         * Also add an minimize button to the new spectrum div
+         */
+        let minimize_button = document.createElement("button");
+        minimize_button.innerText = "-";
+        minimize_button.onclick = function () { minimize_spectrum(this,index); };
+        new_spectrum_div.appendChild(minimize_button);
+
         let draggable_span = document.createElement("span");
         draggable_span.draggable = true;
         draggable_span.classList.add("draggable");
-        draggable_span.appendChild(document.createTextNode("\u2630 Drag me. "));
+        draggable_span.appendChild(document.createTextNode("\u2195 Drag me. "));
         draggable_span.style.cursor = "move";
         new_spectrum_div.appendChild(draggable_span);
     }
@@ -1632,19 +1694,21 @@ function add_to_list(index) {
         new_spectrum_div.appendChild(reconstructed_spectrum_ol);
     }
 
+    new_spectrum_div_list.appendChild(new_spectrum_div);
+
     /**
      * Add the new spectrum div to the list of spectra if it is from experimental data
     */
     if(hsqc_spectra[index].spectrum_origin < 0)
     {
-        document.getElementById("spectra_list_ol").appendChild(new_spectrum_div);
+        document.getElementById("spectra_list_ol").appendChild(new_spectrum_div_list);
     }
     /**
      * If the spectrum is reconstructed, add the new spectrum div to the reconstructed spectrum list
      */
     else
     {
-        document.getElementById("reconstructed_spectrum_ol-".concat(hsqc_spectra[index].spectrum_origin)).appendChild(new_spectrum_div);
+        document.getElementById("reconstructed_spectrum_ol-".concat(hsqc_spectra[index].spectrum_origin)).appendChild(new_spectrum_div_list);
     }
 
     if(new_spectrum.spectrum_origin === -1 || new_spectrum.spectrum_origin === -2)
@@ -2456,16 +2520,7 @@ function process_ft_file(arrayBuffer,file_name, spectrum_type) {
     /**
      * Get median of abs(z). If data_size is > 1024*1024, we will sample 1024*1024 points by stride
      */
-    let stride = 1;
-    if (data_size > 1024 * 1024) {
-        stride = Math.floor(data_size / (1024 * 1024));
-    }
-    let z_abs = new Float32Array(data_size / stride);
-    for (var i = 0; i < data_size; i += stride) {
-        z_abs[Math.floor(i / stride)] = Math.abs(result.raw_data[i]);
-    }
-    z_abs.sort();
-    result.noise_level = z_abs[Math.floor(z_abs.length / 2)];
+    result.noise_level = estimate_noise_level(result.n_direct, result.n_indirect, result.raw_data);
 
     /**
      * Get max and min of z (z is sorted)
@@ -3175,4 +3230,88 @@ function median(values)
       : (values[half - 1] + values[half]) / 2
     );
   
+}
+
+/**
+ * Estimate noise level of a spectrum.
+ * Calculate RMSD of each 32*32 segment, and get the median value
+ * @param {*} xdim: x dimension of the spectrum
+ * @param {*} ydim: y dimension of the spectrum
+ * @param {Float32Array} spect: the spectrum data, row major. y*xdim + x to access the element at (x,y)
+ * @returns 
+ */
+function estimate_noise_level(xdim,ydim,spect)
+{
+    let n_segment_x = Math.floor(xdim / 32);
+let n_segment_y = Math.floor(ydim / 32);
+
+let variances = [];      // variance of each segment
+let maximal_values = []; // maximal value of each segment
+
+    /**
+     * loop through each segment, and calculate variance
+     */
+    for (let i = 0; i < n_segment_x; i++) {
+        for (let j = 0; j < n_segment_y; j++) {
+            let t = [];
+            for (let m = 0; m < 32; m++) {
+                for (let n = 0; n < 32; n++) {
+                    t.push(spect[(j * 32 + m) * xdim + i * 32 + n]);
+                }
+            }
+
+            /**
+             * calculate variance of this segment. Subtract the mean value of this segment first
+             * also calculate the max value of this segment
+             */
+            let max_of_t = 0.0;
+            let mean_of_t = 0.0;
+            for (let k = 0; k < t.length; k++) {
+                mean_of_t += t[k];
+                if (Math.abs(t[k]) > max_of_t) {
+                    max_of_t = Math.abs(t[k]);
+                }
+            }
+            mean_of_t /= t.length;
+
+            let variance_of_t = 0.0;
+            for (let k = 0; k < t.length; k++) {
+                variance_of_t += (t[k] - mean_of_t) * (t[k] - mean_of_t);
+            }
+            variance_of_t /= t.length;
+            variances.push(variance_of_t);
+            maximal_values.push(max_of_t);
+        }
+    }
+
+    /**
+     * Sort the variances and get the median value
+     */
+    let variances_sorted = [...variances]; // Copy of variances array
+    variances_sorted.sort((a, b) => a - b); // Sort in ascending order
+    let noise_level = Math.sqrt(variances_sorted[Math.floor(variances_sorted.length / 2)]);
+    console.log("Noise level is " + noise_level + " using variance estimation.");
+
+    /**
+     * Loop through maximal_values and remove the ones that are larger than 10.0 * noise_level
+     * Also remove the corresponding variance as well
+     */
+    for (let i = maximal_values.length - 1; i >= 0; i--) {
+        if (maximal_values[i] > 10.0 * noise_level) {
+            maximal_values.splice(i, 1);  // Remove the element at index i
+            variances.splice(i, 1);       // Remove corresponding variance
+        }
+    }
+
+    /**
+     * Sort the variances again and get the new median value
+     */
+    variances_sorted = [...variances];  // Copy the updated variances array
+    variances_sorted.sort((a, b) => a - b);  // Sort in ascending order
+    noise_level = Math.sqrt(variances_sorted[Math.floor(variances_sorted.length / 2)]);
+
+    console.log("Final noise level is estimated to be " + noise_level);
+
+    return noise_level;
+
 }
