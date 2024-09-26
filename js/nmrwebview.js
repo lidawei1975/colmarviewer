@@ -1089,6 +1089,19 @@ function minimize_spectrum(button,index)
          * Also set lbs to hide all contours for this spectrum
          */
         hsqc_spectra[index].visible = false;
+
+        /**
+         * Loop all spectra, find children of this spectrum, hide them too
+         */
+        for(let i=0;i<hsqc_spectra.length;i++)
+        {
+            if(hsqc_spectra[i].spectrum_origin === index)
+            {
+                hsqc_spectra[i].visible = false;
+            }
+        }
+
+
         main_plot.redraw_contour();
     }
     else
@@ -1096,6 +1109,18 @@ function minimize_spectrum(button,index)
         minimize_button.innerText = "-";
         spectrum_div.style.height = "auto";
         hsqc_spectra[index].visible = true;
+
+        /**
+         * Loop all spectra, find children of this spectrum, show them too
+         */
+        for(let i=0;i<hsqc_spectra.length;i++)
+        {
+            if(hsqc_spectra[i].spectrum_origin === index)
+            {
+                hsqc_spectra[i].visible = true;
+            }
+        }
+
         main_plot.redraw_contour();
     }
 
