@@ -48,127 +48,37 @@ class spectrum {
     }
 };
 
-
-
-function get_data(heat_data,xdim,ydim)
+function get_data_new(triangle_2d)
 {
-    var data = new Float32Array(xdim*ydim*6*3);
+    var data = new Float32Array(triangle_2d.length*3);
 
-    var step1 = 1;
-    var step2 = 1;
-
-    var scale = 0.85;
-
-    for(let i=0;i<xdim;i++){
-        for(let j=0;j<ydim;j++){
-
-            if(heat_data[i*ydim+j] + heat_data[(i+1)*ydim+j+1] > heat_data[i*ydim+j+1] + heat_data[(i+1)*ydim+j])
-            {
-                data[(i*ydim+j)*6*3] = i*step1;
-                data[(i*ydim+j)*6*3+1] = j*step2;
-                data[(i*ydim+j)*6*3+2] = heat_data[i*ydim+j]*scale;
-
-                data[(i*ydim+j)*6*3+6] = (i+1)*step1;
-                data[(i*ydim+j)*6*3+7] = j*step2;
-                data[(i*ydim+j)*6*3+8] = heat_data[(i+1)*ydim+j]*scale;
-
-                data[(i*ydim+j)*6*3+3] = i*step1;
-                data[(i*ydim+j)*6*3+4] = (j+1)*step2
-                data[(i*ydim+j)*6*3+5] = heat_data[i*ydim+j+1]*scale;
-
-                data[(i*ydim+j)*6*3+9] = (i+1)*step1;
-                data[(i*ydim+j)*6*3+10] = j*step2;
-                data[(i*ydim+j)*6*3+11] = heat_data[(i+1)*ydim+j]*scale;
-
-                data[(i*ydim+j)*6*3+15] = (i+1)*step1;
-                data[(i*ydim+j)*6*3+16] = (j+1)*step2;
-                data[(i*ydim+j)*6*3+17] = heat_data[(i+1)*ydim+j+1]*scale;
-
-                data[(i*ydim+j)*6*3+12] = i*step1;
-                data[(i*ydim+j)*6*3+13] = (j+1)*step2;
-                data[(i*ydim+j)*6*3+14] = heat_data[i*ydim+j+1]*scale;
-            }
-            else
-            {
-                data[(i*ydim+j)*6*3] = i*step1;
-                data[(i*ydim+j)*6*3+1] = j*step2;
-                data[(i*ydim+j)*6*3+2] = heat_data[i*ydim+j]*scale;
-
-                data[(i*ydim+j)*6*3+6] = (i+1)*step1;
-                data[(i*ydim+j)*6*3+7] = (j+1)*step2;
-                data[(i*ydim+j)*6*3+8] = heat_data[(i+1)*ydim+j+1]*scale;
-
-                data[(i*ydim+j)*6*3+3] = i*step1;
-                data[(i*ydim+j)*6*3+4] = (j+1)*step2;
-                data[(i*ydim+j)*6*3+5] = heat_data[i*ydim+j+1]*scale;
-
-                data[(i*ydim+j)*6*3+9] = i*step1;
-                data[(i*ydim+j)*6*3+10] = j*step2;
-                data[(i*ydim+j)*6*3+11] = heat_data[i*ydim+j]*scale;
-
-                data[(i*ydim+j)*6*3+15] = (i+1)*step1;
-                data[(i*ydim+j)*6*3+16] = j*step2;
-                data[(i*ydim+j)*6*3+17] = heat_data[(i+1)*ydim+j]*scale;
-
-                data[(i*ydim+j)*6*3+12] = (i+1)*step1;
-                data[(i*ydim+j)*6*3+13] = (j+1)*step2;
-                data[(i*ydim+j)*6*3+14] = heat_data[(i+1)*ydim+j+1]*scale;
-                
-            }
-
-        }
+    for(let i=0;i<triangle_2d.length;i++)
+    {
+        data[i*3] = triangle_2d[i][1];
+        data[i*3+1] = triangle_2d[i][0];
+        data[i*3+2] = triangle_2d[i][2]-5;
     }
+
     return data;
 }
 
-function get_color(heat_data,xdim,ydim)
+function get_color_new(triangle_2d)
 {
-    var colors = new Uint8Array(xdim*ydim*6*3);
+    var colors = new Uint8Array(triangle_2d.length*3);
 
-    for(let i=0;i<xdim;i++){
-        for(let j=0;j<ydim;j++){
-            let data = Math.floor(heat_data[i*ydim+j]);
+    for(let i=0;i<triangle_2d.length;i++)
+    {
+        let color = [255-triangle_2d[i][2],255-triangle_2d[i][2],255-triangle_2d[i][2]];
 
-            /**
-             * Color-map from gray-red to red
-             * If data < 128, color is [data*2, data*2, data*2]
-             * If data >= 128, color is [data,0,0]
-             */
-            let color = [255-data,255-data,255-data];
-           
-            
-
-            colors[(i*ydim+j)*6*3] = color[0];
-            colors[(i*ydim+j)*6*3+1] = color[1];
-            colors[(i*ydim+j)*6*3+2] = color[2];
-
-            colors[(i*ydim+j)*6*3+3] = color[0];
-            colors[(i*ydim+j)*6*3+4] = color[1];
-            colors[(i*ydim+j)*6*3+5] = color[2];
-
-            colors[(i*ydim+j)*6*3+6] = color[0];
-            colors[(i*ydim+j)*6*3+7] = color[1];
-            colors[(i*ydim+j)*6*3+8] = color[2];
-
-            colors[(i*ydim+j)*6*3+9] = color[0];
-            colors[(i*ydim+j)*6*3+10] = color[1];
-            colors[(i*ydim+j)*6*3+11] = color[2];
-
-            colors[(i*ydim+j)*6*3+12] = color[0];
-            colors[(i*ydim+j)*6*3+13] = color[1];
-            colors[(i*ydim+j)*6*3+14] = color[2];
-
-            colors[(i*ydim+j)*6*3+15] = color[0];
-            colors[(i*ydim+j)*6*3+16] = color[1];
-            colors[(i*ydim+j)*6*3+17] = color[2];
-
-           
-        }
+        colors[i*3] = color[0];
+        colors[i*3+1] = color[1];
+        colors[i*3+2] = color[2];
     }
+
     return colors;
 }
 
-
+    
 
 
 var main_plot;
@@ -267,28 +177,35 @@ $(document).ready(function () {
             let xdim = spe.n_direct;
             let ydim = spe.n_indirect;
 
-            // /**
-            //  * Cubic spline interpolation
-            //  */
-            // let xdim_new = 4 * xdim;
-            // let ydim_new = 4 * ydim;
 
-            // webassembly_worker.postMessage({
-            //    bin_size: [ydim, xdim, 4,4],
-            //    bin_data: new_spectrum_data,
-            // });
+            let levels =[10];
 
-            let data = get_data(new_spectrum_data,ydim,xdim);
-            let colors = get_color(new_spectrum_data,ydim,xdim);
-
-            let data_length = data.length;
-
-            let levels =[10,15,20,30,50,70,100,140,200];
+            for( let i = 1; i < 40; i++)
+            {
+                levels.push(levels[i-1]*1.2);
+                if(levels[i] > 250)
+                {
+                    levels = levels.slice(0,i);
+                    break;
+                }
+            }
 
             /**
              * Calculate contour lines
              */
             let workerResult = get_contour_data(xdim,ydim,levels,new_spectrum_data);
+
+
+            /**
+             * Triangle_2d is an array of 3D coordinates of the triangles for webgl 3D plot
+             */
+            let triangle_2d = webassembly_worker.triangle_2d;
+
+            let data = get_data_new(triangle_2d);
+            let colors = get_color_new(triangle_2d);
+
+            let data_length = data.length;
+
 
             let line_data = workerResult.points;
 
@@ -321,10 +238,173 @@ $(document).ready(function () {
 
 function get_contour_data(xdim,ydim,levels,data)
 {
+    const mathTool = new ldwmath(); 
+
+
     let polygons = d3.contours()
-        .smooth(false)
+        // .smooth(false)
         .size([xdim, ydim])
         .thresholds(levels)(data);
+
+    /**
+     * Calculate the edges and center of each polygon
+     */
+    for (let i = 0; i < polygons.length; i++)
+    {
+        polygons[i].edge_centers = [];
+        for (let j = 0; j < polygons[i].coordinates.length; j++)
+        {
+            let edge_centers = [];
+            for (let k = 0; k < polygons[i].coordinates[j].length; k++)
+            {
+                let polygon = polygons[i].coordinates[j][k];
+                let edge_center = mathTool.edgeAndCenter(polygon);
+                edge_centers.push(edge_center);
+            }
+            polygons[i].edge_centers.push(edge_centers);
+        }
+    }
+
+
+    /**
+     * For each polygon at level i, let check all polygons at level i+1 to see whether it is inside the polygon at level i
+     * If inside, add the index of polygon at level i+1 to polygons[i].children array
+     */
+    for (let i = 0; i < polygons.length - 1; i++)
+    {   
+        polygons[i].children = [];
+        /**
+         * Notice that polygons[i].edge_centers is an array of array of 6 numbers.
+         * The double array is used by d3.contours to represent the polygon of same level but with multiple components (holes at same level)
+         */
+        for(let j = 0; j < polygons[i].edge_centers.length; j++)
+        {
+            let children = [];
+            for(let k = 0; k < polygons[i].edge_centers[j].length; k++)
+            {
+                let child = [];
+                /**
+                 * Edge center of polygon at level i, polygon[j][k] is an array of 6 numbers
+                 */
+                let edge_center_i = polygons[i].edge_centers[j][k];
+
+                let i2 = i + 1;
+                for(let j2 = 0; j2 < polygons[i2].edge_centers.length; j2++)
+                {
+                    for(let k2 = 0; k2 < polygons[i2].edge_centers[j2].length; k2++)
+                    {
+                        /**
+                         * Edge center of polygon at level i+1, polygon[j2][k2] is an array of 6 numbers
+                         */
+                        let edge_center_i2 = polygons[i2].edge_centers[j2][k2];
+
+                        /**
+                         * Check if edge_center_i2 is inside edge_center_i
+                         * Step 1: if center of polygon at level i+1 is outside edge of polygon at level i, then it is not inside
+                         * Step 2: run rayIntersectsLine for center of polygon at level i+1 and all edges of polygon at level i
+                         */
+                        let inside = false;
+
+                        let center_x_i2 = edge_center_i2.center_x;
+                        let center_y_i2 = edge_center_i2.center_y;
+
+                        if(center_x_i2 > edge_center_i.left && center_x_i2 < edge_center_i.right && center_y_i2 > edge_center_i.bottom && center_y_i2 < edge_center_i.top)
+                        {
+                            /**
+                             * Run rayIntersectsLine for center of polygon at level i+1 and all edges of polygon at level i
+                             */
+                            for(let l = 0; l < polygons[i].coordinates[j][k].length -1; l++)
+                            {
+                                let line_start = polygons[i].coordinates[j][k][l];
+                                let line_end = polygons[i].coordinates[j][k][l+1];
+                                let ray_origin = [center_x_i2,center_y_i2];
+                                let ray_direction = [1,0];
+                                let intersection = mathTool.rayIntersectsLine(ray_origin,ray_direction,line_start,line_end);
+                                if(intersection !== null)
+                                {
+                                    console.log("intersection",ray_origin,line_start,line_end,intersection);
+                                    inside = !inside;
+                                }
+                            }
+                        }
+
+                        if(inside)
+                        {
+                            child.push([j2,k2]);
+                        }
+                    }
+                }
+                children.push(child);
+            }
+            polygons[i].children.push(children); 
+        }
+    }
+    
+    /**
+     * Array of 3D coordinates of the triangles for webgl 3D plot
+     */
+    let triangle_2d = []; 
+    /**
+     * For each polygon (except the last level). If it has children, define the children as a hole of the polygon
+     */
+    for(let i = 0; i < polygons.length - 1; i++)
+    {
+        for(let j = 0; j < polygons[i].coordinates.length; j++)
+        {
+            for(let k = 0; k < polygons[i].coordinates[j].length; k++)
+            {
+                if(polygons[i].children[j][k].length > 0)
+                {
+                    let hole_locations = [];
+                    /**
+                     * Deep copy the polygon to a new array
+                     */
+                    let polygon = [...polygons[i].coordinates[j][k]];
+                    for(let l = 0; l < polygons[i].children[j][k].length; l++)
+                    {
+                        let child = polygons[i].children[j][k][l];
+                        let child_polygon = polygons[i+1].coordinates[child[0]][child[1]];
+                        /**
+                         * Define a new polygon with the child_polygon as a hole. Track the hold by
+                         * keeping the starting location of each hole
+                         */
+                        hole_locations.push(polygon.length);
+                        polygon = polygon.concat(child_polygon);
+                    }
+
+                    /**
+                     * Run earcut to triangulate the polygon with holes
+                     * @var triangles is an array of indices of the vertices of the triangles, 3 indices represent a triangle
+                     */
+                    let triangles = earcut(polygon.flat(), hole_locations, 2);
+                    
+                    /**
+                     * Convert the triangles to 3D coordinates for webgl 3D triangle plot
+                    */
+                    for(let l = 0; l < triangles.length; l+=3)
+                    {
+                        for(let m = 0; m < 3; m++)
+                        {
+                            let triangle_m = triangles[l+m];
+                    
+                            let x = polygon[triangle_m][0];
+                            let y = polygon[triangle_m][1];
+                            let z = levels[i];
+                            /**
+                             * If triangle_0 is in the hole, set z to i+1, otherwise set z to i
+                             */
+                            if(triangle_m >= hole_locations[0])
+                            {
+                                z = levels[i+1];
+                            }
+                            triangle_2d.push([x,y,z]);
+                        }  
+                    }
+
+                }
+            }
+        }
+    }
 
     let polygon_2d = [];
 
@@ -363,6 +443,8 @@ function get_contour_data(xdim,ydim,levels,data)
         polygon_1d[i * 3 + 2] = polygon_2d[i][2]; //z value
     }
     workerResult.points = new Float32Array(polygon_1d);
+
+    webassembly_worker.triangle_2d = triangle_2d;
 
     return workerResult;
 }
