@@ -89,6 +89,11 @@ class spectrum {
         this.median_sigmay = 1.0;
         this.median_gammax = 1.0;
         this.median_gammay = 1.0;
+
+        /**
+         * Control the display of the spectrum
+         */
+        this.visible = true; //visible or not
     }
 };
 
@@ -974,9 +979,9 @@ sortableList.addEventListener(
     "dragstart",
     (e) => {
         /**
-         * We will move the parent element of the dragged item
+         * We will move the parent element (div)'s parent (li) of the dragged item
          */
-        draggedItem = e.target.parentElement;
+        draggedItem = e.target.parentElement.parentElement
         setTimeout(() => {
             e.target.parentElement.style.display =
                 "none";
@@ -1071,27 +1076,59 @@ const getDragAfterElement = (container, y) =>
     ).element;
 };
 
+function minimize_spectrum(button,index)
+{
+    let spectrum_div = document.getElementById("spectrum-".concat(index)).querySelector("div");
+    let minimize_button = button;
+    if(minimize_button.innerText === "-")
+    {
+        minimize_button.innerText = "+";
+        spectrum_div.style.height = "1.75rem";
+        spectrum_div.style.overflow = "clip";
+        /**
+         * Also set lbs to hide all contours for this spectrum
+         */
+        hsqc_spectra[index].visible = false;
+        main_plot.redraw_contour();
+    }
+    else
+    {
+        minimize_button.innerText = "-";
+        spectrum_div.style.height = "auto";
+        hsqc_spectra[index].visible = true;
+        main_plot.redraw_contour();
+    }
 
+}
 
 
 function add_to_list(index) {
     let new_spectrum = hsqc_spectra[index];
-    let new_spectrum_div = document.createElement("li");
+    let new_spectrum_div_list = document.createElement("li");
+    let new_spectrum_div = document.createElement("div");
 
     /**
      * Assign a ID to the new spectrum div
      */
-    new_spectrum_div.id = "spectrum-".concat(index);
+    new_spectrum_div_list.id = "spectrum-".concat(index);
 
     /**
      * Add a draggable div to the new spectrum div, only if the spectrum is experimental
      */
     if(new_spectrum.spectrum_origin === -1 || new_spectrum.spectrum_origin === -2)
     {
+        /**
+         * Also add an minimize button to the new spectrum div
+         */
+        let minimize_button = document.createElement("button");
+        minimize_button.innerText = "-";
+        minimize_button.onclick = function () { minimize_spectrum(this,index); };
+        new_spectrum_div.appendChild(minimize_button);
+
         let draggable_span = document.createElement("span");
         draggable_span.draggable = true;
         draggable_span.classList.add("draggable");
-        draggable_span.appendChild(document.createTextNode("\u2630 Drag me. "));
+        draggable_span.appendChild(document.createTextNode("\u2195 Drag me. "));
         draggable_span.style.cursor = "move";
         new_spectrum_div.appendChild(draggable_span);
     }
@@ -1632,19 +1669,21 @@ function add_to_list(index) {
         new_spectrum_div.appendChild(reconstructed_spectrum_ol);
     }
 
+    new_spectrum_div_list.appendChild(new_spectrum_div);
+
     /**
      * Add the new spectrum div to the list of spectra if it is from experimental data
     */
     if(hsqc_spectra[index].spectrum_origin < 0)
     {
-        document.getElementById("spectra_list_ol").appendChild(new_spectrum_div);
+        document.getElementById("spectra_list_ol").appendChild(new_spectrum_div_list);
     }
     /**
      * If the spectrum is reconstructed, add the new spectrum div to the reconstructed spectrum list
      */
     else
     {
-        document.getElementById("reconstructed_spectrum_ol-".concat(hsqc_spectra[index].spectrum_origin)).appendChild(new_spectrum_div);
+        document.getElementById("reconstructed_spectrum_ol-".concat(hsqc_spectra[index].spectrum_origin)).appendChild(new_spectrum_div_list);
     }
 
     if(new_spectrum.spectrum_origin === -1 || new_spectrum.spectrum_origin === -2)

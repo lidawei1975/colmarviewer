@@ -177,29 +177,32 @@ class webgl_contour_plot {
             /**
              * Draw the positive contour plot, one level at a time
              */
-            for(var m=this.contour_lbs[n]; m < this.levels_length[n].length; m++)
+            if(hsqc_spectra[n].visible == true)
             {
-                let i_start = 0;
-                if(m>0)
+                for(var m=this.contour_lbs[n]; m < this.levels_length[n].length; m++)
                 {
-                    i_start = this.levels_length[n][m-1];
-                }
-                let i_stop = this.levels_length[n][m];
-                /**
-                 * Draw the contour plot, one polygon at a time
-                 */
-                for (var i = i_start; i < i_stop; i++)
-                {   
-                    this.gl.uniform4fv(this.colorLocation, this.colors[n]);
-                    var primitiveType = this.gl.LINE_STRIP;
-                    let point_start = 0;
-                    if(i>0)
+                    let i_start = 0;
+                    if(m>0)
                     {
-                        point_start = this.polygon_length[n][i-1];
+                        i_start = this.levels_length[n][m-1];
                     }
-                    let count = this.polygon_length[n][i] - point_start;
-                    let overlay_offset = this.points_start[n]/2;
-                    this.gl.drawArrays(primitiveType, point_start + overlay_offset, count);
+                    let i_stop = this.levels_length[n][m];
+                    /**
+                     * Draw the contour plot, one polygon at a time
+                     */
+                    for (var i = i_start; i < i_stop; i++)
+                    {   
+                        this.gl.uniform4fv(this.colorLocation, this.colors[n]);
+                        var primitiveType = this.gl.LINE_STRIP;
+                        let point_start = 0;
+                        if(i>0)
+                        {
+                            point_start = this.polygon_length[n][i-1];
+                        }
+                        let count = this.polygon_length[n][i] - point_start;
+                        let overlay_offset = this.points_start[n]/2;
+                        this.gl.drawArrays(primitiveType, point_start + overlay_offset, count);
+                    }
                 }
             }
 
@@ -210,29 +213,32 @@ class webgl_contour_plot {
             {
                 continue;
             }
-            for(var m=this.contour_lbs_negative[n]; m < this.levels_length_negative[n].length; m++)
+            if(hsqc_spectra[n].visible == true)
             {
-                let i_start = 0;
-                if(m>0)
+                for(var m=this.contour_lbs_negative[n]; m < this.levels_length_negative[n].length; m++)
                 {
-                    i_start = this.levels_length_negative[n][m-1];
-                }
-                let i_stop = this.levels_length_negative[n][m];
-                /**
-                 * Draw the contour plot, one polygon at a time
-                 */
-                for (var i = i_start; i < i_stop; i++)
-                {   
-                    this.gl.uniform4fv(this.colorLocation, this.colors_negative[n]);
-                    var primitiveType = this.gl.LINE_STRIP;
-                    let point_start = 0;
-                    if(i>0)
+                    let i_start = 0;
+                    if(m>0)
                     {
-                        point_start = this.polygon_length_negative[n][i-1];
+                        i_start = this.levels_length_negative[n][m-1];
                     }
-                    let count = this.polygon_length_negative[n][i] - point_start;
-                    let overlay_offset = this.points_start_negative[n]/2;
-                    this.gl.drawArrays(primitiveType, point_start + overlay_offset, count);
+                    let i_stop = this.levels_length_negative[n][m];
+                    /**
+                     * Draw the contour plot, one polygon at a time
+                     */
+                    for (var i = i_start; i < i_stop; i++)
+                    {   
+                        this.gl.uniform4fv(this.colorLocation, this.colors_negative[n]);
+                        var primitiveType = this.gl.LINE_STRIP;
+                        let point_start = 0;
+                        if(i>0)
+                        {
+                            point_start = this.polygon_length_negative[n][i-1];
+                        }
+                        let count = this.polygon_length_negative[n][i] - point_start;
+                        let overlay_offset = this.points_start_negative[n]/2;
+                        this.gl.drawArrays(primitiveType, point_start + overlay_offset, count);
+                    }
                 }
             }
         }
