@@ -1,22 +1,4 @@
 
-/**
- * Make sure we can load WebWorker
-*/
-
-var webassembly_worker;
-
-try {
-    webassembly_worker = new Worker('./js/webass.js');
-}
-catch (err) {
-    console.log(err);
-    if ( typeof (webassembly_worker) === "undefined") {
-        alert("Failed to load WebWorker, probably due to browser incompatibility. Please use a modern browser, if you run this program locally, please read the instructions titled 'How to run COLMAR Viewer locally'");
-    }
-}
-
-
-
 class spectrum {
     constructor() {
         this.header = new Float32Array(512); //header of the spectrum, 512 float32 numbers
@@ -199,7 +181,7 @@ $(document).ready(function () {
             /**
              * Triangle_2d is an array of 3D coordinates of the triangles for webgl 3D plot
              */
-            let triangle_2d = webassembly_worker.triangle_2d;
+            let triangle_2d = workerResult.triangle_2d;
 
             let data = get_data_new(triangle_2d);
             let colors = get_color_new(triangle_2d);
@@ -444,33 +426,11 @@ function get_contour_data(xdim,ydim,levels,data)
     }
     workerResult.points = new Float32Array(polygon_1d);
 
-    webassembly_worker.triangle_2d = triangle_2d;
+    workerResult.triangle_2d = triangle_2d;
 
     return workerResult;
 }
 
-
-webassembly_worker.onmessage = function (e) {
-
-     /**
-     * if result is stdout, it is the processing message
-     */
-     if (e.data.stdout) {
-        console.log(e.data.stdout);
-    }
-
-    else {
-
-        let new_spectrum_data = new Float32Array(e.data.cubic_spline_data.buffer);
-        let new_xdim = e.data.xdim;
-        let new_ydim = e.data.ydim;
-
-        let data = get_data(new_spectrum_data,new_ydim,new_xdim);
-        let colors = get_color(new_spectrum_data,new_ydim,new_xdim);
-        main_plot = new webgl_contour_plot2('canvas1',data,colors);
-        main_plot.drawScene();
-    }
-};
 
 function process_ft_file(arrayBuffer,file_name, spectrum_type) {
 
