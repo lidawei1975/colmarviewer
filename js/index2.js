@@ -50,11 +50,16 @@ function get_color_new(triangle_2d)
 
     for(let i=0;i<triangle_2d.length;i++)
     {
-        let color = [255-triangle_2d[i][2],255-triangle_2d[i][2],255-triangle_2d[i][2]];
+        let color = 255-triangle_2d[i][2]*10;
 
-        colors[i*3] = color[0];
-        colors[i*3+1] = color[1];
-        colors[i*3+2] = color[2];
+        if(color < 0)
+        {
+            color = 0;
+        }
+
+        colors[i*3] = color;
+        colors[i*3+1] = color;
+        colors[i*3+2] = color;
     }
 
     return colors;
@@ -160,7 +165,7 @@ $(document).ready(function () {
             let ydim = spe.n_indirect;
 
 
-            let levels =[10];
+            let levels =[1];
 
             for( let i = 1; i < 40; i++)
             {

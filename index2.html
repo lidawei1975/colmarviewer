@@ -9,9 +9,10 @@
         }
 
         canvas {
-            width: 1200px;
+            width: 900px;
             height: 900px;
             display: block;
+            border: 1px solid black;
         }
     </style>
 </head>
@@ -25,16 +26,16 @@
         <div style="clear: both">
             <span>Rotation angles</span>
             <label for="rotation_x">X</label>
-            <input type="range" id="rotation_x" min="-100" max="100" value="0" step="5" />
+            <input type="range" id="rotation_x" min="-200" max="200" value="0" step="5" />
             <label for="rotation_y">Y</label>
-            <input type="range" id="rotation_y" min="-100" max="100" value="0" step="5" />
+            <input type="range" id="rotation_y" min="-200" max="200" value="0" step="5" />
             <label for="rotation_z">Z</label>
             <input type="range" id="rotation_z" min="0" max="360" value="0" step="5" />
             <span>Translation</span>
             <label for="translation_x">X</label>
-            <input type="range" id="translation_x" min="-500" max="500" value="0" step="10" />
+            <input type="range" id="translation_x" min="-2500" max="2500" value="0" step="50" />
             <label for="translation_y">Y</label>
-            <input type="range" id="translation_y" min="-500" max="500" value="0" step="10" />
+            <input type="range" id="translation_y" min="-2500" max="2500" value="0" step="50" />
             <label for="translation_z">Z</label>
             <input type="range" id="translation_z" min="-5000" max="0" value="-3000" step="100" disabled/>
             <span>Scale</span>
