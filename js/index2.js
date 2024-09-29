@@ -165,7 +165,7 @@ $(document).ready(function () {
             let ydim = spe.n_indirect;
 
 
-            let levels =[1];
+            let levels =[5];
 
             for( let i = 1; i < 40; i++)
             {

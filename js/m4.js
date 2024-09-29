@@ -22,6 +22,39 @@ var m4 = {
       ];
     },
 
+    /**
+     * Given the 4X4 matrix in WebGL, solve for the input coordinate that will be at the 
+     * designated location ([b[0],b[1],0]) of the view (clip space of webgl: -1 to 1 for x, y)
+     * @returns 
+     */
+    solve_center: function(a,b) {
+      var a00 = a[0 * 4 + 0];
+      var a01 = a[0 * 4 + 1];
+      var a02 = a[0 * 4 + 2];
+      var a03 = a[0 * 4 + 3];
+      var a10 = a[1 * 4 + 0];
+      var a11 = a[1 * 4 + 1];
+      var a12 = a[1 * 4 + 2];
+      var a13 = a[1 * 4 + 3];
+      var a20 = a[2 * 4 + 0];
+      var a21 = a[2 * 4 + 1];
+      var a22 = a[2 * 4 + 2];
+      var a23 = a[2 * 4 + 3];
+      var a30 = a[3 * 4 + 0];
+      var a31 = a[3 * 4 + 1];
+      var a32 = a[3 * 4 + 2];
+      var a33 = a[3 * 4 + 3];
+
+      var b0 = b[0];
+      var b1 = b[1];
+      
+      var x = (a10*a31 - a11*a30 - a10*b1 + a11*b0)/(a00*a11 - a01*a10);
+      var y = -(a00*a31 - a01*a30 - a00*b1 + a01*b0)/(a00*a11 - a01*a10);
+
+      return [x, y];
+    },
+
+
     multiply_vec: function(a, b) {
         var a00 = a[0 * 4 + 0];
         var a01 = a[0 * 4 + 1];

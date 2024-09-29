@@ -68,13 +68,13 @@ class webgl_contour_plot2 {
 
         this.translation_x = 0;
         this.translation_y = 0;
-        this.translation_z = -5000;
+        this.translation_z = -100000;
 
         this.scale_x = 1;
         this.scale_y = 1;
         this.scale_z = 1;
 
-        this.fov = 90;
+        this.fov = 1.0;
 
     };
 
@@ -153,8 +153,8 @@ class webgl_contour_plot2 {
         // Compute the matrix
         var fieldOfViewRadians = this.degToRad(this.fov);
         var aspect = this.gl.canvas.clientWidth / this.gl.canvas.clientHeight;
-        var zNear = 1;
-        var zFar = 6000;
+        var zNear = 80000;
+        var zFar = 110000;
         var matrix = m4.perspective(fieldOfViewRadians, aspect, zNear, zFar);
         matrix = m4.translate(matrix, translation[0], translation[1], translation[2]);
         matrix = m4.xRotate(matrix, rotation[0]);
@@ -165,13 +165,29 @@ class webgl_contour_plot2 {
 
         /**
          * In webgl, u_matrix (matrix variable here) * a_position (position variable here) is done in the vertex shader
-         */
+        
         let matrix_inverse = m4.inverse(matrix);
 
-        let current_view_center = [0, 0, 0, 1];
+        let test_1 = m4.multiply_vec(matrix,[800,800,0,1]);
+        let test_2 = m4.multiply_vec(matrix,[0,0,0,1]);
+        console.log("test_1: ", test_1);
+        console.log("test_2: ", test_2);
+
+        
+         * 46666.66666666663, 100000 are the center of the view, calculated from 
+         * the near, far plane and the translation_z (fixed at -100000)
+         * Rotation_x and rotation_y will affect, but only very slightly, so we can ignore them
+         * Rotation_z and translation_x, translation_y will not affect the center of the view
+        
+        let current_view_center = [0,0, 46666.66666666663, 100000];
         console.log("current_view_center: ", current_view_center);
         let current_view_center_transformed = m4.multiply_vec(matrix_inverse, current_view_center);
         console.log("current_view_center_transformed: ", current_view_center_transformed);
+
+        */
+
+        let center = m4.solve_center(matrix,[0,0]);
+        console.log("center: ", center);
 
         this.gl.uniformMatrix4fv(this.matrixLocation, false, matrix);
 
