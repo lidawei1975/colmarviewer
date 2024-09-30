@@ -49,19 +49,21 @@ function get_color_new(triangle_2d)
 
     for(let i=0;i<triangle_2d.length;i++)
     {
-        let color = 255-triangle_2d[i][2]*5;
+        let color = triangle_2d[i][2]*2.0;
 
-        if(color < 0)
+        if(color < 7)
         {
-            color = 0;
+            color = 7;
         }
 
-        if(color > 100)
+        if(color > 124)
         {
-            color = 100;
+            color = 125;
         }
 
-        colors[i*3] = color;
+        color = 255 - color;
+
+        colors[i*3] = 248;
         colors[i*3+1] = color;
         colors[i*3+2] = color;
     }
