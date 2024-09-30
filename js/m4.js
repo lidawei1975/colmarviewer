@@ -22,6 +22,10 @@ var m4 = {
       ];
     },
 
+    copy: function(m) {
+      return m.slice();
+    },
+
     /**
      * Given the 4X4 matrix in WebGL, solve for the input coordinate that will be at the 
      * designated location ([b[0],b[1],0]) of the view (clip space of webgl: -1 to 1 for x, y)

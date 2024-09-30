@@ -88,11 +88,6 @@ $(document).ready(function () {
         main_plot.drawScene();
     });
 
-    document.getElementById('rotation_y').addEventListener('input', function () {
-        main_plot.rotation_y = this.value;
-        main_plot.drawScene();
-    });
-
     document.getElementById('rotation_z').addEventListener('input', function () {
         main_plot.rotation_z = this.value;
         main_plot.drawScene();
@@ -110,24 +105,6 @@ $(document).ready(function () {
         main_plot.translation_y = this.value;
         main_plot.drawScene();
     });
-
-    document.getElementById('translation_z').addEventListener('input', function () {
-        main_plot.translation_z = this.value;
-        main_plot.drawScene();
-    });
-
-    /**
-     * Add event listener for range sliders scale_x, scale_y, scale_z
-     */
-    // document.getElementById('scale_x').addEventListener('input', function () {
-    //     main_plot.scale_x = this.value;
-    //     main_plot.drawScene();
-    // });
-
-    // document.getElementById('scale_y').addEventListener('input', function () {
-    //     main_plot.scale_y = this.value;
-    //     main_plot.drawScene();
-    // });
 
     document.getElementById('scale_z').addEventListener('input', function () {
         main_plot.scale_z = this.value;

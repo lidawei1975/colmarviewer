@@ -66,8 +66,8 @@ class webgl_contour_plot2 {
         this.rotation_y = 0;
         this.rotation_z = 0;
 
-        this.translation_x = 0;
-        this.translation_y = 0;
+        this.translation_x = -450;
+        this.translation_y = -450;
         this.translation_z = -100000;
 
         this.scale_x = 1;
@@ -150,44 +150,36 @@ class webgl_contour_plot2 {
         
 
 
-        // Compute the matrix
+        /**
+         * Compute the matrix.
+         * Remember that the order of the operations is reversed.
+         */
         var fieldOfViewRadians = this.degToRad(this.fov);
         var aspect = this.gl.canvas.clientWidth / this.gl.canvas.clientHeight;
         var zNear = 80000;
         var zFar = 110000;
         var matrix = m4.perspective(fieldOfViewRadians, aspect, zNear, zFar);
-        matrix = m4.translate(matrix, translation[0], translation[1], translation[2]);
-        matrix = m4.xRotate(matrix, rotation[0]);
-        matrix = m4.yRotate(matrix, rotation[1]);
-        matrix = m4.zRotate(matrix, rotation[2]);
-        matrix = m4.scale(matrix, scale[0], scale[1], scale[2]);
-        matrix = m4.translate(matrix, -149*4, -108*4, 0);
 
         /**
-         * In webgl, u_matrix (matrix variable here) * a_position (position variable here) is done in the vertex shader
+         * Translate the object to -100000 before apply perspective
+         */
+        matrix = m4.translate(matrix, 0,0, translation[2]);
+
+        /**
+         * Operations to rotate the object, using current center as pivot
+         * Z rotation first, followed by X rotation (remember that the order of the operations is reversed)
+         */
+        matrix = m4.xRotate(matrix, rotation[0]);
+        matrix = m4.zRotate(matrix, rotation[2]);
         
-        let matrix_inverse = m4.inverse(matrix);
+        /**
+         * Translate along original X and Y axis first.
+         */
+        matrix = m4.translate(matrix, translation[0], translation[1], 0);
 
-        let test_1 = m4.multiply_vec(matrix,[800,800,0,1]);
-        let test_2 = m4.multiply_vec(matrix,[0,0,0,1]);
-        console.log("test_1: ", test_1);
-        console.log("test_2: ", test_2);
+       
 
-        
-         * 46666.66666666663, 100000 are the center of the view, calculated from 
-         * the near, far plane and the translation_z (fixed at -100000)
-         * Rotation_x and rotation_y will affect, but only very slightly, so we can ignore them
-         * Rotation_z and translation_x, translation_y will not affect the center of the view
-        
-        let current_view_center = [0,0, 46666.66666666663, 100000];
-        console.log("current_view_center: ", current_view_center);
-        let current_view_center_transformed = m4.multiply_vec(matrix_inverse, current_view_center);
-        console.log("current_view_center_transformed: ", current_view_center_transformed);
 
-        */
-
-        let center = m4.solve_center(matrix,[0,0]);
-        console.log("center: ", center);
 
         this.gl.uniformMatrix4fv(this.matrixLocation, false, matrix);
 
@@ -200,28 +192,7 @@ class webgl_contour_plot2 {
         // Draw additional lines
         // this.gl.drawArrays(this.gl.LINE_STRIP, this.data_length, this.line_data_length);
 
-        /**
-             * Draw the positive contour plot, one level at a time
-             */
-        // for(var m=0; m < this.levels_length.length; m++)
-        // {
-        //     let i_start = 0;
-        //     let i_stop = this.levels_length[m];
-        //     /**
-        //      * Draw the contour plot, one polygon at a time
-        //      */
-        //     for (var i = i_start; i < i_stop; i++)
-        //     {   
-        //         let point_start = 0;
-        //         if(i>0)
-        //         {
-        //             point_start = this.polygon_length[i-1];
-        //         }
-        //         let count = this.polygon_length[i] - point_start;
-        //         this.gl.drawArrays(this.gl.LINE_STRIP, this.data_length + point_start, count);
-        //     }
-        // }
-
+       
 
     };
 
