@@ -197,30 +197,30 @@ class webgl_contour_plot2 {
         var count =this.data_length;
         this.gl.drawArrays(primitiveType, offset, count);
 
-        // Draw addtional lines
+        // Draw additional lines
         // this.gl.drawArrays(this.gl.LINE_STRIP, this.data_length, this.line_data_length);
 
         /**
              * Draw the positive contour plot, one level at a time
              */
-        for(var m=0; m < this.levels_length.length; m++)
-        {
-            let i_start = 0;
-            let i_stop = this.levels_length[m];
-            /**
-             * Draw the contour plot, one polygon at a time
-             */
-            for (var i = i_start; i < i_stop; i++)
-            {   
-                let point_start = 0;
-                if(i>0)
-                {
-                    point_start = this.polygon_length[i-1];
-                }
-                let count = this.polygon_length[i] - point_start;
-                this.gl.drawArrays(this.gl.LINE_STRIP, this.data_length + point_start, count);
-            }
-        }
+        // for(var m=0; m < this.levels_length.length; m++)
+        // {
+        //     let i_start = 0;
+        //     let i_stop = this.levels_length[m];
+        //     /**
+        //      * Draw the contour plot, one polygon at a time
+        //      */
+        //     for (var i = i_start; i < i_stop; i++)
+        //     {   
+        //         let point_start = 0;
+        //         if(i>0)
+        //         {
+        //             point_start = this.polygon_length[i-1];
+        //         }
+        //         let count = this.polygon_length[i] - point_start;
+        //         this.gl.drawArrays(this.gl.LINE_STRIP, this.data_length + point_start, count);
+        //     }
+        // }
 
 
     };

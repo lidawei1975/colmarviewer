@@ -187,9 +187,24 @@ $(document).ready(function () {
              * Triangle_2d is an array of 3D coordinates of the triangles for webgl 3D plot
              */
             let triangle_2d = workerResult.triangle_2d;
-
             let data = get_data_new(triangle_2d);
             let colors = get_color_new(triangle_2d);
+
+            let data2 = get_data_new(workerResult.new_triangles);
+
+            /**
+             * uniform color for all new triangles
+             */
+            let colors2 = new Uint8Array(data2.length);
+            for(let i=0;i<colors2.length/3;i++)
+            {
+                colors2[i*3] = 0;
+                colors2[i*3+1] = 0;
+                colors2[i*3+2] = 255;
+            }
+
+            data = Float32Concat(data,data2);
+            colors = Uint8Concat(colors,colors2);
 
             let data_length = data.length;
 
@@ -433,7 +448,69 @@ function get_contour_data(xdim,ydim,levels,data)
 
     workerResult.triangle_2d = triangle_2d;
 
+
+    workerResult.new_triangles = convert_line_to_triangle(workerResult);
+
+
     return workerResult;
+}
+
+function convert_line_to_triangle(workerResult)
+{
+    let triangle = [];
+
+    for(let i=0;i<workerResult.levels_length.length;i++)
+    {
+        let i_start = 0;
+        if(i>0)
+        {
+            i_start = workerResult.levels_length[i-1];
+        }
+        let i_stop = workerResult.levels_length[i];
+
+        for(let j=i_start;j<i_stop;j++)
+        {
+            let point_start = 0;
+            if(j>0)
+            {
+                point_start = workerResult.polygon_length[j-1];
+            }
+            let point_stop = workerResult.polygon_length[j];
+
+            /**
+             * Each line segment is defined by two points
+             * workerResult.points is an array of 3D coordinates of the points
+             */
+            for(let k=point_start;k<point_stop-1;k++)
+            {
+                let p1_x = workerResult.points[k*3];
+                let p1_y = workerResult.points[k*3+1];
+
+                let p2_x = workerResult.points[(k+1)*3];
+                let p2_y = workerResult.points[(k+1)*3+1];
+
+                let normal_x = p2_y - p1_y;
+                let normal_y = p1_x - p2_x;
+                let normal_length = Math.sqrt(normal_x*normal_x + normal_y*normal_y);
+                normal_x /= normal_length;
+                normal_y /= normal_length;
+
+                /**
+                 * Line segment ==> 2 triangles, with total thickness of 2.0 
+                 * (1.0 along the normal direction, 1.0 along the opposite direction)
+                 */
+                let p1 = [p1_x + normal_x, p1_y + normal_y, workerResult.points[k*3+2]];
+                let p2 = [p1_x - normal_x, p1_y - normal_y, workerResult.points[k*3+2]];
+                let p3 = [p2_x + normal_x, p2_y + normal_y, workerResult.points[k*3+2]];
+                let p4 = [p2_x - normal_x, p2_y - normal_y, workerResult.points[k*3+2]];
+
+                triangle.push([p1,p2,p3]);
+                triangle.push([p2,p3,p4]);
+            }
+        }
+    }
+
+    return triangle;
 }
 
 
