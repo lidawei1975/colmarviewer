@@ -30,7 +30,7 @@ class spectrum {
     }
 };
 
-function get_data_new(triangle_2d)
+function get_data_new(triangle_2d,z_shift)
 {
     var data = new Float32Array(triangle_2d.length*3);
 
@@ -38,9 +38,8 @@ function get_data_new(triangle_2d)
     {
         data[i*3] = triangle_2d[i][1];
         data[i*3+1] = triangle_2d[i][0];
-        data[i*3+2] = triangle_2d[i][2];
+        data[i*3+2] = triangle_2d[i][2]+z_shift;
     }
-
     return data;
 }
 
@@ -50,11 +49,16 @@ function get_color_new(triangle_2d)
 
     for(let i=0;i<triangle_2d.length;i++)
     {
-        let color = 255-triangle_2d[i][2]*10;
+        let color = 255-triangle_2d[i][2]*5;
 
         if(color < 0)
         {
             color = 0;
+        }
+
+        if(color > 100)
+        {
+            color = 100;
         }
 
         colors[i*3] = color;
@@ -187,10 +191,10 @@ $(document).ready(function () {
              * Triangle_2d is an array of 3D coordinates of the triangles for webgl 3D plot
              */
             let triangle_2d = workerResult.triangle_2d;
-            let data = get_data_new(triangle_2d);
+            let data = get_data_new(triangle_2d,0);
             let colors = get_color_new(triangle_2d);
 
-            let data2 = get_data_new(workerResult.new_triangles);
+            let data2 = get_data_new(workerResult.new_triangles,1);
 
             /**
              * uniform color for all new triangles
@@ -205,6 +209,9 @@ $(document).ready(function () {
 
             data = Float32Concat(data,data2);
             colors = Uint8Concat(colors,colors2);
+
+            // data = data2;
+            // colors = colors2;
 
 
             let data_length = data.length;
@@ -496,22 +503,17 @@ function convert_line_to_triangle(workerResult)
                 normal_x /= normal_length;
                 normal_y /= normal_length;
 
-                normal_x *= 1.0;
-                normal_y *= 1.0; //thickness of the line segment
+                normal_x *= 0.5;
+                normal_y *= 0.5; //thickness of the line segment
 
                 /**
                  * Line segment ==> 2 triangles, with total thickness of 2.0 
                  * (1.0 along the normal direction, 1.0 along the opposite direction)
                 //  */
-                // let p1 = [p1_y + normal_y, p1_x + normal_x, workerResult.points[k*3+2]];
-                // let p2 = [p1_y - normal_y, p1_x - normal_x,workerResult.points[k*3+2]];
-                // let p3 = [p2_y + normal_y, p2_x + normal_x, workerResult.points[k*3+2]];
-                // let p4 = [p2_y - normal_y,p2_x - normal_x,  workerResult.points[k*3+2]];
-
-                let p1 =[ p1_y, p1_x, workerResult.points[k*3+2]+1];
-                let p2 = [p1_y, p1_x, workerResult.points[k*3+2]-1];
-                let p3 = [p2_y, p2_x, workerResult.points[k*3+2]+1];
-                let p4 = [p2_y, p2_x, workerResult.points[k*3+2]-1];
+                let p1 = [p1_y + normal_y, p1_x + normal_x, workerResult.points[k*3+2]];
+                let p2 = [p1_y - normal_y, p1_x - normal_x,workerResult.points[k*3+2]];
+                let p3 = [p2_y + normal_y, p2_x + normal_x, workerResult.points[k*3+2]];
+                let p4 = [p2_y - normal_y,p2_x - normal_x,  workerResult.points[k*3+2]];
 
                 triangle.push(p1);
                 triangle.push(p2);
@@ -519,6 +521,18 @@ function convert_line_to_triangle(workerResult)
                 triangle.push(p2);
                 triangle.push(p3);
                 triangle.push(p4);
+
+                let pp1 =[ p1_y, p1_x, workerResult.points[k*3+2]+0.5];
+                let pp2 = [p1_y, p1_x, workerResult.points[k*3+2]-0.5];
+                let pp3 = [p2_y, p2_x, workerResult.points[k*3+2]+0.5];
+                let pp4 = [p2_y, p2_x, workerResult.points[k*3+2]-0.5];
+
+                triangle.push(pp1);
+                triangle.push(pp2);
+                triangle.push(pp3);
+                triangle.push(pp2);
+                triangle.push(pp3);
+                triangle.push(pp4);
             }
         }
     }
