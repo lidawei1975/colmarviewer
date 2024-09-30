@@ -70,8 +70,7 @@ class webgl_contour_plot2 {
         this.translation_y = -450;
         this.translation_z = -100000;
 
-        this.scale_x = 1;
-        this.scale_y = 1;
+
         this.scale_z = 1;
 
         this.fov = 1.0;
@@ -137,18 +136,8 @@ class webgl_contour_plot2 {
         var offset = 0;               // start at the beginning of the buffer
         this.gl.vertexAttribPointer(this.colorLocation, size, type, normalize, stride, offset);
 
-
-
         var translation = [this.translation_x, this.translation_y, this.translation_z];
         var rotation = [this.degToRad(this.rotation_x), this.degToRad(this.rotation_y), this.degToRad(this.rotation_z)];
-        var scale = [this.scale_x, this.scale_y, this.scale_z];
-
-
-        console.log("translation: ", translation);
-        console.log("rotation: ", rotation);
-        console.log("scale: ", scale);
-        
-
 
         /**
          * Compute the matrix.
@@ -176,6 +165,11 @@ class webgl_contour_plot2 {
          * Translate along original X and Y axis first.
          */
         matrix = m4.translate(matrix, translation[0], translation[1], 0);
+
+        /**
+         * Scale z axis. order is not important for scaling
+         */
+        matrix = m4.scale(matrix, 1, 1, this.scale_z);
 
        
 
