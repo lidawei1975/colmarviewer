@@ -38,7 +38,7 @@ function get_data_new(triangle_2d)
     {
         data[i*3] = triangle_2d[i][1];
         data[i*3+1] = triangle_2d[i][0];
-        data[i*3+2] = triangle_2d[i][2]-5;
+        data[i*3+2] = triangle_2d[i][2];
     }
 
     return data;
@@ -205,6 +205,7 @@ $(document).ready(function () {
 
             data = Float32Concat(data,data2);
             colors = Uint8Concat(colors,colors2);
+
 
             let data_length = data.length;
 
@@ -495,17 +496,29 @@ function convert_line_to_triangle(workerResult)
                 normal_x /= normal_length;
                 normal_y /= normal_length;
 
+                normal_x *= 1.0;
+                normal_y *= 1.0; //thickness of the line segment
+
                 /**
                  * Line segment ==> 2 triangles, with total thickness of 2.0 
                  * (1.0 along the normal direction, 1.0 along the opposite direction)
-                 */
-                let p1 = [p1_x + normal_x, p1_y + normal_y, workerResult.points[k*3+2]];
-                let p2 = [p1_x - normal_x, p1_y - normal_y, workerResult.points[k*3+2]];
-                let p3 = [p2_x + normal_x, p2_y + normal_y, workerResult.points[k*3+2]];
-                let p4 = [p2_x - normal_x, p2_y - normal_y, workerResult.points[k*3+2]];
+                //  */
+                // let p1 = [p1_y + normal_y, p1_x + normal_x, workerResult.points[k*3+2]];
+                // let p2 = [p1_y - normal_y, p1_x - normal_x,workerResult.points[k*3+2]];
+                // let p3 = [p2_y + normal_y, p2_x + normal_x, workerResult.points[k*3+2]];
+                // let p4 = [p2_y - normal_y,p2_x - normal_x,  workerResult.points[k*3+2]];
 
-                triangle.push([p1,p2,p3]);
-                triangle.push([p2,p3,p4]);
+                let p1 =[ p1_y, p1_x, workerResult.points[k*3+2]+1];
+                let p2 = [p1_y, p1_x, workerResult.points[k*3+2]-1];
+                let p3 = [p2_y, p2_x, workerResult.points[k*3+2]+1];
+                let p4 = [p2_y, p2_x, workerResult.points[k*3+2]-1];
+
+                triangle.push(p1);
+                triangle.push(p2);
+                triangle.push(p3);
+                triangle.push(p2);
+                triangle.push(p3);
+                triangle.push(p4);
             }
         }
     }
