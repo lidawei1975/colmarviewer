@@ -106,8 +106,10 @@ class webgl_contour_plot2 {
 
         let scale = Math.sqrt(this.y_axis_in_spe_frame[0]*this.y_axis_in_spe_frame[0] 
             + this.y_axis_in_spe_frame[1]*this.y_axis_in_spe_frame[1]
-            + this.y_axis_in_spe_frame[2]*this.y_axis_in_spe_frame[2]);
-        scale =  Math.abs(this.y_axis_in_spe_frame[2])/scale;
+            + this.y_axis_in_spe_frame[2]*this.y_axis_in_spe_frame[2]*this.scale_z*this.scale_z);
+
+
+        scale =  Math.abs(this.y_axis_in_spe_frame[2]*this.scale_z)/scale;
         scale = 1-scale*scale;
         console.log("scale: ", scale);
 
