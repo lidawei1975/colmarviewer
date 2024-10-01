@@ -185,89 +185,101 @@ $(document).ready(function () {
     });
 });
 
-function create_event_listener()
-{
-        /**
-     * Add event listener for range sliders rotation_x, rotation_y, rotation_z
+function create_event_listener() {
+    /**
+ * Add event listener for range sliders rotation_x, rotation_y, rotation_z
+ */
+    document.getElementById('rotation_x').addEventListener('input', function () {
+        main_plot.rotation_x = this.value;
+        main_plot.drawScene();
+    });
+
+    document.getElementById('rotation_z').addEventListener('input', function () {
+        main_plot.rotation_z = this.value;
+        main_plot.drawScene();
+    });
+
+
+    document.getElementById('scale_z').addEventListener('input', function () {
+        main_plot.scale_z = this.value;
+        main_plot.drawScene();
+    });
+
+
+    /**
+     * Drag event listener for canvas1
      */
-        document.getElementById('rotation_x').addEventListener('input', function () {
-            main_plot.rotation_x = this.value;
-            main_plot.drawScene();
-        });
-    
-        document.getElementById('rotation_z').addEventListener('input', function () {
-            main_plot.rotation_z = this.value;
-            main_plot.drawScene();
-        });
-    
-        /**
-         * Add event listener for range sliders translation_x, translation_y, translation_z
-         */
-        document.getElementById('translation_x').addEventListener('input', function () {
-            main_plot.translation_x = this.value;
-            main_plot.drawScene();
-        });
-    
-        document.getElementById('translation_y').addEventListener('input', function () {
-            main_plot.translation_y = this.value;
-            main_plot.drawScene();
-        });
-    
-        document.getElementById('scale_z').addEventListener('input', function () {
-            main_plot.scale_z = this.value;
-            main_plot.drawScene();
-        });
-    
-        document.getElementById('fov').addEventListener('input', function () {
-            main_plot.fov = this.value;
-            main_plot.drawScene();
-        });
-    
-        /**
-         * Drag event listener for canvas1
-         */
-        document.getElementById('canvas1').addEventListener('mousedown', function (e) {
-            main_plot.dragging = true;
+    document.getElementById('canvas1').addEventListener('mousedown', function (e) {
+        main_plot.dragging = true;
+        main_plot.lastX = e.offsetX;
+        main_plot.lastY = e.offsetY;
+    });
+
+    document.getElementById('canvas1').addEventListener('mousemove', function (e) {
+        if (main_plot.dragging) {
+            let dx = e.offsetX - main_plot.lastX;
+            let dy = e.offsetY - main_plot.lastY;
             main_plot.lastX = e.offsetX;
             main_plot.lastY = e.offsetY;
-        });
-    
-        document.getElementById('canvas1').addEventListener('mousemove', function (e) {
-            if (main_plot.dragging) {
-                let dx = e.offsetX - main_plot.lastX;
-                let dy = e.offsetY - main_plot.lastY;
-                main_plot.lastX = e.offsetX;
-                main_plot.lastY = e.offsetY;
-    
-                main_plot.drag(dx, dy);
-    
-                main_plot.drawScene();
-            }
-        });
-    
-        document.getElementById('canvas1').addEventListener('mouseup', function (e) {
-            main_plot.dragging = false;
-        });
 
-        /**
-         * Mouse wheel event listener for canvas1
-         * main_plot.fov is the field of view of the camera, min: 0.05, max: 5
-         */
-        document.getElementById('canvas1').addEventListener('wheel', function (e) {
-            let delta = e.deltaY;
-            if (delta > 0) {
-                main_plot.fov *= 1.1;
-            } else {
-                main_plot.fov *= 0.9;
-            }
-            if (main_plot.fov < 0.05) {
-                main_plot.fov = 0.05;
-            }
-            if (main_plot.fov > 5) {
-                main_plot.fov = 5;
-            }
+            main_plot.drag(dx, dy);
+
             main_plot.drawScene();
-        });
+        }
+    });
+
+    document.getElementById('canvas1').addEventListener('mouseup', function (e) {
+        main_plot.dragging = false;
+    });
+
+    /**
+     * Mouse wheel event listener for canvas1
+     * main_plot.fov is the field of view of the camera, min: 0.05, max: 5
+     */
+    document.getElementById('canvas1').addEventListener('wheel', function (e) {
+        let delta = e.deltaY;
+        if (delta > 0) {
+            main_plot.fov *= 1.1;
+        } else {
+            main_plot.fov *= 0.9;
+        }
+        if (main_plot.fov < 0.05) {
+            main_plot.fov = 0.05;
+        }
+        if (main_plot.fov > 5) {
+            main_plot.fov = 5;
+        }
+        main_plot.drawScene();
+    });
+
+    /**
+     * Keyboard event listener for canvas1.
+     * We track the keydown event for arrow keys and update:
+     * rotation_z: left and right arrow keys
+     * rotation_x: up and down arrow keys
+     */
+    window.addEventListener('keydown', function (e) {
+        if (e.key === 'ArrowLeft') {
+            main_plot.rotation_z -= 1;
+            /**
+             * Update the value of the range slider rotation_z as well
+             */
+            document.getElementById('rotation_z').value = main_plot.rotation_z;
+        }
+        if (e.key === 'ArrowRight') {
+            main_plot.rotation_z += 1;
+            document.getElementById('rotation_z').value = main_plot.rotation_z;
+        }
+        if (e.key === 'ArrowUp') {
+            main_plot.rotation_x -= 1;
+            document.getElementById('rotation_x').value = main_plot.rotation_x;
+        }
+        if (e.key === 'ArrowDown') {
+            main_plot.rotation_x += 1;
+            document.getElementById('rotation_x').value = main_plot.rotation_x;
+        }
+        main_plot.drawScene();
+    });
 }
 
 function get_contour_data(xdim,ydim,levels,data)
