@@ -75,6 +75,17 @@ class webgl_contour_plot2 {
 
         this.fov = 1.0;
 
+        /**
+         * x_axis_in_spe_frame and y_axis_in_spe_frame are the vectors in the spectrum frame for 
+         * [1,0,0] and [0,1,0] in the world frame, respectively.
+         * The scale 800 means moving 800 units in the spectrum frame is equivalent to moving 1 unit in the world frame.
+         * (Size of world frame is 2*2*2 (clip space of webgl: -1 to 1 for x, y, z) and size of spectrum frame is roughly 900*900
+         */
+        this.x_axis_in_spe_frame = [800,0,0,1];
+        this.y_axis_in_spe_frame = [0,800,0,1];
+
+        this.dragging = false;
+
     };
 
     radToDeg(r) {
@@ -84,6 +95,37 @@ class webgl_contour_plot2 {
     degToRad(d) {
         return d * Math.PI / 180;
       };
+
+    drag(dx,dy) {
+        /**
+         * Convert the movement to the range of slip space scale (-1 to 1)
+         * y axis is reversed in webgl drawing
+         */
+        dx = dx/this.gl.canvas.width * 2;
+        dy = -dy/this.gl.canvas.height * 2;
+
+        let scale = Math.sqrt(this.y_axis_in_spe_frame[0]*this.y_axis_in_spe_frame[0] 
+            + this.y_axis_in_spe_frame[1]*this.y_axis_in_spe_frame[1]
+            + this.y_axis_in_spe_frame[2]*this.y_axis_in_spe_frame[2]);
+        scale =  Math.abs(this.y_axis_in_spe_frame[2])/scale;
+        scale = 1-scale*scale;
+        console.log("scale: ", scale);
+
+        if(scale<0.1){
+            scale = 0.1;
+        }
+
+        dy = dy/scale;
+        
+
+        let dx_in_spe_frame = this.x_axis_in_spe_frame[0] * dx + this.y_axis_in_spe_frame[0] * dy;
+        let dy_in_spe_frame = this.x_axis_in_spe_frame[1] * dx + this.y_axis_in_spe_frame[1] * dy;
+
+        this.translation_x += dx_in_spe_frame;
+        this.translation_y += dy_in_spe_frame;
+
+        this.drawScene();
+    }
 
     /**
      * Draw the scene.
@@ -171,8 +213,31 @@ class webgl_contour_plot2 {
          */
         matrix = m4.scale(matrix, 1, 1, this.scale_z);
 
-       
+        /**
+         * Get projected coordinates of spectrum center in world frame
+         */
+        let spectrum_center = m4.multiply_vec(matrix, [0,0,0,1]);
+        console.log("spectrum_center: ", spectrum_center);
 
+        /**
+         * Get the inverse of the matrix
+         */
+        let inverse_matrix = m4.inverse(matrix);
+
+        /**
+         * inverse_matrix * [ 1 , 0, 0, 0] = vector in spectrum frame for x axis in world frame
+         * inverse_matrix * [ 0 , 1, 0, 0] = vector in spectrum frame for y axis in world frame
+         */
+        let spectrum_center_move_x = [... spectrum_center];
+        spectrum_center_move_x[0] += spectrum_center[3];
+        let spectrum_center_move_y = [... spectrum_center];
+        spectrum_center_move_y[1] += spectrum_center[3];
+
+        this.x_axis_in_spe_frame = m4.multiply_vec(inverse_matrix, spectrum_center_move_x);
+        this.y_axis_in_spe_frame = m4.multiply_vec(inverse_matrix, spectrum_center_move_y);
+
+        console.log("x_axis_in_spe_frame: ", this.x_axis_in_spe_frame);
+        console.log("y_axis_in_spe_frame: ", this.y_axis_in_spe_frame);
 
 
         this.gl.uniformMatrix4fv(this.matrixLocation, false, matrix);
@@ -182,12 +247,6 @@ class webgl_contour_plot2 {
         var offset = 0;
         var count =this.data_length;
         this.gl.drawArrays(primitiveType, offset, count);
-
-        // Draw additional lines
-        // this.gl.drawArrays(this.gl.LINE_STRIP, this.data_length, this.line_data_length);
-
-       
-
     };
 
 };
