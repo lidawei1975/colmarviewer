@@ -316,7 +316,7 @@ function get_contour_data(xdim,ydim,levels,data)
      * For each polygon at level i, let check all polygons at level i+1 to see whether it is inside the polygon at level i
      * If inside, add the index of polygon at level i+1 to polygons[i].children array
      */
-    for (let i = 0; i < polygons.length - 1; i++)
+    for (let i = 0; i < polygons.length; i++)
     {   
         polygons[i].children = [];
         /**
@@ -334,49 +334,52 @@ function get_contour_data(xdim,ydim,levels,data)
                  */
                 let edge_center_i = polygons[i].edge_centers[j][k];
 
-                let i2 = i + 1;
-                for(let j2 = 0; j2 < polygons[i2].edge_centers.length; j2++)
+                if(i < polygons.length - 1)
                 {
-                    for(let k2 = 0; k2 < polygons[i2].edge_centers[j2].length; k2++)
+                    let i2 = i + 1;
+                    for(let j2 = 0; j2 < polygons[i2].edge_centers.length; j2++)
                     {
-                        /**
-                         * Edge center of polygon at level i+1, polygon[j2][k2] is an array of 6 numbers
-                         */
-                        let edge_center_i2 = polygons[i2].edge_centers[j2][k2];
-
-                        /**
-                         * Check if edge_center_i2 is inside edge_center_i
-                         * Step 1: if center of polygon at level i+1 is outside edge of polygon at level i, then it is not inside
-                         * Step 2: run rayIntersectsLine for center of polygon at level i+1 and all edges of polygon at level i
-                         */
-                        let inside = false;
-
-                        let center_x_i2 = edge_center_i2.center_x;
-                        let center_y_i2 = edge_center_i2.center_y;
-
-                        if(center_x_i2 > edge_center_i.left && center_x_i2 < edge_center_i.right && center_y_i2 > edge_center_i.bottom && center_y_i2 < edge_center_i.top)
+                        for(let k2 = 0; k2 < polygons[i2].edge_centers[j2].length; k2++)
                         {
                             /**
-                             * Run rayIntersectsLine for center of polygon at level i+1 and all edges of polygon at level i
+                             * Edge center of polygon at level i+1, polygon[j2][k2] is an array of 6 numbers
                              */
-                            for(let l = 0; l < polygons[i].coordinates[j][k].length -1; l++)
+                            let edge_center_i2 = polygons[i2].edge_centers[j2][k2];
+
+                            /**
+                             * Check if edge_center_i2 is inside edge_center_i
+                             * Step 1: if center of polygon at level i+1 is outside edge of polygon at level i, then it is not inside
+                             * Step 2: run rayIntersectsLine for center of polygon at level i+1 and all edges of polygon at level i
+                             */
+                            let inside = false;
+
+                            let center_x_i2 = edge_center_i2.center_x;
+                            let center_y_i2 = edge_center_i2.center_y;
+
+                            if(center_x_i2 > edge_center_i.left && center_x_i2 < edge_center_i.right && center_y_i2 > edge_center_i.bottom && center_y_i2 < edge_center_i.top)
                             {
-                                let line_start = polygons[i].coordinates[j][k][l];
-                                let line_end = polygons[i].coordinates[j][k][l+1];
-                                let ray_origin = [center_x_i2,center_y_i2];
-                                let ray_direction = [1,0];
-                                let intersection = mathTool.rayIntersectsLine(ray_origin,ray_direction,line_start,line_end);
-                                if(intersection !== null)
+                                /**
+                                 * Run rayIntersectsLine for center of polygon at level i+1 and all edges of polygon at level i
+                                 */
+                                for(let l = 0; l < polygons[i].coordinates[j][k].length -1; l++)
                                 {
-                                    // console.log("intersection",ray_origin,line_start,line_end,intersection);
-                                    inside = !inside;
+                                    let line_start = polygons[i].coordinates[j][k][l];
+                                    let line_end = polygons[i].coordinates[j][k][l+1];
+                                    let ray_origin = [center_x_i2,center_y_i2];
+                                    let ray_direction = [1,0];
+                                    let intersection = mathTool.rayIntersectsLine(ray_origin,ray_direction,line_start,line_end);
+                                    if(intersection !== null)
+                                    {
+                                        // console.log("intersection",ray_origin,line_start,line_end,intersection);
+                                        inside = !inside;
+                                    }
                                 }
                             }
-                        }
 
-                        if(inside)
-                        {
-                            child.push([j2,k2]);
+                            if(inside)
+                            {
+                                child.push([j2,k2]);
+                            }
                         }
                     }
                 }
@@ -391,16 +394,16 @@ function get_contour_data(xdim,ydim,levels,data)
      */
     let triangle_2d = []; 
     /**
-     * For each polygon (except the last level). If it has children, define the children as a hole of the polygon
+     * For each polygon, triangulate them.
+     * If it has children, define the children as a hole of the polygon
      */
-    for(let i = 0; i < polygons.length - 1; i++)
+    for(let i = 0; i < polygons.length; i++)
     {
         for(let j = 0; j < polygons[i].coordinates.length; j++)
         {
             for(let k = 0; k < polygons[i].coordinates[j].length; k++)
             {
-                if(polygons[i].children[j][k].length > 0)
-                {
+               
                     let hole_locations = [];
                     /**
                      * Deep copy the polygon to a new array
@@ -447,7 +450,7 @@ function get_contour_data(xdim,ydim,levels,data)
                         }  
                     }
 
-                }
+                
             }
         }
     }
