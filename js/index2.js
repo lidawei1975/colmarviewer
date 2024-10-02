@@ -93,17 +93,7 @@ $(document).ready(function () {
                 new_spectrum_data[i] = 250 * (spe.raw_data[i] - spe.spectral_min) / (spe.spectral_max - spe.spectral_min);
             }
 
-            /**
-             * Define log_spectrum_data as log of new_spectrum_data + 1
-             */
-            let log_spectrum_data = new Float32Array(new_spectrum_data.length);
-            for (let i = 0; i < new_spectrum_data.length; i++) {
-                log_spectrum_data[i] = 40*Math.log(new_spectrum_data[i] + 80);
-            }
-
-            let xdim = spe.n_direct;
-            let ydim = spe.n_indirect;
-
+         
 
             let levels =[5];
 
@@ -120,64 +110,63 @@ $(document).ready(function () {
             /**
              * Calculate contour lines
              */
-            let workerResult = get_contour_data(xdim,ydim,levels,new_spectrum_data);
+            let workerResult = get_contour_data(spe.n_direct,spe.n_indirect,levels,new_spectrum_data);
 
 
             /**
-             * Triangle_2d is an array of 3D coordinates of the triangles for webgl 3D plot
+             * Convert workerResult.triangle_surface to Float32Array
              */
-            let triangle_2d = workerResult.triangle_2d;
-            let data = get_data_new(triangle_2d,0);
-            let colors = get_color_new(triangle_2d);
+            let coordinates = new Float32Array(workerResult.triangle_surface.length*3+workerResult.triangle_contour.length*3);
+            let colors = new Uint8Array(workerResult.triangle_surface.length*3+workerResult.triangle_contour.length*3);
 
-            let data2 = get_data_new(workerResult.new_triangles,1);
-
-            /**
-             * uniform color for all new triangles
-             */
-            let colors2 = new Uint8Array(data2.length);
-            for(let i=0;i<colors2.length/3;i++)
+            for(let i=0;i<workerResult.triangle_surface.length;i++)
             {
-                colors2[i*3] = 0;
-                colors2[i*3+1] = 0;
-                colors2[i*3+2] = 255;
+                coordinates[i*3] = workerResult.triangle_surface[i][1];
+                coordinates[i*3+1] = workerResult.triangle_surface[i][0];
+                coordinates[i*3+2] = workerResult.triangle_surface[i][2];
+
+                /**
+                 * color code the z value. 
+                 */
+                let color = workerResult.triangle_surface[i][2]*2.0;
+                if(color < 7)
+                {
+                    color = 7;
+                }  
+                if(color > 124)
+                {
+                    color = 125;
+                }
+                colors[i*3] = 248;
+                colors[i*3+1] = 255-color;
+                colors[i*3+2] = 255-color;
             }
 
-            data = Float32Concat(data,data2);
-            colors = Uint8Concat(colors,colors2);
-
-            // data = data2;
-            // colors = colors2;
-
-
-            let data_length = data.length;
-
-
-            let line_data = workerResult.points;
-
             /**
-             * Uniform blue color for all contour lines
+             * number of vertices of the surface
              */
-            let line_color = new Uint8Array(line_data.length);
-            for(let i=0;i<line_color.length/3;i++)
-            {
-                line_color[i*3] = 0;
-                line_color[i*3+1] = 0;
-                line_color[i*3+2] = 255;
+            let n = workerResult.triangle_surface.length*3; 
+
+            for(let i=0;i<workerResult.triangle_contour.length;i++)
+            {   
+                /**
+                 * Shift z value by 1 to separate the surface and contour lines
+                 * (make sure the contour lines are above the surface to ensure visibility)
+                 */
+                coordinates[n+i*3] = workerResult.triangle_contour[i][1];
+                coordinates[n+i*3+1] = workerResult.triangle_contour[i][0];
+                coordinates[n+i*3+2] = workerResult.triangle_contour[i][2]+1;
+
+                /**
+                 * Blue color for the contour lines
+                 */
+                colors[n+i*3] = 0;
+                colors[n+i*3+1] = 0;
+                colors[n+i*3+2] = 255;
             }
 
-           
-            data = Float32Concat(data,line_data);
-            colors = Uint8Concat(colors,line_color);
-
-            /**
-             * clear workerResult.points
-             */
-            workerResult.points = new Float32Array(0);
-
-            main_plot = new webgl_contour_plot2('canvas1',data,colors,data_length,workerResult);
+            main_plot = new webgl_contour_plot2('canvas1',coordinates,colors);
             main_plot.drawScene();
-
             create_event_listener(main_plot);
 
         };
@@ -282,18 +271,21 @@ function create_event_listener() {
     });
 }
 
-function get_contour_data(xdim,ydim,levels,data)
+function get_contour_data(n_direct,n_indirect,levels,data)
 {
     const mathTool = new ldwmath(); 
 
 
     let polygons = d3.contours()
-        // .smooth(false)
-        .size([xdim, ydim])
+        .size([n_direct, n_indirect])
         .thresholds(levels)(data);
 
     /**
      * Calculate the edges and center of each polygon
+     * @var polygons is an array of polygon, each have the following properties:
+     * coordinates: an array of array of 2D coordinates of the polygon
+     * edge_centers: an array of array of 6 numbers, each represent the edge center of the polygon
+     * children: an array of array of array of 2 numbers, each represent the index of the children polygon
      */
     for (let i = 0; i < polygons.length; i++)
     {
@@ -315,6 +307,7 @@ function get_contour_data(xdim,ydim,levels,data)
     /**
      * For each polygon at level i, let check all polygons at level i+1 to see whether it is inside the polygon at level i
      * If inside, add the index of polygon at level i+1 to polygons[i].children array
+     * For the highest level, it has no children, but we still need to define polygons[i].children as an empty array
      */
     for (let i = 0; i < polygons.length; i++)
     {   
@@ -392,7 +385,7 @@ function get_contour_data(xdim,ydim,levels,data)
     /**
      * Array of 3D coordinates of the triangles for webgl 3D plot
      */
-    let triangle_2d = []; 
+    let triangle_surface = []; 
     /**
      * For each polygon, triangulate them.
      * If it has children, define the children as a hole of the polygon
@@ -446,137 +439,98 @@ function get_contour_data(xdim,ydim,levels,data)
                             {
                                 z = levels[i+1];
                             }
-                            triangle_2d.push([x,y,z]);
+                            triangle_surface.push([x,y,z]);
                         }  
                     }
-
-                
             }
         }
     }
 
-    let polygon_2d = [];
-
-    let workerResult = {};
-
-
-    workerResult.polygon_length = [];
-    workerResult.levels_length = [];
-
-
+    /**
+     * @var triangle_contour is an array of 3D coordinates of the triangles
+     * that are converted from the contour lines
+     */
+    let triangle_contour = [];
+    /**
+     * m is the index of the level
+     */
     for (let m = 0; m < polygons.length; m++) {
         for (let i = 0; i < polygons[m].coordinates.length; i++) {
             for (let j = 0; j < polygons[m].coordinates[i].length; j++) {
-                let coors2 = polygons[m].coordinates[i][j];
-                let coors3 = [];
                 /**
-                 * coors2 is an array of length 2, representing a point in 2D
-                 * We need to convert it to 3D by adding a z value
+                 * coors2 is an array of 2D coordinates of the polygon
                  */
-                for (let k = 0; k < coors2.length; k++) {
-                    coors3.push([coors2[k][0], coors2[k][1], levels[m]]);
-                }
-                polygon_2d = polygon_2d.concat(coors3);
-                workerResult.polygon_length.push(polygon_2d.length);
-            }
-        }
-        workerResult.levels_length.push(workerResult.polygon_length.length);
-    }
-    
-
-    let polygon_1d = new Array(polygon_2d.length * 3);
-
-    for (let i = 0; i < polygon_2d.length; i++) {
-        polygon_1d[i * 3] = polygon_2d[i][1]; //x value
-        polygon_1d[i * 3 + 1] = polygon_2d[i][0]; //y value
-        polygon_1d[i * 3 + 2] = polygon_2d[i][2]; //z value
-    }
-    workerResult.points = new Float32Array(polygon_1d);
-
-    workerResult.triangle_2d = triangle_2d;
-
-
-    workerResult.new_triangles = convert_line_to_triangle(workerResult);
-
-
-    return workerResult;
-}
-
-function convert_line_to_triangle(workerResult)
-{
-    let triangle = [];
-
-    for(let i=0;i<workerResult.levels_length.length;i++)
-    {
-        let i_start = 0;
-        if(i>0)
-        {
-            i_start = workerResult.levels_length[i-1];
-        }
-        let i_stop = workerResult.levels_length[i];
-
-        for(let j=i_start;j<i_stop;j++)
-        {
-            let point_start = 0;
-            if(j>0)
-            {
-                point_start = workerResult.polygon_length[j-1];
-            }
-            let point_stop = workerResult.polygon_length[j];
-
-            /**
-             * Each line segment is defined by two points
-             * workerResult.points is an array of 3D coordinates of the points
-             */
-            for(let k=point_start;k<point_stop-1;k++)
-            {
-                let p1_x = workerResult.points[k*3];
-                let p1_y = workerResult.points[k*3+1];
-
-                let p2_x = workerResult.points[(k+1)*3];
-                let p2_y = workerResult.points[(k+1)*3+1];
-
-                let normal_x = p2_y - p1_y;
-                let normal_y = p1_x - p2_x;
-                let normal_length = Math.sqrt(normal_x*normal_x + normal_y*normal_y);
-                normal_x /= normal_length;
-                normal_y /= normal_length;
-
-                normal_x *= 0.5;
-                normal_y *= 0.5; //thickness of the line segment
-
+                let coors2 = polygons[m].coordinates[i][j];
                 /**
-                 * Line segment ==> 2 triangles, with total thickness of 2.0 
-                 * (1.0 along the normal direction, 1.0 along the opposite direction)
-                //  */
-                let p1 = [p1_y + normal_y, p1_x + normal_x, workerResult.points[k*3+2]];
-                let p2 = [p1_y - normal_y, p1_x - normal_x,workerResult.points[k*3+2]];
-                let p3 = [p2_y + normal_y, p2_x + normal_x, workerResult.points[k*3+2]];
-                let p4 = [p2_y - normal_y,p2_x - normal_x,  workerResult.points[k*3+2]];
+                 * Each line segment is defined by two points
+                 * workerResult.points is an array of 3D coordinates of the points
+                 */
+                for(let k = 0; k < coors2.length - 1; k++)
+                {
+                    
+                    let p1_x = coors2[k][0];
+                    let p1_y = coors2[k][1];
 
-                triangle.push(p1);
-                triangle.push(p2);
-                triangle.push(p3);
-                triangle.push(p2);
-                triangle.push(p3);
-                triangle.push(p4);
+                    let p2_x = coors2[k + 1][0];
+                    let p2_y = coors2[k + 1][1];
 
-                let pp1 =[ p1_y, p1_x, workerResult.points[k*3+2]+0.5];
-                let pp2 = [p1_y, p1_x, workerResult.points[k*3+2]-0.5];
-                let pp3 = [p2_y, p2_x, workerResult.points[k*3+2]+0.5];
-                let pp4 = [p2_y, p2_x, workerResult.points[k*3+2]-0.5];
+                    let pz = levels[m];
+                    
+                    /**
+                     * Calculate the normal of the line segment
+                     */
+                    let normal_x = p2_y - p1_y;
+                    let normal_y = p1_x - p2_x;
+                    let normal_length = Math.sqrt(normal_x*normal_x + normal_y*normal_y);
+                    normal_x /= normal_length;
+                    normal_y /= normal_length;
+                    
+                    /**
+                     * Thickness of the line segment is 1.0, so we extend the line segment by 0.5 in both directions
+                     */
+                    normal_x *= 0.5;
+                    normal_y *= 0.5; 
+    
+                    /**
+                     * Line segment ==> 2 triangles. They are parallel to the xy plane
+                    */
+                    let p1 = [p1_x + normal_x, p1_y + normal_y, pz];
+                    let p2 = [p1_x - normal_x, p1_y - normal_y, pz];
+                    let p3 = [p2_x + normal_x, p2_y + normal_y, pz];
+                    let p4 = [p2_x - normal_x, p2_y - normal_y, pz];
+    
+                    triangle_contour.push(p1);
+                    triangle_contour.push(p2);
+                    triangle_contour.push(p3);
+                    triangle_contour.push(p2);
+                    triangle_contour.push(p3);
+                    triangle_contour.push(p4);
 
-                triangle.push(pp1);
-                triangle.push(pp2);
-                triangle.push(pp3);
-                triangle.push(pp2);
-                triangle.push(pp3);
-                triangle.push(pp4);
+                    /**
+                     * Add triangles that are perpendicular to the xy plane
+                     */
+                    let pp1 = [p1_x, p1_y, levels[m]+0.5];
+                    let pp2 = [p1_x, p1_y, levels[m]-0.5];
+                    let pp3 = [p2_x, p2_y, levels[m]+0.5];
+                    let pp4 = [p2_x, p2_y, levels[m]-0.5];
+
+                    triangle_contour.push(pp1);
+                    triangle_contour.push(pp2);
+                    triangle_contour.push(pp3);
+                    triangle_contour.push(pp2);
+                    triangle_contour.push(pp3);
+                    triangle_contour.push(pp4);
+                    
+                }
             }
         }
     }
 
-    return triangle;
+    let contour_result = new Object();
+
+    contour_result.triangle_surface = triangle_surface;
+    contour_result.triangle_contour = triangle_contour;
+    return contour_result;
 }
 
 

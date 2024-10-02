@@ -3,20 +3,13 @@
 
 class webgl_contour_plot2 {
 
-    constructor(canvas_id,points,colors,data_length,contour_result) {
+    constructor(canvas_id,points,colors) {
 
         this.canvas = document.querySelector("#" + canvas_id);
         this.gl = this.canvas.getContext("webgl");
         if (!this.gl) {
             alert("No WebGL");
         }
-
-        this.data_length = data_length/3; // number of triangles
-
-        this.line_data_length = points.length/3 - this.data_length; // number of lines
-
-        this.levels_length = contour_result.levels_length;
-        this.polygon_length = contour_result.polygon_length;
 
         let vertex_shader_2d = `
                 attribute vec4 a_position;
@@ -61,6 +54,8 @@ class webgl_contour_plot2 {
         //bind the buffer
         this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.colorBuffer);
         this.gl.bufferData(this.gl.ARRAY_BUFFER, colors, this.gl.STATIC_DRAW);
+        
+        this.data_length = points.length/3;
             
         this.rotation_x = 0;
         this.rotation_y = 0;
