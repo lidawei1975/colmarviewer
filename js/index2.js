@@ -71,12 +71,16 @@ function get_color_new(triangle_2d)
     return colors;
 }
 
-var main_plot;
+var main_plot = null
 const mathTool = new ldwmath(); 
 
 $(document).ready(function () {
 
-    
+    /**
+     * Resize observer for the big plot
+     */
+    plot_div_resize_observer.observe(document.getElementById("canvas_container")); 
+ 
     document.getElementById('ft2_file_form').addEventListener('submit', function (e) {
         e.preventDefault();
         var file = document.getElementById('userfile').files[0];
@@ -92,7 +96,7 @@ $(document).ready(function () {
                 new_spectrum_data[i] = 255 * spe.raw_data[i]/spe.spectral_max;
             }
 
-            let minimal_level = spe.noise_level * 5.5 * 250 / spe.spectral_max;
+            let minimal_level = spe.noise_level * 2.5 * 250 / spe.spectral_max;
 
             let levels = [minimal_level];
             let n_levels = Math.log(spe.spectral_max/minimal_level)/Math.log(1.4);
@@ -164,6 +168,10 @@ $(document).ready(function () {
 
             main_plot = new webgl_contour_plot2('canvas1',coordinates,colors,spe.n_direct,spe.n_indirect);
             main_plot.drawScene();
+            /**
+             * After first draw, need to resize to set correct viewport
+             */
+            resize_main_plot(document.getElementById('canvas_container').clientWidth,document.getElementById('canvas_container').clientHeight);
             create_event_listener(main_plot);
 
         };
@@ -661,4 +669,29 @@ function process_ft_file(arrayBuffer,file_name, spectrum_type) {
     }
 
     return result;
+}
+
+
+var plot_div_resize_observer = new ResizeObserver(entries => {
+    for (let entry of entries) {
+        const cr = entry.contentRect;
+        resize_main_plot(cr.width,cr.height);
+    }
+});
+
+
+function resize_main_plot(canvas_width, canvas_height)
+{
+
+    console.log("new width is ", canvas_width, " new height is ", canvas_height);
+
+    if(main_plot !== null)
+    {
+        document.getElementById('canvas1').style.width = canvas_width.toString() + "px";
+        document.getElementById('canvas1').style.height = canvas_height.toString() + "px";
+        document.getElementById('canvas1').setAttribute("height", canvas_height.toString());
+        document.getElementById('canvas1').setAttribute("width", canvas_width.toString());
+        main_plot.drawScene();
+    }
+    
 }

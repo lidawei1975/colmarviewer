@@ -5,14 +5,24 @@
     <title>Colmar Viewer</title>
     <style>
         body {
-            margin: 0;
+            margin: 0 auto;
+            text-align: center;
         }
 
         canvas {
             width: 900px;
             height: 900px;
             display: block;
-            border: 1px solid black;
+        }
+
+        div.resizable {
+            border: 2px solid #40375f;
+            border-radius: 0.5rem;
+            padding: 20px;
+            resize: both;
+            overflow: hidden;
+            min-width: 400px;
+            min-height: 300px;
         }
     </style>
 </head>
@@ -21,7 +31,9 @@
 <body>
 
     <div id="body">
+        <div id="canvas_container" class="resizable" style="width: 1200px; margin: 0 auto; text-align: center;">
         <canvas id="canvas1"></canvas>
+        </div>
 
         <div style="clear: both">
             <label for="rotation_x">Titlet</label>

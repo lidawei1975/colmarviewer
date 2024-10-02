@@ -106,7 +106,7 @@ class webgl_contour_plot2 {
 
         scale =  Math.abs(this.y_axis_in_spe_frame[2]*this.scale_z)/scale;
         scale = 1-scale*scale;
-        console.log("scale: ", scale);
+        // console.log("scale: ", scale);
 
         if(scale<0.1){
             scale = 0.1;
@@ -128,7 +128,6 @@ class webgl_contour_plot2 {
      * Draw the scene.
      */
     drawScene() {
-        webglUtils.resizeCanvasToDisplaySize(this.gl.canvas);
 
         this.gl.viewport(0, 0, this.gl.canvas.width, this.gl.canvas.height);
 
@@ -214,7 +213,7 @@ class webgl_contour_plot2 {
          * Get projected coordinates of spectrum center in world frame
          */
         let spectrum_center = m4.multiply_vec(matrix, [0,0,0,1]);
-        console.log("spectrum_center: ", spectrum_center);
+        // console.log("spectrum_center: ", spectrum_center);
 
         /**
          * Get the inverse of the matrix
@@ -233,8 +232,8 @@ class webgl_contour_plot2 {
         this.x_axis_in_spe_frame = m4.multiply_vec(inverse_matrix, spectrum_center_move_x);
         this.y_axis_in_spe_frame = m4.multiply_vec(inverse_matrix, spectrum_center_move_y);
 
-        console.log("x_axis_in_spe_frame: ", this.x_axis_in_spe_frame);
-        console.log("y_axis_in_spe_frame: ", this.y_axis_in_spe_frame);
+        // console.log("x_axis_in_spe_frame: ", this.x_axis_in_spe_frame);
+        // console.log("y_axis_in_spe_frame: ", this.y_axis_in_spe_frame);
 
 
         this.gl.uniformMatrix4fv(this.matrixLocation, false, matrix);
