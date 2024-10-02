@@ -407,26 +407,39 @@ function create_event_listener() {
      * rotation_z: left and right arrow keys
      * rotation_x: up and down arrow keys
      */
-    window.addEventListener('keydown', function (e) {
-        if (e.key === 'ArrowLeft') {
-            main_plot.rotation_z -= 1;
-            /**
-             * Update the value of the range slider rotation_z as well
-             */
-            document.getElementById('rotation_z').value = main_plot.rotation_z;
-        }
-        if (e.key === 'ArrowRight') {
-            main_plot.rotation_z += 1;
-            document.getElementById('rotation_z').value = main_plot.rotation_z;
-        }
-        if (e.key === 'ArrowUp') {
-            main_plot.rotation_x -= 1;
-            document.getElementById('rotation_x').value = main_plot.rotation_x;
-        }
-        if (e.key === 'ArrowDown') {
-            main_plot.rotation_x += 1;
-            document.getElementById('rotation_x').value = main_plot.rotation_x;
-        }
+    // window.addEventListener('keydown', function (e) {
+    //     if (e.key === 'ArrowLeft') {
+    //         main_plot.rotation_z -= 1;
+    //         /**
+    //          * Update the value of the range slider rotation_z as well
+    //          */
+    //         document.getElementById('rotation_z').value = main_plot.rotation_z;
+    //     }
+    //     if (e.key === 'ArrowRight') {
+    //         main_plot.rotation_z += 1;
+    //         document.getElementById('rotation_z').value = main_plot.rotation_z;
+    //     }
+    //     if (e.key === 'ArrowUp') {
+    //         main_plot.rotation_x -= 1;
+    //         document.getElementById('rotation_x').value = main_plot.rotation_x;
+    //     }
+    //     if (e.key === 'ArrowDown') {
+    //         main_plot.rotation_x += 1;
+    //         document.getElementById('rotation_x').value = main_plot.rotation_x;
+    //     }
+    //     main_plot.drawScene();
+    // });
+
+    /**
+     * Add event listener for light_tilt and light_orientation
+     */
+    document.getElementById('light_tilt').addEventListener('input', function () {
+        main_plot.light_tilt = this.value;
+        main_plot.drawScene();
+    });
+
+    document.getElementById('light_orientation').addEventListener('input', function () {
+        main_plot.light_orientation = this.value;
         main_plot.drawScene();
     });
 }

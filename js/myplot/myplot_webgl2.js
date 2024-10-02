@@ -43,13 +43,14 @@ class webgl_contour_plot2 {
             attribute vec4 a_color;
             attribute vec3 a_normal;
             uniform mat4 u_matrix;
+            uniform mat4 u_normal_matrix;
             varying vec4 v_color;
             varying vec3 v_normal;
             void main() {
             // Multiply the position by the matrix.
             gl_Position = u_matrix * a_position;
+            v_normal = mat3(u_normal_matrix) * a_normal;
             v_color = a_color;
-            v_normal = a_normal;
             }
             `;
 
@@ -81,7 +82,8 @@ class webgl_contour_plot2 {
         if(flag==1)
         {
             this.normalLocation = this.gl.getAttribLocation(this.program, "a_normal");
-            this.reverseLightDirectionLocation = this.gl.getUniformLocation(this.program, "u_reverseLightDirection");       
+            this.reverseLightDirectionLocation = this.gl.getUniformLocation(this.program, "u_reverseLightDirection");   
+            this.normalMatrixLocation = this.gl.getUniformLocation(this.program, "u_normal_matrix");    
         }
 
         // Create a buffer to put positions in
@@ -125,7 +127,14 @@ class webgl_contour_plot2 {
 
         this.fov = x_dim/this.gl.canvas.clientWidth;
 
-        this.light_direction = [0.5, 0.5, 0.5];
+        /**
+         * Light direction in world frame. 
+         * tilt is the angle between the light direction and the x-y plane
+         * rotation is the angle between the projection of light direction on x-y plane and x axis
+         */
+        this.light_tilt = 25;
+        this.light_orientation = 120;  
+
 
         /**
          * x_axis_in_spe_frame and y_axis_in_spe_frame are the vectors in the spectrum frame for 
@@ -307,13 +316,33 @@ class webgl_contour_plot2 {
         this.x_axis_in_spe_frame = m4.multiply_vec(inverse_matrix, spectrum_center_move_x);
         this.y_axis_in_spe_frame = m4.multiply_vec(inverse_matrix, spectrum_center_move_y);
 
+        
+
         // console.log("x_axis_in_spe_frame: ", this.x_axis_in_spe_frame);
         // console.log("y_axis_in_spe_frame: ", this.y_axis_in_spe_frame);
 
         this.gl.uniformMatrix4fv(this.matrixLocation, false, matrix);
+        
         if(this.drawing_flag==1)
-        {
-            this.gl.uniform3fv(this.reverseLightDirectionLocation, m4.normalize(this.light_direction));
+        {   
+            /**
+             * We also need a matrix to rotate the normal vectors
+             */
+            let normal_matrix = m4.identity();
+            normal_matrix = m4.xRotate(normal_matrix, rotation[0]);
+            normal_matrix = m4.zRotate(normal_matrix, rotation[2]);
+            this.gl.uniformMatrix4fv(this.normalMatrixLocation, false, normal_matrix);
+            
+            /**
+             * Calculate the light direction in world frame using this.light_tilt and this.light_rotation
+             */
+            let light_direction = [Math.cos(this.degToRad(this.light_tilt))*Math.cos(this.degToRad(this.light_orientation)),
+                Math.cos(this.degToRad(this.light_tilt))*Math.sin(this.degToRad(this.light_orientation)),
+                Math.sin(this.degToRad(this.light_tilt))];
+
+            console.log("light_direction: ", light_direction);
+
+            this.gl.uniform3fv(this.reverseLightDirectionLocation,m4.normalize(light_direction));
         }
 
         // Draw all the triangles

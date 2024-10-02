@@ -1,5 +1,14 @@
 var m4 = {
 
+    identity: function() {
+      return [
+        1, 0, 0, 0,
+        0, 1, 0, 0,
+        0, 0, 1, 0,
+        0, 0, 0, 1,
+      ];
+    },
+
     perspective: function(fieldOfViewInRadians, aspect, near, far) {
       var f = Math.tan(Math.PI * 0.5 - 0.5 * fieldOfViewInRadians);
       var rangeInv = 1.0 / (near - far);
