@@ -49,6 +49,14 @@
             <form id="ft2_file_form" action="" enctype="multipart/form-data">
                 <label for="userfile">Frequency domain spectral file (.ft2) </label><input type="file" 
                     id="userfile"><br>
+                    <fieldset>
+                        <legend>3D plot options</legend>
+                        <input type="radio" id="smooth" name="plot_type" value="smooth" checked>
+                        <label for="surface">3D surface</label>
+                        <br>
+                        <input type="radio" id="terrace" name="plot_type" value="terrace">
+                        <label for="terrace">3D terrace</label>
+                    </fieldset>
                 <input type="submit" id="button_ft2_process" value="Upload and process spectra"></br>
             </form>
         </div>
