@@ -210,12 +210,25 @@ $(document).ready(function () {
             total_size += x_axis_triangle.length*3 + y_axis_triangle.length*3 + z_axis_triangle.length*3;
             let coordinates = new Float32Array(total_size);
             let colors = new Uint8Array(total_size);
+            let normals = null;
+            if(plot_type_int==1)
+            {
+                normals = new Float32Array(workerResult.triangle_surface.length*3);
+            }
+            
 
             for(let i=0;i<workerResult.triangle_surface.length;i++)
             {
                 coordinates[i*3] = workerResult.triangle_surface[i][0];
                 coordinates[i*3+1] = workerResult.triangle_surface[i][1];
                 coordinates[i*3+2] = workerResult.triangle_surface[i][2];
+
+                if(plot_type_int==1)
+                {
+                    normals[i*3] = workerResult.triangle_normals[i][0];
+                    normals[i*3+1] = workerResult.triangle_normals[i][1];
+                    normals[i*3+2] = workerResult.triangle_normals[i][2];
+                }
 
                 /**
                  * color code the z value. 
@@ -308,7 +321,7 @@ $(document).ready(function () {
                 colors[n+i*3+2] = 0;
             }
 
-            main_plot = new webgl_contour_plot2('canvas1',coordinates,colors,spe.n_direct,spe.n_indirect);
+            main_plot = new webgl_contour_plot2('canvas1',coordinates,normals,colors,spe.n_direct,spe.n_indirect,plot_type_int);
             main_plot.drawScene();
             /**
              * After first draw, need to resize to set correct viewport
@@ -541,6 +554,7 @@ function get_contour_data(n_direct,n_indirect,levels,data,thickness,flag)
      * Array of 3D coordinates of the triangles for webgl 3D plot
      */
     let triangle_surface = []; 
+    let triangle_normals = [];
     /**
      * For each polygon, triangulate them.
      * If it has children, define the children as a hole of the polygon
@@ -594,6 +608,10 @@ function get_contour_data(n_direct,n_indirect,levels,data,thickness,flag)
                             z = levels[i + 1];
                         }
                         triangle_surface.push([x, y, z]);
+                        if(flag==1)
+                        {
+                            triangle_normals.push([0,0,1]); //normal of the triangle is alway [0,0,1] for terrace surface    
+                        }
                     }
                 }
 
@@ -613,7 +631,16 @@ function get_contour_data(n_direct,n_indirect,levels,data,thickness,flag)
                          * 3. polygon[l+1][0], polygon[l+1][1], levels[i]
                          * 4. polygon[l+1][0], polygon[l+1][1], levels[i-1]
                          * 1,2,3 and 3,2,4 are two triangles
+                         * All triangles are vertical, normal is (polygon[l+1] - polygon[l])'
                          */
+                        let normal = [polygon[l + 1][1] - polygon[l][1], -polygon[l+1][0] + polygon[l][0], 0];
+                        /**
+                         * Need to normalize the normal
+                         */
+                        let normal_length = Math.sqrt(normal[0]*normal[0] + normal[1]*normal[1]);
+                        normal[0] /= normal_length;
+                        normal[1] /= normal_length;
+                         
                         let x1 = polygon[l][0];
                         let y1 = polygon[l][1];
                         let z1 = levels[i];
@@ -632,6 +659,10 @@ function get_contour_data(n_direct,n_indirect,levels,data,thickness,flag)
                         triangle_surface.push([x3, y3, z3]);
                         triangle_surface.push([x2, y2, z2]);
                         triangle_surface.push([x4, y4, z4]);
+                        for(let m=0;m<6;m++)
+                        {
+                            triangle_normals.push(normal);
+                        }
                     }
                 }
             } 
@@ -732,6 +763,7 @@ function get_contour_data(n_direct,n_indirect,levels,data,thickness,flag)
 
     contour_result.triangle_surface = triangle_surface;
     contour_result.triangle_contour = triangle_contour;
+    contour_result.triangle_normals = triangle_normals;
     return contour_result;
 }
 

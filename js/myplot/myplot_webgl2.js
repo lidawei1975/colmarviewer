@@ -3,7 +3,7 @@
 
 class webgl_contour_plot2 {
 
-    constructor(canvas_id,points,colors,x_dim,y_dim) {
+    constructor(canvas_id,points,normals,colors,x_dim,y_dim,flag=0) {
 
         this.canvas = document.querySelector("#" + canvas_id);
         this.gl = this.canvas.getContext("webgl");
@@ -11,28 +11,66 @@ class webgl_contour_plot2 {
             alert("No WebGL");
         }
 
-        let vertex_shader_2d = `
-                attribute vec4 a_position;
-                attribute vec4 a_color;
-                uniform mat4 u_matrix;
-                varying vec4 v_color;
-                void main() {
-                // Multiply the position by the matrix.
-                gl_Position = u_matrix * a_position;
-                v_color = a_color;
-                }
+        if(flag==0)
+        {
+            let vertex_shader_2d = `
+                    attribute vec4 a_position;
+                    attribute vec4 a_color;
+                    uniform mat4 u_matrix;
+                    varying vec4 v_color;
+                    void main() {
+                    // Multiply the position by the matrix.
+                    gl_Position = u_matrix * a_position;
+                    v_color = a_color;
+                    }
+                `;
+
+            let fragment_shader_2d = `
+                    precision mediump float;
+                    varying vec4 v_color;
+                    void main() {
+                    gl_FragColor = v_color;
+                    }
+                `;
+
+            // setup GLSL program
+            this.program = webglUtils.createProgramFromSources(this.gl, [vertex_shader_2d, fragment_shader_2d]);
+        }
+        else //flag=1, add lighting effect
+        {
+            let vertex_shader_2d = `
+            attribute vec4 a_position;
+            attribute vec4 a_color;
+            attribute vec3 a_normal;
+            uniform mat4 u_matrix;
+            varying vec4 v_color;
+            varying vec3 v_normal;
+            void main() {
+            // Multiply the position by the matrix.
+            gl_Position = u_matrix * a_position;
+            v_color = a_color;
+            v_normal = a_normal;
+            }
             `;
 
-        let fragment_shader_2d = `
-                precision mediump float;
-                varying vec4 v_color;
-                void main() {
-                gl_FragColor = v_color;
-                }
-            `;
+            let fragment_shader_2d = `
+                    precision mediump float;
+                    varying vec3 v_normal;
+                    uniform vec3 u_reverseLightDirection;
+                    uniform vec4 u_color;
+                    varying vec4 v_color;
 
-        // setup GLSL program
-        this.program = webglUtils.createProgramFromSources(this.gl, [vertex_shader_2d, fragment_shader_2d]);
+                    void main() {
+                    vec3 normal = normalize(v_normal);
+                    float light = dot(normal, u_reverseLightDirection);
+                    gl_FragColor = v_color;
+                    gl_FragColor.rgb *= light;
+                    }
+                `;
+
+            // setup GLSL program
+            this.program = webglUtils.createProgramFromSources(this.gl, [vertex_shader_2d, fragment_shader_2d]);
+        }
 
         // look up where the vertex data needs to go.
         this.positionLocation = this.gl.getAttribLocation(this.program, "a_position");
@@ -40,6 +78,11 @@ class webgl_contour_plot2 {
         // lookup uniforms
         this.colorLocation = this.gl.getAttribLocation(this.program, "a_color");
         this.matrixLocation = this.gl.getUniformLocation(this.program, "u_matrix");
+        if(flag==1)
+        {
+            this.normalLocation = this.gl.getAttribLocation(this.program, "a_normal");
+            this.reverseLightDirectionLocation = this.gl.getUniformLocation(this.program, "u_reverseLightDirection");       
+        }
 
         // Create a buffer to put positions in
         this.positionBuffer = this.gl.createBuffer();
@@ -54,8 +97,20 @@ class webgl_contour_plot2 {
         //bind the buffer
         this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.colorBuffer);
         this.gl.bufferData(this.gl.ARRAY_BUFFER, colors, this.gl.STATIC_DRAW);
+
+        if(flag==1)
+        {
+            /**
+             * Buffer for normals of the triangles
+             */
+            this.normalBuffer = this.gl.createBuffer();
+            this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.normalBuffer);
+            this.gl.bufferData(this.gl.ARRAY_BUFFER, normals, this.gl.STATIC_DRAW);
+        }
         
         this.data_length = points.length/3;
+
+        this.drawing_flag = flag;
             
         this.rotation_x = 0;
         this.rotation_y = 0;
@@ -69,6 +124,8 @@ class webgl_contour_plot2 {
         this.scale_z = 1;
 
         this.fov = x_dim/this.gl.canvas.clientWidth;
+
+        this.light_direction = [0.5, 0.5, 0.5];
 
         /**
          * x_axis_in_spe_frame and y_axis_in_spe_frame are the vectors in the spectrum frame for 
@@ -174,6 +231,24 @@ class webgl_contour_plot2 {
         var offset = 0;               // start at the beginning of the buffer
         this.gl.vertexAttribPointer(this.colorLocation, size, type, normalize, stride, offset);
 
+        if (this.drawing_flag == 1) {
+            // Turn on the normal attribute
+            this.gl.enableVertexAttribArray(this.normalLocation);
+
+            // Bind the normal buffer.
+            this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.normalBuffer);
+
+            // Tell the attribute how to get data out of normalBuffer (ARRAY_BUFFER)
+            var size = 3;          // 3 components per iteration
+            var type = this.gl.FLOAT;   // the data is 32bit floating point values
+            var normalize = false; // normalize the data (convert from 0-255 to 0-1)
+            var stride = 0;        // 0 = move forward size * sizeof(type) each iteration to get the next position
+            var offset = 0;        // start at the beginning of the buffer
+            this.gl.vertexAttribPointer(this.normalLocation, size, type, normalize, stride, offset)
+        }
+        
+
+
         var translation = [this.translation_x, this.translation_y, this.translation_z];
         var rotation = [this.degToRad(this.rotation_x), this.degToRad(this.rotation_y), this.degToRad(this.rotation_z)];
 
@@ -235,8 +310,11 @@ class webgl_contour_plot2 {
         // console.log("x_axis_in_spe_frame: ", this.x_axis_in_spe_frame);
         // console.log("y_axis_in_spe_frame: ", this.y_axis_in_spe_frame);
 
-
         this.gl.uniformMatrix4fv(this.matrixLocation, false, matrix);
+        if(this.drawing_flag==1)
+        {
+            this.gl.uniform3fv(this.reverseLightDirectionLocation, m4.normalize(this.light_direction));
+        }
 
         // Draw all the triangles
         var primitiveType = this.gl.TRIANGLES;
