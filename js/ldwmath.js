@@ -84,4 +84,137 @@ class ldwmath {
             center_y: sumY / polygon.length
         };
     }
+
+    
+    /**
+     * Estimate noise level of a spectrum.
+     * Calculate RMSD of each 32*32 segment, and get the median value
+     * @param {*} x_dim: x dimension of the spectrum
+     * @param {*} y_dim: y dimension of the spectrum
+     * @param {Float32Array} spectrum: the spectrum data, row major. y*x_dim + x to access the element at (x,y)
+     * @returns 
+     */
+    estimate_noise_level(x_dim,y_dim,spectrum)
+    {
+        let n_segment_x = Math.floor(x_dim / 32);
+        let n_segment_y = Math.floor(y_dim / 32);
+
+        let variances = [];      // variance of each segment
+        let maximal_values = []; // maximal value of each segment
+
+        /**
+         * loop through each segment, and calculate variance
+         */
+        for (let i = 0; i < n_segment_x; i++) {
+            for (let j = 0; j < n_segment_y; j++) {
+                let t = [];
+                for (let m = 0; m < 32; m++) {
+                    for (let n = 0; n < 32; n++) {
+                        t.push(spectrum[(j * 32 + m) * x_dim + i * 32 + n]);
+                    }
+                }
+
+                /**
+                 * calculate variance of this segment. Subtract the mean value of this segment first
+                 * also calculate the max value of this segment
+                 */
+                let max_of_t = 0.0;
+                let mean_of_t = 0.0;
+                for (let k = 0; k < t.length; k++) {
+                    mean_of_t += t[k];
+                    if (Math.abs(t[k]) > max_of_t) {
+                        max_of_t = Math.abs(t[k]);
+                    }
+                }
+                mean_of_t /= t.length;
+
+                let variance_of_t = 0.0;
+                for (let k = 0; k < t.length; k++) {
+                    variance_of_t += (t[k] - mean_of_t) * (t[k] - mean_of_t);
+                }
+                variance_of_t /= t.length;
+                variances.push(variance_of_t);
+                maximal_values.push(max_of_t);
+            }
+        }
+
+        /**
+         * Sort the variances and get the median value
+         */
+        let variances_sorted = [...variances]; // Copy of variances array
+        variances_sorted.sort((a, b) => a - b); // Sort in ascending order
+        let noise_level = Math.sqrt(variances_sorted[Math.floor(variances_sorted.length / 2)]);
+        console.log("Noise level is " + noise_level + " using variance estimation.");
+
+        /**
+         * Loop through maximal_values and remove the ones that are larger than 10.0 * noise_level
+         * Also remove the corresponding variance as well
+         */
+        for (let i = maximal_values.length - 1; i >= 0; i--) {
+            if (maximal_values[i] > 10.0 * noise_level) {
+                maximal_values.splice(i, 1);  // Remove the element at index i
+                variances.splice(i, 1);       // Remove corresponding variance
+            }
+        }
+
+        /**
+         * Sort the variances again and get the new median value
+         */
+        variances_sorted = [...variances];  // Copy the updated variances array
+        variances_sorted.sort((a, b) => a - b);  // Sort in ascending order
+        noise_level = Math.sqrt(variances_sorted[Math.floor(variances_sorted.length / 2)]);
+
+        console.log("Final noise level is estimated to be " + noise_level);
+
+        return noise_level;
+
+    }
+
+    /**
+     * Find max and min of a Float32Array
+     */
+    find_max_min(data)
+    {
+        let max = data[0];
+        let min = data[0];
+        for(let i=1;i<data.length;i++)
+        {
+            if(data[i] > max)
+            {
+                max = data[i];
+            }
+            if(data[i] < min)
+            {
+                min = data[i];
+            }
+        }
+        return [max,min];
+    }
+
+
+    /**
+     * Concat two float32 arrays into one
+     * @returns the concatenated array
+     */
+    Float32Concat(first, second)
+    {
+        var firstLength = first.length,
+        result = new Float32Array(firstLength + second.length);
+
+        result.set(first);
+        result.set(second, firstLength);
+
+        return result;
+    }
+
+    Uint8Concat(first, second)
+    {
+        var firstLength = first.length,
+        result = new Uint8Array(firstLength + second.length);
+
+        result.set(first);
+        result.set(second, firstLength);
+
+        return result;
+    }
 }

@@ -71,12 +71,11 @@ function get_color_new(triangle_2d)
     return colors;
 }
 
-    
-
-
 var main_plot;
+const mathTool = new ldwmath(); 
 
 $(document).ready(function () {
+
     
     document.getElementById('ft2_file_form').addEventListener('submit', function (e) {
         e.preventDefault();
@@ -90,27 +89,25 @@ $(document).ready(function () {
              */
             let new_spectrum_data = new Float32Array(spe.raw_data.length);
             for (let i = 0; i < spe.raw_data.length; i++) {
-                new_spectrum_data[i] = 250 * (spe.raw_data[i] - spe.spectral_min) / (spe.spectral_max - spe.spectral_min);
+                new_spectrum_data[i] = 255 * spe.raw_data[i]/spe.spectral_max;
             }
 
-         
+            let minimal_level = spe.noise_level * 5.5 * 250 / spe.spectral_max;
 
-            let levels =[5];
+            let levels = [minimal_level];
+            let n_levels = Math.log(spe.spectral_max/minimal_level)/Math.log(1.4);
 
-            for( let i = 1; i < 40; i++)
+
+            for( let i = 0; i < n_levels-1; i++)
             {
-                levels.push(levels[i-1]*1.2);
-                if(levels[i] > 250)
-                {
-                    levels = levels.slice(0,i);
-                    break;
-                }
+                levels.push(levels[i]*1.4);
             }
 
             /**
-             * Calculate contour lines
+             * Calculate contour lines and surface triangles
              */
-            let workerResult = get_contour_data(spe.n_direct,spe.n_indirect,levels,new_spectrum_data);
+            let line_thickness = 400/spe.n_direct;
+            let workerResult = get_contour_data(spe.n_direct,spe.n_indirect,levels,new_spectrum_data,line_thickness);
 
 
             /**
@@ -121,8 +118,8 @@ $(document).ready(function () {
 
             for(let i=0;i<workerResult.triangle_surface.length;i++)
             {
-                coordinates[i*3] = workerResult.triangle_surface[i][1];
-                coordinates[i*3+1] = workerResult.triangle_surface[i][0];
+                coordinates[i*3] = workerResult.triangle_surface[i][0];
+                coordinates[i*3+1] = workerResult.triangle_surface[i][1];
                 coordinates[i*3+2] = workerResult.triangle_surface[i][2];
 
                 /**
@@ -153,8 +150,8 @@ $(document).ready(function () {
                  * Shift z value by 1 to separate the surface and contour lines
                  * (make sure the contour lines are above the surface to ensure visibility)
                  */
-                coordinates[n+i*3] = workerResult.triangle_contour[i][1];
-                coordinates[n+i*3+1] = workerResult.triangle_contour[i][0];
+                coordinates[n+i*3] = workerResult.triangle_contour[i][0];
+                coordinates[n+i*3+1] = workerResult.triangle_contour[i][1];
                 coordinates[n+i*3+2] = workerResult.triangle_contour[i][2]+1;
 
                 /**
@@ -165,7 +162,7 @@ $(document).ready(function () {
                 colors[n+i*3+2] = 255;
             }
 
-            main_plot = new webgl_contour_plot2('canvas1',coordinates,colors);
+            main_plot = new webgl_contour_plot2('canvas1',coordinates,colors,spe.n_direct,spe.n_indirect);
             main_plot.drawScene();
             create_event_listener(main_plot);
 
@@ -232,8 +229,8 @@ function create_event_listener() {
         } else {
             main_plot.fov *= 0.9;
         }
-        if (main_plot.fov < 0.05) {
-            main_plot.fov = 0.05;
+        if (main_plot.fov < 0.01) {
+            main_plot.fov = 0.01;
         }
         if (main_plot.fov > 5) {
             main_plot.fov = 5;
@@ -271,11 +268,9 @@ function create_event_listener() {
     });
 }
 
-function get_contour_data(n_direct,n_indirect,levels,data)
+function get_contour_data(n_direct,n_indirect,levels,data,thickness)
 {
-    const mathTool = new ldwmath(); 
-
-
+    
     let polygons = d3.contours()
         .size([n_direct, n_indirect])
         .thresholds(levels)(data);
@@ -488,8 +483,8 @@ function get_contour_data(n_direct,n_indirect,levels,data)
                     /**
                      * Thickness of the line segment is 1.0, so we extend the line segment by 0.5 in both directions
                      */
-                    normal_x *= 0.5;
-                    normal_y *= 0.5; 
+                    normal_x *= thickness;
+                    normal_y *= thickness; 
     
                     /**
                      * Line segment ==> 2 triangles. They are parallel to the xy plane
@@ -509,10 +504,10 @@ function get_contour_data(n_direct,n_indirect,levels,data)
                     /**
                      * Add triangles that are perpendicular to the xy plane
                      */
-                    let pp1 = [p1_x, p1_y, levels[m]+0.5];
-                    let pp2 = [p1_x, p1_y, levels[m]-0.5];
-                    let pp3 = [p2_x, p2_y, levels[m]+0.5];
-                    let pp4 = [p2_x, p2_y, levels[m]-0.5];
+                    let pp1 = [p1_x, p1_y, levels[m]+thickness];
+                    let pp2 = [p1_x, p1_y, levels[m]-thickness];
+                    let pp3 = [p2_x, p2_y, levels[m]+thickness];
+                    let pp4 = [p2_x, p2_y, levels[m]-thickness];
 
                     triangle_contour.push(pp1);
                     triangle_contour.push(pp2);
@@ -648,24 +643,13 @@ function process_ft_file(arrayBuffer,file_name, spectrum_type) {
      */
     result.filename = file_name;
 
-    /**
-     * Get median of abs(z). If data_size is > 1024*1024, we will sample 1024*1024 points by stride
-     */
-    let stride = 1;
-    if (data_size > 1024 * 1024) {
-        stride = Math.floor(data_size / (1024 * 1024));
-    }
-    let z_abs = new Float32Array(data_size / stride);
-    for (var i = 0; i < data_size; i += stride) {
-        z_abs[Math.floor(i / stride)] = Math.abs(result.raw_data[i]);
-    }
-    z_abs.sort();
-    result.noise_level = z_abs[Math.floor(z_abs.length / 2)];
+    
+    result.noise_level = mathTool.estimate_noise_level(result.n_direct,result.n_indirect,result.raw_data);
 
     /**
      * Get max and min of z (z is sorted)
      */
-    [result.spectral_max, result.spectral_min] = find_max_min(result.raw_data);
+    [result.spectral_max, result.spectral_min] = mathTool.find_max_min(result.raw_data);
 
     /**
      * In case of reconstructed spectrum from fitting or from NUS, noise_level is usually 0.
@@ -675,81 +659,6 @@ function process_ft_file(arrayBuffer,file_name, spectrum_type) {
     {
         result.noise_level = result.spectral_max/Math.pow(1.5,40);
     }
-
-    /**
-     * Calculate positive contour levels 
-     */
-    result.levels = new Array(40);
-    result.levels[0] = 5.5 * result.noise_level;
-    for (let i = 1; i < result.levels.length; i++) {
-        result.levels[i] = 1.5 * result.levels[i - 1];
-        if (result.levels[i] > result.spectral_max) {
-            result.levels = result.levels.slice(0, i+1);
-            break;
-        }
-    }
-
-    /**
-     * Calculate negative contour levels
-     */
-    result.negative_levels = new Array(40);
-    result.negative_levels[0] = -5.5 * result.noise_level;
-    for (let i = 1; i < result.negative_levels.length; i++) {
-        result.negative_levels[i] = 1.5 * result.negative_levels[i - 1];
-        if (result.negative_levels[i] < result.spectral_min) {
-            result.negative_levels = result.negative_levels.slice(0, i+1);
-            break;
-        }
-    }
-
-    return result;
-}
-
-
-/**
- * Find max and min of a Float32Array
- */
-function find_max_min(data)
-{
-    let max = data[0];
-    let min = data[0];
-    for(let i=1;i<data.length;i++)
-    {
-        if(data[i] > max)
-        {
-            max = data[i];
-        }
-        if(data[i] < min)
-        {
-            min = data[i];
-        }
-    }
-    return [max,min];
-}
-
-
-/**
- * Concat two float32 arrays into one
- * @returns the concatenated array
- */
-function Float32Concat(first, second)
-{
-    var firstLength = first.length,
-    result = new Float32Array(firstLength + second.length);
-
-    result.set(first);
-    result.set(second, firstLength);
-
-    return result;
-}
-
-function Uint8Concat(first, second)
-{
-    var firstLength = first.length,
-    result = new Uint8Array(firstLength + second.length);
-
-    result.set(first);
-    result.set(second, firstLength);
 
     return result;
 }

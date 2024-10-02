@@ -3,7 +3,7 @@
 
 class webgl_contour_plot2 {
 
-    constructor(canvas_id,points,colors) {
+    constructor(canvas_id,points,colors,x_dim,y_dim) {
 
         this.canvas = document.querySelector("#" + canvas_id);
         this.gl = this.canvas.getContext("webgl");
@@ -61,14 +61,14 @@ class webgl_contour_plot2 {
         this.rotation_y = 0;
         this.rotation_z = 0;
 
-        this.translation_x = -450;
-        this.translation_y = -450;
+        this.translation_x = -x_dim/2;
+        this.translation_y = -y_dim/2;
         this.translation_z = -100000;
 
 
         this.scale_z = 1;
 
-        this.fov = 1.0;
+        this.fov = x_dim/this.gl.canvas.clientWidth;
 
         /**
          * x_axis_in_spe_frame and y_axis_in_spe_frame are the vectors in the spectrum frame for 
