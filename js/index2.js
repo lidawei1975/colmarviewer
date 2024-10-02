@@ -111,7 +111,27 @@ $(document).ready(function () {
              * Calculate contour lines and surface triangles
              */
             let line_thickness = 400/spe.n_direct;
-            let workerResult = get_contour_data(spe.n_direct,spe.n_indirect,levels,new_spectrum_data,line_thickness);
+
+            /**
+             * Get user options from radio group name "plot_type"
+             */
+            let plot_type = document.querySelector('input[name="plot_type"]:checked').value;
+            let plot_type_int = 0;
+
+            /**
+             * Convert to integer. 0: smooth surface, 1: terrace surface
+             */
+            if(plot_type == "terrace")
+            {
+                plot_type_int = 1;
+            }
+            else
+            {
+                plot_type_int = 0;
+            }
+
+
+            let workerResult = get_contour_data(spe.n_direct,spe.n_indirect,levels,new_spectrum_data,line_thickness,plot_type_int);
 
             /**
              * Create 3 cylinders for the x,y,z axis
@@ -190,12 +210,25 @@ $(document).ready(function () {
             total_size += x_axis_triangle.length*3 + y_axis_triangle.length*3 + z_axis_triangle.length*3;
             let coordinates = new Float32Array(total_size);
             let colors = new Uint8Array(total_size);
+            let normals = null;
+            if(plot_type_int==1)
+            {
+                normals = new Float32Array(workerResult.triangle_surface.length*3);
+            }
+            
 
             for(let i=0;i<workerResult.triangle_surface.length;i++)
             {
                 coordinates[i*3] = workerResult.triangle_surface[i][0];
                 coordinates[i*3+1] = workerResult.triangle_surface[i][1];
                 coordinates[i*3+2] = workerResult.triangle_surface[i][2];
+
+                if(plot_type_int==1)
+                {
+                    normals[i*3] = workerResult.triangle_normals[i][0];
+                    normals[i*3+1] = workerResult.triangle_normals[i][1];
+                    normals[i*3+2] = workerResult.triangle_normals[i][2];
+                }
 
                 /**
                  * color code the z value. 
@@ -288,7 +321,7 @@ $(document).ready(function () {
                 colors[n+i*3+2] = 0;
             }
 
-            main_plot = new webgl_contour_plot2('canvas1',coordinates,colors,spe.n_direct,spe.n_indirect);
+            main_plot = new webgl_contour_plot2('canvas1',coordinates,normals,colors,spe.n_direct,spe.n_indirect,plot_type_int);
             main_plot.drawScene();
             /**
              * After first draw, need to resize to set correct viewport
@@ -374,31 +407,54 @@ function create_event_listener() {
      * rotation_z: left and right arrow keys
      * rotation_x: up and down arrow keys
      */
-    window.addEventListener('keydown', function (e) {
-        if (e.key === 'ArrowLeft') {
-            main_plot.rotation_z -= 1;
-            /**
-             * Update the value of the range slider rotation_z as well
-             */
-            document.getElementById('rotation_z').value = main_plot.rotation_z;
-        }
-        if (e.key === 'ArrowRight') {
-            main_plot.rotation_z += 1;
-            document.getElementById('rotation_z').value = main_plot.rotation_z;
-        }
-        if (e.key === 'ArrowUp') {
-            main_plot.rotation_x -= 1;
-            document.getElementById('rotation_x').value = main_plot.rotation_x;
-        }
-        if (e.key === 'ArrowDown') {
-            main_plot.rotation_x += 1;
-            document.getElementById('rotation_x').value = main_plot.rotation_x;
-        }
+    // window.addEventListener('keydown', function (e) {
+    //     if (e.key === 'ArrowLeft') {
+    //         main_plot.rotation_z -= 1;
+    //         /**
+    //          * Update the value of the range slider rotation_z as well
+    //          */
+    //         document.getElementById('rotation_z').value = main_plot.rotation_z;
+    //     }
+    //     if (e.key === 'ArrowRight') {
+    //         main_plot.rotation_z += 1;
+    //         document.getElementById('rotation_z').value = main_plot.rotation_z;
+    //     }
+    //     if (e.key === 'ArrowUp') {
+    //         main_plot.rotation_x -= 1;
+    //         document.getElementById('rotation_x').value = main_plot.rotation_x;
+    //     }
+    //     if (e.key === 'ArrowDown') {
+    //         main_plot.rotation_x += 1;
+    //         document.getElementById('rotation_x').value = main_plot.rotation_x;
+    //     }
+    //     main_plot.drawScene();
+    // });
+
+    /**
+     * Add event listener for light_tilt and light_orientation
+     */
+    document.getElementById('light_tilt').addEventListener('input', function () {
+        main_plot.light_tilt = this.value;
+        main_plot.drawScene();
+    });
+
+    document.getElementById('light_orientation').addEventListener('input', function () {
+        main_plot.light_orientation = this.value;
         main_plot.drawScene();
     });
 }
 
-function get_contour_data(n_direct,n_indirect,levels,data,thickness)
+/**
+ * 
+ * @param {int} n_direct: size of direct dimension of the input spectrum
+ * @param {int} n_indirect: size of indirect dimension of the input spectrum
+ * @param {array} levels: levels of the contour plot
+ * @param {array} data: the spectrum data
+ * @param {doube} thickness: thickness of the contour lines (when converting to 3D belts)
+ * @param {int} flag: 0: smooth surface, 1: terrace surface 
+ * @returns 
+ */
+function get_contour_data(n_direct,n_indirect,levels,data,thickness,flag)
 {
     
     let polygons = d3.contours()
@@ -511,6 +567,7 @@ function get_contour_data(n_direct,n_indirect,levels,data,thickness)
      * Array of 3D coordinates of the triangles for webgl 3D plot
      */
     let triangle_surface = []; 
+    let triangle_normals = [];
     /**
      * For each polygon, triangulate them.
      * If it has children, define the children as a hole of the polygon
@@ -519,55 +576,109 @@ function get_contour_data(n_direct,n_indirect,levels,data,thickness)
     {
         for(let j = 0; j < polygons[i].coordinates.length; j++)
         {
-            for(let k = 0; k < polygons[i].coordinates[j].length; k++)
+            for (let k = 0; k < polygons[i].coordinates[j].length; k++)
             {
-               
-                    let hole_locations = [];
-                    /**
-                     * Deep copy the polygon to a new array
-                     */
-                    let polygon = [...polygons[i].coordinates[j][k]];
-                    for(let l = 0; l < polygons[i].children[j][k].length; l++)
-                    {
-                        let child = polygons[i].children[j][k][l];
-                        let child_polygon = polygons[i+1].coordinates[child[0]][child[1]];
-                        /**
-                         * Define a new polygon with the child_polygon as a hole. Track the hold by
-                         * keeping the starting location of each hole
-                         */
-                        hole_locations.push(polygon.length);
-                        polygon = polygon.concat(child_polygon);
-                    }
 
+                let hole_locations = [];
+                /**
+                 * Deep copy the polygon to a new array
+                 */
+                let polygon = [...polygons[i].coordinates[j][k]];
+                for (let l = 0; l < polygons[i].children[j][k].length; l++) {
+                    let child = polygons[i].children[j][k][l];
+                    let child_polygon = polygons[i + 1].coordinates[child[0]][child[1]];
                     /**
-                     * Run earcut to triangulate the polygon with holes
-                     * @var triangles is an array of indices of the vertices of the triangles, 3 indices represent a triangle
+                     * Define a new polygon with the child_polygon as a hole. Track the hold by
+                     * keeping the starting location of each hole
                      */
-                    let triangles = earcut(polygon.flat(), hole_locations, 2);
-                    
-                    /**
-                     * Convert the triangles to 3D coordinates for webgl 3D triangle plot
-                    */
-                    for(let l = 0; l < triangles.length; l+=3)
+                    hole_locations.push(polygon.length);
+                    polygon = polygon.concat(child_polygon);
+                }
+
+                /**
+                 * Run earcut to triangulate the polygon with holes
+                 * @var triangles is an array of indices of the vertices of the triangles, 3 indices represent a triangle
+                 */
+                let triangles = earcut(polygon.flat(), hole_locations, 2);
+
+                /**
+                 * Convert the triangles to 3D coordinates for webgl 3D triangle plot
+                */
+                for (let l = 0; l < triangles.length; l += 3)
+                {
+                    for (let m = 0; m < 3; m++)
                     {
-                        for(let m = 0; m < 3; m++)
+                        let triangle_m = triangles[l + m];
+
+                        let x = polygon[triangle_m][0];
+                        let y = polygon[triangle_m][1];
+                        let z = levels[i];
+                        /**
+                         * Only if flag ==0: If triangle_0 is in the hole, set z to i+1, otherwise set z to i
+                         * For terrace surface, always set z to levels[i]
+                         */
+                        if (flag == 0 && triangle_m >= hole_locations[0]) {
+                            z = levels[i + 1];
+                        }
+                        triangle_surface.push([x, y, z]);
+                        if(flag==1)
                         {
-                            let triangle_m = triangles[l+m];
-                    
-                            let x = polygon[triangle_m][0];
-                            let y = polygon[triangle_m][1];
-                            let z = levels[i];
-                            /**
-                             * If triangle_0 is in the hole, set z to i+1, otherwise set z to i
-                             */
-                            if(triangle_m >= hole_locations[0])
-                            {
-                                z = levels[i+1];
-                            }
-                            triangle_surface.push([x,y,z]);
-                        }  
+                            triangle_normals.push([0,0,1]); //normal of the triangle is alway [0,0,1] for terrace surface    
+                        }
                     }
-            }
+                }
+
+                /**
+                 * For terrace surface, add the triangles for the vertical walls
+                 * No vertical walls for the lowest level
+                 */
+                if (flag == 1 && i > 0)
+                {
+                    let polygon = [...polygons[i].coordinates[j][k]];
+                    for (let l = 0; l < polygon.length - 1; l++)
+                    {
+                        /**
+                         * For the rectangle, the coordinates are:
+                         * 1. polygon[l][0], polygon[l][1], levels[i]
+                         * 2. polygon[l][0], polygon[l][1], levels[i-1]
+                         * 3. polygon[l+1][0], polygon[l+1][1], levels[i]
+                         * 4. polygon[l+1][0], polygon[l+1][1], levels[i-1]
+                         * 1,2,3 and 3,2,4 are two triangles
+                         * All triangles are vertical, normal is (polygon[l+1] - polygon[l])'
+                         */
+                        let normal = [polygon[l + 1][1] - polygon[l][1], -polygon[l+1][0] + polygon[l][0], 0];
+                        /**
+                         * Need to normalize the normal
+                         */
+                        let normal_length = Math.sqrt(normal[0]*normal[0] + normal[1]*normal[1]);
+                        normal[0] /= normal_length;
+                        normal[1] /= normal_length;
+                         
+                        let x1 = polygon[l][0];
+                        let y1 = polygon[l][1];
+                        let z1 = levels[i];
+                        let x2 = polygon[l][0];
+                        let y2 = polygon[l][1];
+                        let z2 = levels[i - 1];
+                        let x3 = polygon[l + 1][0];
+                        let y3 = polygon[l + 1][1];
+                        let z3 = levels[i];
+                        let x4 = polygon[l + 1][0];
+                        let y4 = polygon[l + 1][1];
+                        let z4 = levels[i - 1];
+                        triangle_surface.push([x1, y1, z1]);
+                        triangle_surface.push([x2, y2, z2]);
+                        triangle_surface.push([x3, y3, z3]);
+                        triangle_surface.push([x3, y3, z3]);
+                        triangle_surface.push([x2, y2, z2]);
+                        triangle_surface.push([x4, y4, z4]);
+                        for(let m=0;m<6;m++)
+                        {
+                            triangle_normals.push(normal);
+                        }
+                    }
+                }
+            } 
         }
     }
 
@@ -576,76 +687,86 @@ function get_contour_data(n_direct,n_indirect,levels,data,thickness)
      * that are converted from the contour lines
      */
     let triangle_contour = [];
+
     /**
-     * m is the index of the level
+     * Only draw contour lines (as belt) when flag == 0
      */
-    for (let m = 0; m < polygons.length; m++) {
-        for (let i = 0; i < polygons[m].coordinates.length; i++) {
-            for (let j = 0; j < polygons[m].coordinates[i].length; j++) {
-                /**
-                 * coors2 is an array of 2D coordinates of the polygon
-                 */
-                let coors2 = polygons[m].coordinates[i][j];
-                /**
-                 * Each line segment is defined by two points
-                 * workerResult.points is an array of 3D coordinates of the points
-                 */
-                for(let k = 0; k < coors2.length - 1; k++)
+    if(flag==0)
+    {
+        /**
+         * m is the index of the level
+         */
+        for (let m = 0; m < polygons.length; m++)
+        {
+            for (let i = 0; i < polygons[m].coordinates.length; i++) 
+            {
+                for (let j = 0; j < polygons[m].coordinates[i].length; j++)
                 {
-                    
-                    let p1_x = coors2[k][0];
-                    let p1_y = coors2[k][1];
-
-                    let p2_x = coors2[k + 1][0];
-                    let p2_y = coors2[k + 1][1];
-
-                    let pz = levels[m];
-                    
                     /**
-                     * Calculate the normal of the line segment
+                     * coors2 is an array of 2D coordinates of the polygon
                      */
-                    let normal_x = p2_y - p1_y;
-                    let normal_y = p1_x - p2_x;
-                    let normal_length = Math.sqrt(normal_x*normal_x + normal_y*normal_y);
-                    normal_x /= normal_length;
-                    normal_y /= normal_length;
-                    
+                    let coors2 = polygons[m].coordinates[i][j];
                     /**
-                     * Thickness of the line segment is 1.0, so we extend the line segment by 0.5 in both directions
+                     * Each line segment is defined by two points
+                     * workerResult.points is an array of 3D coordinates of the points
                      */
-                    normal_x *= thickness;
-                    normal_y *= thickness; 
-    
-                    /**
-                     * Line segment ==> 2 triangles. They are parallel to the xy plane
-                    */
-                    let p1 = [p1_x + normal_x, p1_y + normal_y, pz];
-                    let p2 = [p1_x - normal_x, p1_y - normal_y, pz];
-                    let p3 = [p2_x + normal_x, p2_y + normal_y, pz];
-                    let p4 = [p2_x - normal_x, p2_y - normal_y, pz];
-    
-                    triangle_contour.push(p1);
-                    triangle_contour.push(p2);
-                    triangle_contour.push(p3);
-                    triangle_contour.push(p2);
-                    triangle_contour.push(p3);
-                    triangle_contour.push(p4);
+                    for(let k = 0; k < coors2.length - 1; k++)
+                    {
+                        
+                        let p1_x = coors2[k][0];
+                        let p1_y = coors2[k][1];
 
-                    /**
-                     * Add triangles that are perpendicular to the xy plane
-                     */
-                    let pp1 = [p1_x, p1_y, levels[m]+thickness];
-                    let pp2 = [p1_x, p1_y, levels[m]-thickness];
-                    let pp3 = [p2_x, p2_y, levels[m]+thickness];
-                    let pp4 = [p2_x, p2_y, levels[m]-thickness];
+                        let p2_x = coors2[k + 1][0];
+                        let p2_y = coors2[k + 1][1];
 
-                    triangle_contour.push(pp1);
-                    triangle_contour.push(pp2);
-                    triangle_contour.push(pp3);
-                    triangle_contour.push(pp2);
-                    triangle_contour.push(pp3);
-                    triangle_contour.push(pp4);
-                    
+                        let pz = levels[m];
+                        
+                        /**
+                         * Calculate the normal of the line segment
+                         */
+                        let normal_x = p2_y - p1_y;
+                        let normal_y = p1_x - p2_x;
+                        let normal_length = Math.sqrt(normal_x*normal_x + normal_y*normal_y);
+                        normal_x /= normal_length;
+                        normal_y /= normal_length;
+                        
+                        /**
+                         * Thickness of the line segment is 1.0, so we extend the line segment by 0.5 in both directions
+                         */
+                        normal_x *= thickness;
+                        normal_y *= thickness; 
+        
+                        /**
+                         * Line segment ==> 2 triangles. They are parallel to the xy plane
+                        */
+                        let p1 = [p1_x + normal_x, p1_y + normal_y, pz];
+                        let p2 = [p1_x - normal_x, p1_y - normal_y, pz];
+                        let p3 = [p2_x + normal_x, p2_y + normal_y, pz];
+                        let p4 = [p2_x - normal_x, p2_y - normal_y, pz];
+        
+                        triangle_contour.push(p1);
+                        triangle_contour.push(p2);
+                        triangle_contour.push(p3);
+                        triangle_contour.push(p2);
+                        triangle_contour.push(p3);
+                        triangle_contour.push(p4);
+
+                        /**
+                         * Add triangles that are perpendicular to the xy plane
+                         */
+                        let pp1 = [p1_x, p1_y, levels[m]+thickness];
+                        let pp2 = [p1_x, p1_y, levels[m]-thickness];
+                        let pp3 = [p2_x, p2_y, levels[m]+thickness];
+                        let pp4 = [p2_x, p2_y, levels[m]-thickness];
+
+                        triangle_contour.push(pp1);
+                        triangle_contour.push(pp2);
+                        triangle_contour.push(pp3);
+                        triangle_contour.push(pp2);
+                        triangle_contour.push(pp3);
+                        triangle_contour.push(pp4);
+                        
+                    }
                 }
             }
         }
@@ -655,6 +776,7 @@ function get_contour_data(n_direct,n_indirect,levels,data,thickness)
 
     contour_result.triangle_surface = triangle_surface;
     contour_result.triangle_contour = triangle_contour;
+    contour_result.triangle_normals = triangle_normals;
     return contour_result;
 }
 
