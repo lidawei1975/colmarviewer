@@ -113,12 +113,83 @@ $(document).ready(function () {
             let line_thickness = 400/spe.n_direct;
             let workerResult = get_contour_data(spe.n_direct,spe.n_indirect,levels,new_spectrum_data,line_thickness);
 
+            /**
+             * Create 3 cylinders for the x,y,z axis
+             */
+            let x_axis_triangle = [];
+            let y_axis_triangle = [];
+            let z_axis_triangle = [];
+            
+            /**
+             * Create a polygon to simulate a circle with 36 vertices
+             * These vertices are named as in yz plane, but are used 3 times to create a circle in yz, xz, xy planes
+             */
+            let x_axis_y = new Array(37);
+            let x_axis_z = new Array(37);
+            for(let angle_i = 0; angle_i <= 36; angle_i+=1)
+            {
+                x_axis_y[angle_i] = 0.5*Math.cos(angle_i/18*Math.PI);
+                x_axis_z[angle_i] = 0.5*Math.sin(angle_i/18*Math.PI);
+            }
+
+
+            for(let i = 0; i < 36; i++)
+            {   
+                /**
+                 * x axis cylinder
+                 */
+                let p1 = [0,x_axis_y[i],x_axis_z[i]];
+                let p2 = [0,x_axis_y[i+1],x_axis_z[i+1]];
+                let p3 = [spe.n_direct,x_axis_y[i],x_axis_z[i]];
+                let p4 = [spe.n_direct,x_axis_y[i+1],x_axis_z[i+1]];
+                x_axis_triangle.push(p1);
+                x_axis_triangle.push(p2);
+                x_axis_triangle.push(p3);
+                x_axis_triangle.push(p2);
+                x_axis_triangle.push(p3);
+                x_axis_triangle.push(p4);
+
+                /**
+                 * y axis cylinder
+                 */
+                p1 = [x_axis_y[i],0,x_axis_z[i]];
+                p2 = [x_axis_y[i+1],0,x_axis_z[i+1]];
+                p3 = [x_axis_y[i],spe.n_indirect,x_axis_z[i]];
+                p4 = [x_axis_y[i+1],spe.n_indirect,x_axis_z[i+1]];
+                y_axis_triangle.push(p1);
+                y_axis_triangle.push(p2);
+                y_axis_triangle.push(p3);
+                y_axis_triangle.push(p2);
+                y_axis_triangle.push(p3);
+                y_axis_triangle.push(p4);
+
+                /**
+                 * Z axis cylinder
+                 */
+                p1 = [x_axis_y[i],x_axis_z[i],0];
+                p2 = [x_axis_y[i+1],x_axis_z[i+1],0];
+                p3 = [x_axis_y[i],x_axis_z[i], 255];
+                p4 = [x_axis_y[i+1],x_axis_z[i+1], 255];
+                z_axis_triangle.push(p1);
+                z_axis_triangle.push(p2);
+                z_axis_triangle.push(p3);
+                z_axis_triangle.push(p2);
+                z_axis_triangle.push(p3);
+                z_axis_triangle.push(p4);
+            }
+
+            /**
+             * Create a cylinder (y axis)
+             */
+
 
             /**
              * Convert workerResult.triangle_surface to Float32Array
              */
-            let coordinates = new Float32Array(workerResult.triangle_surface.length*3+workerResult.triangle_contour.length*3);
-            let colors = new Uint8Array(workerResult.triangle_surface.length*3+workerResult.triangle_contour.length*3);
+            let total_size = workerResult.triangle_surface.length*3+workerResult.triangle_contour.length*3;
+            total_size += x_axis_triangle.length*3 + y_axis_triangle.length*3 + z_axis_triangle.length*3;
+            let coordinates = new Float32Array(total_size);
+            let colors = new Uint8Array(total_size);
 
             for(let i=0;i<workerResult.triangle_surface.length;i++)
             {
@@ -164,6 +235,57 @@ $(document).ready(function () {
                 colors[n+i*3] = 0;
                 colors[n+i*3+1] = 0;
                 colors[n+i*3+2] = 255;
+            }
+
+            /**
+             * number of vertices of the surface and contour lines
+            */
+            n += workerResult.triangle_contour.length*3;
+
+            for(let i=0;i<x_axis_triangle.length;i++)
+            {
+                coordinates[n+i*3] = x_axis_triangle[i][0];
+                coordinates[n+i*3+1] = x_axis_triangle[i][1];
+                coordinates[n+i*3+2] = x_axis_triangle[i][2];
+
+                /**
+                 * Red color for the x axis
+                 */
+                colors[n+i*3] = 200;
+                colors[n+i*3+1] = 0;
+                colors[n+i*3+2] = 0;
+            }
+
+            n += x_axis_triangle.length*3;
+
+            for(let i=0;i<y_axis_triangle.length;i++)
+            {
+                coordinates[n+i*3] = y_axis_triangle[i][0];
+                coordinates[n+i*3+1] = y_axis_triangle[i][1];
+                coordinates[n+i*3+2] = y_axis_triangle[i][2];
+
+                /**
+                 * Blue color for the y axis
+                 */
+                colors[n+i*3] = 0;
+                colors[n+i*3+1] = 0;
+                colors[n+i*3+2] = 200;
+            }
+
+            n += y_axis_triangle.length*3;
+
+            for(let i=0;i<z_axis_triangle.length;i++)
+            {
+                coordinates[n+i*3] = z_axis_triangle[i][0];
+                coordinates[n+i*3+1] = z_axis_triangle[i][1];
+                coordinates[n+i*3+2] = z_axis_triangle[i][2];
+
+                /**
+                 * Green color for the z axis
+                 */
+                colors[n+i*3] = 0;
+                colors[n+i*3+1] = 200;
+                colors[n+i*3+2] = 0;
             }
 
             main_plot = new webgl_contour_plot2('canvas1',coordinates,colors,spe.n_direct,spe.n_indirect);
