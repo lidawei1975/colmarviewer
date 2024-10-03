@@ -2,35 +2,21 @@
 <html lang="en">
 
 <head>
-    <title>Colmar Viewer</title>
-    <style>
-        body {
-            margin: 0 auto;
-            text-align: center;
-        }
-
-        canvas {
-            width: 900px;
-            height: 900px;
-            display: block;
-        }
-
-        div.resizable {
-            border: 2px solid #40375f;
-            border-radius: 0.5rem;
-            padding: 20px;
-            resize: both;
-            overflow: hidden;
-            min-width: 400px;
-            min-height: 300px;
-        }
-    </style>
+    <title>Colmar Viewer 3D</title>
+    <link rel="stylesheet" type="text/css" href="colmarview.css">
 </head>
 
 
 <body>
 
     <div id="body">
+
+        <span id="contour_message"></span>
+
+        <div>
+            <h1>2D NMR spectra viewer in 3D</h1>
+        </div>
+
         <div id="canvas_container" class="resizable" style="width: 1200px; margin: 0 auto; text-align: center;">
         <canvas id="canvas1"></canvas>
         </div>
@@ -54,11 +40,11 @@
         </div>
 
         <div id="file_area" class="drop-area" style="width: 1200px;">
-            <h4>Or upload frequency domain spectra:</h4>
+            <h4>Upload frequency domain spectra:</h4>
             <form id="ft2_file_form" action="" enctype="multipart/form-data">
                 <label for="userfile">Frequency domain spectral file (.ft2) </label><input type="file" 
                     id="userfile"><br>
-                    <fieldset>
+                    <fieldset class="fieldset-auto-width">
                         <legend>3D plot options</legend>
                         <input type="radio" id="smooth" name="plot_type" value="smooth" checked>
                         <label for="surface">3D surface</label>
@@ -66,6 +52,7 @@
                         <input type="radio" id="terrace" name="plot_type" value="terrace">
                         <label for="terrace">3D terrace</label>
                     </fieldset>
+                    <br>
                 <input type="submit" id="button_ft2_process" value="Upload and process spectra"></br>
             </form>
         </div>

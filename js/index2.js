@@ -321,13 +321,22 @@ $(document).ready(function () {
                 colors[n+i*3+2] = 0;
             }
 
+            
+            /**
+             * Resize container to default 900X900 first
+             */
+            document.getElementById('canvas_container').style.width = "900px";
+            document.getElementById('canvas_container').style.height = "900px";
             main_plot = new webgl_contour_plot2('canvas1',coordinates,normals,colors,spe.n_direct,spe.n_indirect,plot_type_int);
-            main_plot.drawScene();
+            resize_main_plot(document.getElementById('canvas_container').clientWidth,document.getElementById('canvas_container').clientHeight);
+
             /**
              * After first draw, need to resize to set correct viewport
              */
-            resize_main_plot(document.getElementById('canvas_container').clientWidth,document.getElementById('canvas_container').clientHeight);
+            main_plot.drawScene();
             create_event_listener(main_plot);
+
+            document.getElementById("contour_message").innerText = "";
 
         };
         reader.readAsArrayBuffer(file);
@@ -461,10 +470,11 @@ function create_event_listener() {
  */
 function get_contour_data(n_direct,n_indirect,levels,data,thickness,flag)
 {
-    
+    document.getElementById("contour_message").innerText = "Calculating contour lines";
     let polygons = d3.contours()
         .size([n_direct, n_indirect])
         .thresholds(levels)(data);
+        document.getElementById("contour_message").innerText = "Calculating contour lines done";
 
     /**
      * Calculate the edges and center of each polygon
@@ -573,6 +583,7 @@ function get_contour_data(n_direct,n_indirect,levels,data,thickness,flag)
      */
     let triangle_surface = []; 
     let triangle_normals = [];
+    document.getElementById("contour_message").innerText = "Triangulating contour lines";
     /**
      * For each polygon, triangulate them.
      * If it has children, define the children as a hole of the polygon
@@ -776,6 +787,7 @@ function get_contour_data(n_direct,n_indirect,levels,data,thickness,flag)
             }
         }
     }
+    document.getElementById("contour_message").innerText = "Triangulating contour lines done";
 
     let contour_result = new Object();
 
@@ -787,6 +799,8 @@ function get_contour_data(n_direct,n_indirect,levels,data,thickness,flag)
 
 
 function process_ft_file(arrayBuffer,file_name, spectrum_type) {
+
+    document.getElementById("contour_message").innerText = "Processing file " + file_name;
 
     let result = new spectrum();
 
@@ -916,6 +930,8 @@ function process_ft_file(arrayBuffer,file_name, spectrum_type) {
     {
         result.noise_level = result.spectral_max/Math.pow(1.5,40);
     }
+
+    document.getElementById("contour_message").innerText = "Finished processing file " + file_name;
 
     return result;
 }
