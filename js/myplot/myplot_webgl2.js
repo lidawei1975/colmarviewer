@@ -122,8 +122,13 @@ class webgl_contour_plot2 {
         this.translation_y = -y_dim/2;
         this.translation_z = -100000;
 
-
+        /**
+         * Relative scale of y,z axis compared to x axis
+         * Overall scale is controlled by fov
+         */
         this.scale_z = 1;
+        this.scale_y = 1;
+
 
         this.fov = x_dim/this.gl.canvas.clientWidth;
 
@@ -276,22 +281,25 @@ class webgl_contour_plot2 {
          */
         matrix = m4.translate(matrix, 0,0, translation[2]);
 
+
+
         /**
          * Operations to rotate the object, using current center as pivot
          * Z rotation first, followed by X rotation (remember that the order of the operations is reversed)
          */
         matrix = m4.xRotate(matrix, rotation[0]);
         matrix = m4.zRotate(matrix, rotation[2]);
-        
+
+        /**
+         * Scale y,z axis, using current center as pivot
+         */
+        matrix = m4.scale(matrix, 1, this.scale_y, this.scale_z);
+
         /**
          * Translate along original X and Y axis first.
          */
         matrix = m4.translate(matrix, translation[0], translation[1], 0);
 
-        /**
-         * Scale z axis. order is not important for scaling
-         */
-        matrix = m4.scale(matrix, 1, 1, this.scale_z);
 
         /**
          * Get projected coordinates of spectrum center in world frame

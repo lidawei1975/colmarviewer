@@ -348,6 +348,11 @@ function create_event_listener() {
         main_plot.drawScene();
     });
 
+    document.getElementById('scale_y').addEventListener('input', function () {
+        main_plot.scale_y = this.value;
+        main_plot.drawScene();
+    });
+
 
     document.getElementById('scale_z').addEventListener('input', function () {
         main_plot.scale_z = this.value;
