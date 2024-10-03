@@ -358,6 +358,8 @@ my_contour_worker.onmessage = (e) => {
 
         document.getElementById("contour_message").innerText = "";
 
+        document.getElementById("file_area").style.display = "none";
+
     }
 }
 
