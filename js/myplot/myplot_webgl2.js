@@ -171,7 +171,7 @@ class webgl_contour_plot2 {
         dy = -dy/this.gl.canvas.height * 2;
 
         let scale = Math.sqrt(this.y_axis_in_spe_frame[0]*this.y_axis_in_spe_frame[0] 
-            + this.y_axis_in_spe_frame[1]*this.y_axis_in_spe_frame[1]
+            + this.y_axis_in_spe_frame[1]*this.y_axis_in_spe_frame[1]*this.scale_y*this.scale_y
             + this.y_axis_in_spe_frame[2]*this.y_axis_in_spe_frame[2]*this.scale_z*this.scale_z);
 
 
@@ -179,15 +179,15 @@ class webgl_contour_plot2 {
         scale = 1-scale*scale;
         // console.log("scale: ", scale);
 
-        if(scale<0.1){
-            scale = 0.1;
-        }
+        // if(scale<0.1){
+        //     scale = 0.1;
+        // }
 
         dy = dy/scale;
         
 
         let dx_in_spe_frame = this.x_axis_in_spe_frame[0] * dx + this.y_axis_in_spe_frame[0] * dy;
-        let dy_in_spe_frame = this.x_axis_in_spe_frame[1] * dx + this.y_axis_in_spe_frame[1] * dy;
+        let dy_in_spe_frame = this.x_axis_in_spe_frame[1] * dx + this.y_axis_in_spe_frame[1] * dy
 
         this.translation_x += dx_in_spe_frame;
         this.translation_y += dy_in_spe_frame;
@@ -325,7 +325,6 @@ class webgl_contour_plot2 {
         this.y_axis_in_spe_frame = m4.multiply_vec(inverse_matrix, spectrum_center_move_y);
 
         
-
         // console.log("x_axis_in_spe_frame: ", this.x_axis_in_spe_frame);
         // console.log("y_axis_in_spe_frame: ", this.y_axis_in_spe_frame);
 
