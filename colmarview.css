@@ -145,6 +145,10 @@
             min-width: 300px;
         }
 
+        .fieldset-auto-width {
+            display: inline-block;
+        }
+
         #contour_message {
             position: fixed;
             font-size: x-large;

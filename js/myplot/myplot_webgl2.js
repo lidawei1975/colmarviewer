@@ -114,7 +114,7 @@ class webgl_contour_plot2 {
 
         this.drawing_flag = flag;
             
-        this.rotation_x = 0;
+        this.rotation_x = -45;
         this.rotation_y = 0;
         this.rotation_z = 0;
 
@@ -122,8 +122,13 @@ class webgl_contour_plot2 {
         this.translation_y = -y_dim/2;
         this.translation_z = -100000;
 
-
+        /**
+         * Relative scale of y,z axis compared to x axis
+         * Overall scale is controlled by fov
+         */
         this.scale_z = 1;
+        this.scale_y = 1;
+
 
         this.fov = x_dim/this.gl.canvas.clientWidth;
 
@@ -132,7 +137,7 @@ class webgl_contour_plot2 {
          * tilt is the angle between the light direction and the x-y plane
          * rotation is the angle between the projection of light direction on x-y plane and x axis
          */
-        this.light_tilt = 25;
+        this.light_tilt = 0;
         this.light_orientation = 120;  
 
 
@@ -166,7 +171,7 @@ class webgl_contour_plot2 {
         dy = -dy/this.gl.canvas.height * 2;
 
         let scale = Math.sqrt(this.y_axis_in_spe_frame[0]*this.y_axis_in_spe_frame[0] 
-            + this.y_axis_in_spe_frame[1]*this.y_axis_in_spe_frame[1]
+            + this.y_axis_in_spe_frame[1]*this.y_axis_in_spe_frame[1]*this.scale_y*this.scale_y
             + this.y_axis_in_spe_frame[2]*this.y_axis_in_spe_frame[2]*this.scale_z*this.scale_z);
 
 
@@ -174,15 +179,15 @@ class webgl_contour_plot2 {
         scale = 1-scale*scale;
         // console.log("scale: ", scale);
 
-        if(scale<0.1){
-            scale = 0.1;
-        }
+        // if(scale<0.1){
+        //     scale = 0.1;
+        // }
 
         dy = dy/scale;
         
 
         let dx_in_spe_frame = this.x_axis_in_spe_frame[0] * dx + this.y_axis_in_spe_frame[0] * dy;
-        let dy_in_spe_frame = this.x_axis_in_spe_frame[1] * dx + this.y_axis_in_spe_frame[1] * dy;
+        let dy_in_spe_frame = this.x_axis_in_spe_frame[1] * dx + this.y_axis_in_spe_frame[1] * dy
 
         this.translation_x += dx_in_spe_frame;
         this.translation_y += dy_in_spe_frame;
@@ -276,22 +281,25 @@ class webgl_contour_plot2 {
          */
         matrix = m4.translate(matrix, 0,0, translation[2]);
 
+
+
         /**
          * Operations to rotate the object, using current center as pivot
          * Z rotation first, followed by X rotation (remember that the order of the operations is reversed)
          */
         matrix = m4.xRotate(matrix, rotation[0]);
         matrix = m4.zRotate(matrix, rotation[2]);
-        
+
+        /**
+         * Scale y,z axis, using current center as pivot
+         */
+        matrix = m4.scale(matrix, 1, this.scale_y, this.scale_z);
+
         /**
          * Translate along original X and Y axis first.
          */
         matrix = m4.translate(matrix, translation[0], translation[1], 0);
 
-        /**
-         * Scale z axis. order is not important for scaling
-         */
-        matrix = m4.scale(matrix, 1, 1, this.scale_z);
 
         /**
          * Get projected coordinates of spectrum center in world frame
@@ -317,7 +325,6 @@ class webgl_contour_plot2 {
         this.y_axis_in_spe_frame = m4.multiply_vec(inverse_matrix, spectrum_center_move_y);
 
         
-
         // console.log("x_axis_in_spe_frame: ", this.x_axis_in_spe_frame);
         // console.log("y_axis_in_spe_frame: ", this.y_axis_in_spe_frame);
 
@@ -331,6 +338,14 @@ class webgl_contour_plot2 {
             let normal_matrix = m4.identity();
             normal_matrix = m4.xRotate(normal_matrix, rotation[0]);
             normal_matrix = m4.zRotate(normal_matrix, rotation[2]);
+            normal_matrix = m4.scale(normal_matrix, 1, this.scale_y, this.scale_z);
+
+            /**
+             * With aspect ratio change, we need to do these steps to make sure the normal vectors are rotated correctly
+             */
+            normal_matrix = m4.inverse(normal_matrix);
+            normal_matrix = m4.transpose(normal_matrix);
+
             this.gl.uniformMatrix4fv(this.normalMatrixLocation, false, normal_matrix);
             
             /**
@@ -340,7 +355,7 @@ class webgl_contour_plot2 {
                 Math.cos(this.degToRad(this.light_tilt))*Math.sin(this.degToRad(this.light_orientation)),
                 Math.sin(this.degToRad(this.light_tilt))];
 
-            console.log("light_direction: ", light_direction);
+            // console.log("light_direction: ", light_direction);
 
             this.gl.uniform3fv(this.reverseLightDirectionLocation,m4.normalize(light_direction));
         }
