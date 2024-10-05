@@ -37,7 +37,15 @@
             <input type="range" id="light_tilt" min="-90" max="90" value="0" step="1" />
             <label for="light_orientation">Light Orientation</label>
             <input type="range" id="light_orientation" min="0" max="360" value="120" step="5" />
+            <br>
+            <label for="color_surface">Surface color</label>
+            <input type="color" id="color_surface" value="#ffd700" onchange="update_color(0)">
+            <label for="color_contour">Contour color</label>
+            <input type="color" id="color_contour" value="#0000ff" onchange="update_color(1)">
+            <button id="button_download" onclick="download_figure()">Download figure</button>
+            <br>
         </div>
+
 
         <div id="file_area" class="drop-area" style="width: 1200px;">
             <h4>Upload frequency domain spectra:</h4>
@@ -51,6 +59,20 @@
                         <br>
                         <input type="radio" id="terrace" name="plot_type" value="terrace">
                         <label for="terrace">3D terrace</label>
+                        <br>
+                        <br>
+                    </fieldset>
+                    
+                    <fieldset class = "fieldset-auto-width">
+                        <legend>Contour options</legend>
+                        <input type="radio" id="Logarithmic_Linear" name="contour_type" value="Logarithmic_Linear" checked>
+                        <label for="Logarithmic_Linear">Logarithmic-linear contour</label>
+                        <br>
+                        <input type="radio" id="Logarithmic" name="contour_type" value="Logarithmic" >
+                        <label for="Logarithmic">Logarithmic contour</label>
+                        <br>
+                        <input type="radio" id="Linear" name="contour_type" value="Linear">
+                        <label for="Linear">Linear contour</label>
                     </fieldset>
                     <br>
                 <input type="submit" id="button_ft2_process" value="Upload and process spectra"></br>

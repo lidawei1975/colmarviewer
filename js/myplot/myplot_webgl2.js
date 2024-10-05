@@ -195,10 +195,21 @@ class webgl_contour_plot2 {
         this.drawScene();
     }
 
+
+    /**
+     * Update the color buffer.
+     * @param {Uint8Array} colors 
+     */
+    update_colors(colors) {
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.colorBuffer);
+        this.gl.bufferData(this.gl.ARRAY_BUFFER, colors, this.gl.STATIC_DRAW);
+    }
+
     /**
      * Draw the scene.
+     * @param {number} flag 0: draw the contour plot, 1: draw and return the image data
      */
-    drawScene() {
+    drawScene(flag = 0) {
 
         this.gl.viewport(0, 0, this.gl.canvas.width, this.gl.canvas.height);
 
@@ -365,6 +376,10 @@ class webgl_contour_plot2 {
         var offset = 0;
         var count =this.data_length;
         this.gl.drawArrays(primitiveType, offset, count);
+
+        if (flag == 1) {
+            return this.gl.canvas.toDataURL();
+        }
     };
 
 };

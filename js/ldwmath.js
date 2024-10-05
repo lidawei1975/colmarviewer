@@ -217,4 +217,28 @@ class ldwmath {
 
         return result;
     }
+
+    /**
+     * Convert an RGB array to a hexadecimal string
+     */
+    rgbToHex(rgb) {
+        return "#" + ((1 << 24) + (Math.round(rgb[0] * 255) << 16) + (Math.round(rgb[1] * 255) << 8) + Math.round(rgb[2] * 255)).toString(16).slice(1);
+    }
+
+    /**
+     * Convert a hexadecimal string to an RGB array
+     */
+    hexToRgb(hex) {
+        let r = parseInt(hex.substring(1, 3), 16) / 255;
+        let g = parseInt(hex.substring(3, 5), 16) / 255;
+        let b = parseInt(hex.substring(5, 7), 16) / 255;
+        return [r, g, b, 1.0];
+    }
+
+    hexToDec(hex) {
+        let r = parseInt(hex.substring(1, 3), 16);
+        let g = parseInt(hex.substring(3, 5), 16);
+        let b = parseInt(hex.substring(5, 7), 16);
+        return [r, g, b];
+    }
 }
