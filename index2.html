@@ -42,6 +42,7 @@
             <input type="color" id="color_surface" value="#ffd700" onchange="update_color(0)">
             <label for="color_contour">Contour color</label>
             <input type="color" id="color_contour" value="#0000ff" onchange="update_color(1)">
+            <button id="button_download" onclick="download_figure()">Download figure</button>
             <br>
         </div>
 
@@ -58,8 +59,10 @@
                         <br>
                         <input type="radio" id="terrace" name="plot_type" value="terrace">
                         <label for="terrace">3D terrace</label>
+                        <br>
+                        <br>
                     </fieldset>
-                    <br>
+                    
                     <fieldset class = "fieldset-auto-width">
                         <legend>Contour options</legend>
                         <input type="radio" id="Logarithmic_Linear" name="contour_type" value="Logarithmic_Linear" checked>

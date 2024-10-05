@@ -384,7 +384,7 @@ my_contour_worker.onmessage = (e) => {
 
         document.getElementById("contour_message").innerText = "";
 
-        // document.getElementById("file_area").style.display = "none";
+        document.getElementById("file_area").style.display = "none";
 
     }
 }
@@ -677,4 +677,19 @@ function resize_main_plot(canvas_width, canvas_height)
         main_plot.drawScene();
     }
     
+}
+
+
+
+function download_figure() {
+
+    var dataUrl = main_plot.drawScene(1); //draw the scene with download flag set to 1
+    
+    /**
+     * Download the image
+     */
+    const a = document.createElement('a');
+    a.href = dataUrl;
+    a.download = 'nmr_plot.png';
+    a.click();
 }
