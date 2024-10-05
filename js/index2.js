@@ -53,36 +53,26 @@ function get_data_new(triangle_2d,z_shift)
     return data;
 }
 
-function get_color_new(triangle_2d)
-{
-    var colors = new Uint8Array(triangle_2d.length*3);
 
-    for(let i=0;i<triangle_2d.length;i++)
-    {
-        let color = triangle_2d[i][2]*2.0;
-
-        if(color < 7)
-        {
-            color = 7;
-        }
-
-        if(color > 124)
-        {
-            color = 125;
-        }
-
-        color = 255 - color;
-
-        colors[i*3] = 248;
-        colors[i*3+1] = color;
-        colors[i*3+2] = color;
-    }
-
-    return colors;
-}
-
-var main_plot = null
+/**
+ * The class for the contour plot
+ */
+var main_plot = null;
+/**
+ * Some math tools
+ */
 const mathTool = new ldwmath(); 
+/**
+ * Number of surface points and contour vertices (3 vertices per triangle)
+ * (size of data array is 3 * n_surface_points and 3 * n_contour_points, because each vertex has 3 coordinates)
+ */
+var n_surface_points = 0;
+var n_contour_points = 0;
+
+/**
+ * coordinates and colors will be defined as global variables in the onmessage function
+ * my_contour_worker.onmessage
+ */
 
 $(document).ready(function () {
 
@@ -109,12 +99,49 @@ $(document).ready(function () {
             let minimal_level = spe.noise_level * 2.5 * 250 / spe.spectral_max;
 
             let levels = [minimal_level];
-            let n_levels = Math.log(spe.spectral_max/minimal_level)/Math.log(1.4);
 
+            /**
+             * Get radio group name "contour_type" 
+             */
+            let contour_type = document.querySelector('input[name="contour_type"]:checked').value;
 
-            for( let i = 0; i < n_levels-1; i++)
+            if(contour_type == "Logarithmic")
             {
-                levels.push(levels[i]*1.4);
+                let n_levels = Math.log(250/minimal_level)/Math.log(1.4);
+                for( let i = 0; i < n_levels-1; i++)
+                {
+                    levels.push(levels[i]*1.4);
+                }
+            }
+            else if(contour_type == "Linear")
+            {
+                let scale = 15;
+                let minimal_level2 = minimal_level * scale;
+                let n_levels = Math.floor(250/minimal_level2);
+                for( let i = 2; i < scale; i++)
+                {
+                    levels.push(minimal_level*i);
+                }
+                for(let i=1;i<n_levels;i++)
+                {
+                    levels.push(minimal_level2*i);
+                }
+            }
+            else // "Logarithmic and Linear"
+            {
+                /**
+                 * First 10 levels are logarithmic at 1.4 then linear
+                 */
+                for( let i = 1; i < 10; i++)
+                {
+                    levels.push(minimal_level*Math.pow(1.4,i));
+                }
+                let current_level = levels[9];
+                let n_levels = Math.floor(250/current_level);
+                for(let i=2;i<n_levels;i++)
+                {
+                    levels.push(current_level*i);
+                }
             }
 
             /**
@@ -163,6 +190,9 @@ my_contour_worker.onmessage = (e) => {
         document.getElementById("contour_message").innerText = "";
 
         let workerResult = e.data.workerResult;
+
+        n_surface_points = workerResult.triangle_surface.length;
+        n_contour_points = workerResult.triangle_contour.length;
 
         /**
          * Create 3 cylinders for the x,y,z axis
@@ -227,23 +257,25 @@ my_contour_worker.onmessage = (e) => {
             z_axis_triangle.push(p4);
         }
 
-        /**
-         * Create a cylinder (y axis)
-         */
-
 
         /**
          * Convert workerResult.triangle_surface to Float32Array
          */
         let total_size = workerResult.triangle_surface.length * 3 + workerResult.triangle_contour.length * 3;
         total_size += x_axis_triangle.length * 3 + y_axis_triangle.length * 3 + z_axis_triangle.length * 3;
-        let coordinates = new Float32Array(total_size);
-        let colors = new Uint8Array(total_size);
+        window.coordinates = new Float32Array(total_size);
+        window.colors = new Uint8Array(total_size);
         let normals = null;
         if (workerResult.plot_type_int == 1) {
             normals = new Float32Array(workerResult.triangle_surface.length * 3);
         }
 
+        /**
+         * Get color from the color picker with id "color_surface"
+         * "#ff0000" is red, "#00ff00" is green, "#0000ff" is blue
+        */
+        let color = document.getElementById("color_surface").value;
+        let color_rgb = mathTool.hexToDec(color);
 
         for (let i = 0; i < workerResult.triangle_surface.length; i++) {
             coordinates[i * 3] = workerResult.triangle_surface[i][0];
@@ -256,25 +288,21 @@ my_contour_worker.onmessage = (e) => {
                 normals[i * 3 + 2] = workerResult.triangle_normals[i][2];
             }
 
-            /**
-             * color code the z value. 
-             */
-            let color = workerResult.triangle_surface[i][2] * 2.0;
-            if (color < 7) {
-                color = 7;
-            }
-            if (color > 124) {
-                color = 125;
-            }
-            colors[i * 3] = 248;
-            colors[i * 3 + 1] = 255 - color;
-            colors[i * 3 + 2] = 255 - color;
+            window.colors[i * 3] = color_rgb[0];
+            window.colors[i * 3 + 1] = color_rgb[1];
+            window.colors[i * 3 + 2] = color_rgb[2];
         }
+        
 
         /**
          * number of vertices of the surface
          */
         let n = workerResult.triangle_surface.length * 3;
+        /**
+         * Get color from the color picker with id "color_contour"
+         */
+        let color_line = document.getElementById("color_contour").value;
+        let color_rgb_line = mathTool.hexToDec(color_line);
 
         for (let i = 0; i < workerResult.triangle_contour.length; i++) {
             /**
@@ -285,12 +313,10 @@ my_contour_worker.onmessage = (e) => {
             coordinates[n + i * 3 + 1] = workerResult.triangle_contour[i][1];
             coordinates[n + i * 3 + 2] = workerResult.triangle_contour[i][2] + 1;
 
-            /**
-             * Blue color for the contour lines
-             */
-            colors[n + i * 3] = 0;
-            colors[n + i * 3 + 1] = 0;
-            colors[n + i * 3 + 2] = 255;
+
+            window.colors[n + i * 3] =color_rgb_line[0];
+            window.colors[n + i * 3 + 1] = color_rgb_line[1];
+            window.colors[n + i * 3 + 2] = color_rgb_line[2];
         }
 
         /**
@@ -306,9 +332,9 @@ my_contour_worker.onmessage = (e) => {
             /**
              * Red color for the x axis
              */
-            colors[n + i * 3] = 200;
-            colors[n + i * 3 + 1] = 0;
-            colors[n + i * 3 + 2] = 0;
+            window.colors[n + i * 3] = 200;
+            window.colors[n + i * 3 + 1] = 0;
+            window.colors[n + i * 3 + 2] = 0;
         }
 
         n += x_axis_triangle.length * 3;
@@ -321,9 +347,9 @@ my_contour_worker.onmessage = (e) => {
             /**
              * Blue color for the y axis
              */
-            colors[n + i * 3] = 0;
-            colors[n + i * 3 + 1] = 0;
-            colors[n + i * 3 + 2] = 200;
+            window.colors[n + i * 3] = 0;
+            window.colors[n + i * 3 + 1] = 0;
+            window.colors[n + i * 3 + 2] = 200;
         }
 
         n += y_axis_triangle.length * 3;
@@ -336,9 +362,9 @@ my_contour_worker.onmessage = (e) => {
             /**
              * Green color for the z axis
              */
-            colors[n + i * 3] = 0;
-            colors[n + i * 3 + 1] = 200;
-            colors[n + i * 3 + 2] = 0;
+            window.colors[n + i * 3] = 0;
+            window.colors[n + i * 3 + 1] = 200;
+            window.colors[n + i * 3 + 2] = 0;
         }
 
 
@@ -358,7 +384,7 @@ my_contour_worker.onmessage = (e) => {
 
         document.getElementById("contour_message").innerText = "";
 
-        document.getElementById("file_area").style.display = "none";
+        // document.getElementById("file_area").style.display = "none";
 
     }
 }
@@ -451,6 +477,44 @@ function create_event_listener() {
         main_plot.drawScene();
     });
 }
+
+function update_color(flag) {
+    if (flag === 0) {
+        /**
+         * Get color from the color picker with id "color_surface"
+         * "#ff0000" is red, "#00ff00" is green, "#0000ff" is blue
+         */
+        let color = document.getElementById("color_surface").value;
+        let color_rgb = mathTool.hexToDec(color);
+        /**
+         * Change the color of the surface to the new color
+         */
+        for (let i = 0; i < n_surface_points; i++) {
+            window.colors[i * 3] = color_rgb[0];
+            window.colors[i * 3 + 1] = color_rgb[1];
+            window.colors[i * 3 + 2] = color_rgb[2];
+        }
+        main_plot.update_colors(window.colors);
+        main_plot.drawScene();
+    }
+    else {
+        /**
+         * Get color from the color picker with id "color_contour"
+         */
+        let color = document.getElementById("color_contour").value;
+        let color_rgb = mathTool.hexToDec(color);
+        /**
+         * Change the color of the contour lines to the new color
+         */
+        for (let i = n_surface_points; i < n_surface_points + n_contour_points; i++) {
+            window.colors[i * 3] = color_rgb[0];
+            window.colors[i * 3 + 1] = color_rgb[1];
+            window.colors[i * 3 + 2] = color_rgb[2];
+        }
+        main_plot.update_colors(window.colors);
+        main_plot.drawScene();
+    }
+};
 
 function process_ft_file(arrayBuffer,file_name, spectrum_type) {
 

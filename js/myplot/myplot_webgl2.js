@@ -195,6 +195,16 @@ class webgl_contour_plot2 {
         this.drawScene();
     }
 
+
+    /**
+     * Update the color buffer.
+     * @param {Uint8Array} colors 
+     */
+    update_colors(colors) {
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.colorBuffer);
+        this.gl.bufferData(this.gl.ARRAY_BUFFER, colors, this.gl.STATIC_DRAW);
+    }
+
     /**
      * Draw the scene.
      */
