@@ -3,15 +3,19 @@
  * Make sure we can load WebWorker
 */
 
-var my_contour_worker, webassembly_worker;
+var my_contour_worker, webassembly_worker, webassembly_worker2;
 
 try {
     my_contour_worker = new Worker('./js/contour.js');
     webassembly_worker = new Worker('./js/webass.js');
+    webassembly_worker2 = new Worker('./js/webass2.js');
 }
 catch (err) {
     console.log(err);
-    if (typeof (my_contour_worker) === "undefined" || typeof (webassembly_worker) === "undefined") {
+    if (typeof (my_contour_worker) === "undefined" 
+        || typeof (webassembly_worker) === "undefined"
+        || typeof (webassembly_worker2) === "undefined")
+    {
         alert("Failed to load WebWorker, probably due to browser incompatibility. Please use a modern browser, if you run this program locally, please read the instructions titled 'How to run COLMAR Viewer locally'");
     }
 }
@@ -393,6 +397,35 @@ $(document).ready(function () {
         }
     });
 
+    /**
+     * test_form submission
+     */
+    document.getElementById('test_form').addEventListener('submit', function (e) {
+        e.preventDefault();
+        console.log("test_form submitted");
+        /**
+         * Read the file (binary) then send it to the worker
+         */
+        let file = document.getElementById('test_file').files[0];
+        if (file) {
+            var reader = new FileReader();
+            reader.onload = function () {
+                var data = reader.result;
+                /**
+                 * Convert to Uint8Array
+                 */
+                let data_uint8 = new Uint8Array(data);
+                webassembly_worker2.postMessage({
+                    spectrum_data: data_uint8,
+                });
+            };
+            reader.onerror = function (e) {
+                console.log("Error reading file");
+            };
+            reader.readAsArrayBuffer(file);
+        }
+    });
+
 
     /**
      * When use selected a file, read the file and process it
@@ -666,6 +699,26 @@ function run_pseudo3d(flag) {
         flag: flag, //0: voigt, 1: Gaussian
         maxround: max_round,
     });
+}
+
+webassembly_worker2.onmessage = function (e) {
+    /**
+     * If result is spectrum_data, it is the processed spectrum
+     */
+    if (e.data.spectrum_data) {
+        console.log("Porcessed smile spectrum data received");
+        /**
+         * Save as a file.
+         */
+        let blob = new Blob([e.data.spectrum_data], { type: 'application/octet-stream' });
+        let url = URL.createObjectURL(blob);
+        let a = document.createElement('a');
+        a.href = url;
+        a.download = "processed_spectrum.ft2";
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+    }
 }
 
 
