@@ -105,6 +105,18 @@
             padding: 10px;
         }
 
+        div.input-section {
+            display: flex;
+            gap: 5px;
+            flex-direction: column;
+            justify-content: start;
+            align-items: left;
+            margin: 10px;
+            padding: 10px;
+            border: 1px solid #4f2bcf;
+            border-radius: 0.5rem;
+        }
+
         div.resizable {
             border: 2px solid #40375f;
             border-radius: 0.5rem;
@@ -169,5 +181,11 @@
             color: blue;
             opacity: 0.6;
             z-index: 2000;
+        }
+
+
+        div.input-section label,  div.input-section select {
+            width: fit-content;
+            display: inline;
         }
 

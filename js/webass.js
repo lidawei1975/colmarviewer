@@ -42,10 +42,36 @@ onmessage = function (e) {
 
         /**
          * Write a file named "arguments_fid_phasing.txt" to the virtual file system
-         * C++ program will read it to get "commandline arguments"
+         * C++ program will read it to get "command line arguments"
          */
         let content = ' -first_only yes -aqseq '.concat(e.data.acquisition_seq,' -negative ',e.data.neg_imaginary);
         content = content.concat(' -zf '.concat(e.data.zf_direct,' -zf_indirect ',e.data.zf_indirect));
+        content = content.concat(' -apod '.concat(e.data.apodization));
+        content = content.concat(' -apod_indirect '.concat(e.data.apodization_indirect));
+
+        /**
+         * If either auto_direct and auto_indirect are false, add "-user_phase yes" to the content
+         * and write a file named "phase-correction.txt" to the virtual file system
+         * The file has for numbers separated by space: p0_direct p1_direct p0_indirect p1_indirect
+         * both p0 and p1 will be -400 if auto_direct or auto_indirect is true
+         */
+        if (e.data.auto_direct === false || e.data.auto_indirect === false) {
+            content = content.concat(' -user_phase yes');
+            let phase_correction = '';
+            if (e.data.auto_direct === false) {
+                phase_correction = phase_correction.concat(e.data.phase_correction[0], ' ', e.data.phase_correction[1], ' ');
+            }
+            else {
+                phase_correction = phase_correction.concat('-400 -400 ');
+            }
+            if (e.data.auto_indirect === false) {
+                phase_correction = phase_correction.concat(e.data.phase_correction[2], ' ', e.data.phase_correction[3]);
+            }
+            else {
+                phase_correction = phase_correction.concat('-400 -400');
+            }
+            Module['FS_createDataFile']('/', 'phase-correction.txt', phase_correction, true, true, true);
+        }
         Module['FS_createDataFile']('/', 'arguments_fid_phasing.txt', content, true, true, true);
         console.log(content);
 
@@ -59,6 +85,9 @@ onmessage = function (e) {
         /**
          * Remove the input files from the virtual file system
          * Read file test.ft2 from the virtual file system and send it back to the main script
+         * And read the file phase-correction.txt and send it back to the main script
+         * If auto, new phase correction will be saved in the file
+         * IF not auto, the same phase correction (from input) will be saved in the file
          */
         FS.unlink('acquisition_file');
         FS.unlink('acquisition_file2');
@@ -69,7 +98,11 @@ onmessage = function (e) {
         console.log('File data read from virtual file system, type of file_data:', typeof file_data, ' and length:', file_data.length);
         FS.unlink('test.ft2');
         FS.unlink('phase-correction.txt');
-        postMessage({ file_data: file_data, phasing_data: phasing_data});
+        postMessage({
+            file_data: file_data,
+            phasing_data: phasing_data,
+            processing_flag: e.data.processing_flag //passthrough the processing flag
+        });
     }
 
     /**

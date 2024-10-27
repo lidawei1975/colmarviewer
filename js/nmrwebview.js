@@ -31,6 +31,11 @@ var pseudo3d_fitted_peaks = []; //pseudo 3D fitted peaks, JSON array
 var total_number_of_experimental_spectra = 0; //total number of experimental spectra
 
 /**
+ * For FID processing. Saved file data
+ */
+var current_fid_files;
+
+/**
  * ft2 file drop processor
  */
 var ft2_file_drop_processor;
@@ -217,6 +222,17 @@ class file_drop_processor {
                     document.getElementById(file_id).files = container.files;
                 }
             }
+            else if(file_id === "nuslist_file")
+            {
+                document.getElementById(file_id).files = container.files;
+                /**
+                 * Special case for nuslist file. 
+                 * Disable the auto_indirect checkboxes. 
+                 * User has to manually set the phase correction values for indirect dimension for NUS experiments
+                 */
+                document.getElementById("auto_indirect").checked = false;
+                document.getElementById("auto_indirect").disabled = true;
+            }
             else
             {
                 document.getElementById(file_id).files = container.files;
@@ -307,7 +323,6 @@ const read_file = (file) => {
             reject("Error reading file");
         };
         reader.readAsArrayBuffer(file);
-
     });
 }
 
@@ -357,8 +372,8 @@ $(document).ready(function () {
     */
     fid_drop_process = new file_drop_processor()
     .drop_area('fid_file_area') /** id of dropzone */
-    .files_name(["acqu2s", "acqu3s", "acqus", "ser", "fid"])  /** file names to be searched from upload */
-    .files_id(["acquisition_file2","acquisition_file2", "acquisition_file", "fid_file", "fid_file"]) /** Corresponding file element IDs */
+    .files_name(["acqu2s", "acqu3s", "acqus", "ser", "fid","nuslist"])  /** file names to be searched from upload */
+    .files_id(["acquisition_file2","acquisition_file2", "acquisition_file", "fid_file", "fid_file","nuslist_file"]) /** Corresponding file element IDs */
     .file_extension([])  /** file extensions to be searched from upload */
     .init();
 
@@ -481,7 +496,7 @@ $(document).ready(function () {
             }).then((file_data) => {
                 if(file_data !== null){
                     let result_spectrum = process_ft_file(file_data,this.querySelector('input[type="file"]').files[ii].name,-1);
-                    draw_spectrum(result_spectrum);
+                    draw_spectrum(result_spectrum,false);
                 }
                 /**
                  * If it is the last file, clear the file input
@@ -502,69 +517,86 @@ $(document).ready(function () {
      */
     document.getElementById('fid_file_form').addEventListener('submit', function (e) {
 
+        e.preventDefault();
+        /**
+         * This form has two submit buttons, names are "button_fid_process" and "button_fid_reprocess"
+         * we need to know which button is clicked
+         */
+        let button_name = e.submitter.name;
+
+
         /**
          * Step 1: save th file to virtual file system. Use promise to wait for all the files to be saved
          */
-        e.preventDefault();
+        
 
         let acquisition_file = document.getElementById('acquisition_file').files[0];
         let acquisition_file2 = document.getElementById('acquisition_file2').files[0];
         let fid_file = document.getElementById('fid_file').files[0];
+        /**
+         * Nuslist file is optional (for non-uniform sampling)
+         * If it is not selected, it will be null
+         */
+        let nuslist_file = document.getElementById('nuslist_file').files[0];
+        
+        
+        if (button_name === "button_fid_process")
+        {
+            let promises;
+            if(nuslist_file === null)
+            {
+                promises = [read_file(acquisition_file), read_file(acquisition_file2), read_file(fid_file)];
+            }
+            else
+            {
+                promises = [read_file(acquisition_file), read_file(acquisition_file2), read_file(fid_file), read_file(nuslist_file)];
+            }
 
-        let promises = [read_file(acquisition_file), read_file(acquisition_file2), read_file(fid_file)];
-        Promise.all(promises)
-            .then((result) => {
+            Promise.all(promises)
+                .then((result) => {
 
-                /**
-                 * For each element in result (raw data of the files), we will convert it to Uint8Array
-                 * so that they can be transferred to the worker
-                 */
-                let file_data =[new Uint8Array(result[0]), new Uint8Array(result[1]),new Uint8Array(result[2])];
+                    /**
+                     * For each element in result (raw data of the files), we will convert it to Uint8Array
+                     * so that they can be transferred to the worker
+                     */
+                    if(nuslist_file === null)
+                    {
+                        current_fid_files = [new Uint8Array(result[0]), new Uint8Array(result[1]), new Uint8Array(result[2])];
+                    }
+                    else
+                    {
+                        current_fid_files = [new Uint8Array(result[0]), new Uint8Array(result[1]), new Uint8Array(result[2]), new Uint8Array(result[3])];
+                    }
 
-                /**
-                 * Clear file input
-                 */
-                document.getElementById('acquisition_file').value = "";
-                document.getElementById('acquisition_file2').value = "";
-                document.getElementById('fid_file').value = "";
+                    /**
+                     * Clear file input
+                     */
+                    document.getElementById('acquisition_file').value = "";
+                    document.getElementById('acquisition_file2').value = "";
+                    document.getElementById('fid_file').value = "";
 
-                /**
-                 * Get HTML select "hsqc_acquisition_seq" value: "321" or "312"
-                 */
-                let acquisition_seq = document.getElementById("hsqc_acquisition_seq").value;
-                /**
-                 * Get HTML select zf_direct value: "2" or "4" or "8"
-                 */
-                let zf_direct = document.getElementById("zf_direct").value;
-                /**
-                 * Get HTML select zf_indirect value: "2" or "4" or "8"
-                 */
-                let zf_indirect = document.getElementById("zf_indirect").value;
-                /**
-                 * Get HTML checkbox "neg_imaginary".checked: true or false
-                 * convert it to "yes" or "no"
-                 */
-                let neg_imaginary = document.getElementById("neg_imaginary").checked ? "yes" : "no";
+                    call_webassembly_worker_for_fid_process(0);
+                    /**
+                     * Let user know the processing is started
+                     */
+                    document.getElementById("webassembly_message").innerText = "Processing time domain spectra, please wait...";
 
-                /**
-                 * Result is an array of Uint8Array
-                 */
-                webassembly_worker.postMessage({
-                    file_data: file_data,
-                    acquisition_seq: acquisition_seq,
-                    neg_imaginary: neg_imaginary,
-                    zf_direct: zf_direct,
-                    zf_indirect: zf_indirect
+                })
+                .catch((err) => {
+                    console.log(err);
                 });
-                /**
-                 * Let user know the processing is started
-                 */
-                document.getElementById("webassembly_message").innerText = "Processing time domain spectra, please wait...";
-
-            })
-            .catch((err) => {
-                console.log(err);
-            });      
+        }
+        else if (button_name === "button_fid_reprocess")
+        {
+            /**
+             * We call the worker to process the fid data directly, because the fid files are already saved
+             */
+            call_webassembly_worker_for_fid_process(1);    
+            /**
+             * Let user know the processing is started
+             */
+            document.getElementById("webassembly_message").innerText = "Re-processing time domain spectra, please wait...";
+        }
     });
 
     /**
@@ -632,6 +664,80 @@ $(document).ready(function () {
     });
 
 });
+
+
+/**
+ * When user click button to process fid data or reprocess fid data
+ */
+function call_webassembly_worker_for_fid_process(flag) {
+    /**
+     * Get HTML select "hsqc_acquisition_seq" value: "321" or "312"
+    */
+    let acquisition_seq = document.getElementById("hsqc_acquisition_seq").value;
+    
+    /**
+     * Get HTML text input apodization_direct
+     */
+    let apodization_direct = document.getElementById("apodization_direct").value;
+
+    /**
+     * Get HTML select zf_direct value: "2" or "4" or "8"
+     */
+    let zf_direct = document.getElementById("zf_direct").value;
+
+    /**
+     * Get HTML number input phase_correction_direct_p0 and phase_correction_direct_p1
+     * and checkbox auto_direct checked: true or false
+     */
+    let phase_correction_direct_p0 = parseFloat(document.getElementById("phase_correction_direct_p0").value);
+    let phase_correction_direct_p1 = parseFloat(document.getElementById("phase_correction_direct_p1").value);
+    let auto_direct = document.getElementById("auto_direct").checked; //true or false
+    
+    /**
+     * Get HTML text input apodization_indirect
+     */
+    let apodization_indirect = document.getElementById("apodization_indirect").value;
+
+    /**
+     * Get HTML select zf_indirect value: "2" or "4" or "8"
+     */
+    let zf_indirect = document.getElementById("zf_indirect").value;
+
+
+    /**
+     * Get HTML number input phase_correction_indirect_p0 and phase_correction_indirect_p1
+     */
+    let phase_correction_indirect_p0 = parseFloat(document.getElementById("phase_correction_indirect_p0").value);
+    let phase_correction_indirect_p1 = parseFloat(document.getElementById("phase_correction_indirect_p1").value);
+    let auto_indirect = document.getElementById("auto_indirect").checked; //true or false
+    
+
+    /**
+     * Get HTML checkbox "neg_imaginary".checked: true or false. Convert to "yes" or "no" for the worker
+     */
+    let neg_imaginary = document.getElementById("neg_imaginary").checked ? "yes" : "no";
+
+    /**
+     * Result is an array of Uint8Array
+     */
+    webassembly_worker.postMessage({
+        file_data: current_fid_files,
+        acquisition_seq: acquisition_seq,
+        neg_imaginary: neg_imaginary,
+        apodization_direct: apodization_direct,
+        apodization_indirect: apodization_indirect,
+        auto_direct: auto_direct,
+        auto_indirect: auto_indirect,
+        phase_correction_direct_p0: phase_correction_direct_p0,
+        phase_correction_direct_p1: phase_correction_direct_p1,
+        phase_correction_indirect_p0: phase_correction_indirect_p0,
+        phase_correction_indirect_p1: phase_correction_indirect_p1,
+        zf_direct: zf_direct,
+        zf_indirect: zf_indirect,
+        processing_flag: flag, //0: process, 1: reprocess
+    });
+}
+
 
 /**
  * When user click button to run pseudo 3D fitting
@@ -867,7 +973,7 @@ webassembly_worker.onmessage = function (e) {
          */
         result_spectrum.scale = e.data.scale;
         result_spectrum.scale2 = e.data.scale2;
-        draw_spectrum(result_spectrum);
+        draw_spectrum(result_spectrum,false);
 
         /**
          * Clear the processing message
@@ -876,7 +982,7 @@ webassembly_worker.onmessage = function (e) {
     }
 
     /**
-     * If result is file_data, it is the frequency domain spectrum
+     * If result is file_data and phasing_data, it is the frequency domain spectrum
      */
     else if (e.data.file_data && e.data.phasing_data) {
 
@@ -884,10 +990,27 @@ webassembly_worker.onmessage = function (e) {
          * e.data.phasing_data is a string with 4 numbers separated by space(s)
          */
         current_phase_correction = e.data.phasing_data.split(/(\s+)/);
+        /**
+         * Fill HTML filed with id "phase_correction_direct_p0" and "phase_correction_direct_p1" with the first two numbers
+         * and "phase_correction_indirect_p0" and "phase_correction_indirect_p1" with the last two numbers
+         * IF these numbers are already filled (then send to the worker), they will be returned without change,
+         * that is, there is no need to fill them again, but won't hurt to fill them again (because they are the same)
+         */
+        document.getElementById("phase_correction_direct_p0").value = current_phase_correction[0];
+        document.getElementById("phase_correction_direct_p1").value = current_phase_correction[1];
+        document.getElementById("phase_correction_indirect_p0").value = current_phase_correction[2];
+        document.getElementById("phase_correction_indirect_p1").value = current_phase_correction[3];
 
         let arrayBuffer = new Uint8Array(e.data.file_data).buffer;
         let result_spectrum = process_ft_file(arrayBuffer,"from_fid.ft2",-2);
-        draw_spectrum(result_spectrum);
+        /**
+         * Determine whether this is a re-process or a new process
+         * if b_reprocess is true, we will replace the current spectrum
+         * if b_reprocess is false, we will add the spectrum to the hsqc_spectra array
+         * Both are done in draw_spectrum function
+         */
+        let b_reprocess = e.data.processing_flag == 1 ? true : false;
+        draw_spectrum(result_spectrum,b_reprocess);
         /**
          * Clear the processing message
          */
@@ -2676,9 +2799,10 @@ function process_ft_file(arrayBuffer,file_name, spectrum_type) {
 /**
  * Add a new spectrum to the list and update the contour plot
  * @param {*} result_spectrum: an object of hsqc_spectrum
+ * @param {*} b_reprocess: boolean, whether this is a new spectrum or a reprocessed spectrum
  * @returns 
  */
-function draw_spectrum(result_spectrum)
+function draw_spectrum(result_spectrum, b_reprocess)
 {
     if(typeof result_spectrum.error !== "undefined")
     {
@@ -2686,11 +2810,25 @@ function draw_spectrum(result_spectrum)
         return;
     }
 
-    let spectrum_index = hsqc_spectra.length;
-    result_spectrum.spectrum_index = spectrum_index;
-    result_spectrum.spectrum_color = color_list[(spectrum_index*2) % color_list.length];
-    result_spectrum.spectrum_color_negative = color_list[(spectrum_index*2+1) % color_list.length];
-    hsqc_spectra.push(result_spectrum);
+    if(b_reprocess === false)
+    {
+        /**
+         * New spectrum, set its index (current length of the spectral array) and color
+         */
+        let spectrum_index = hsqc_spectra.length;
+        result_spectrum.spectrum_index = spectrum_index;
+        result_spectrum.spectrum_color = color_list[(spectrum_index*2) % color_list.length];
+        result_spectrum.spectrum_color_negative = color_list[(spectrum_index*2+1) % color_list.length];
+        hsqc_spectra.push(result_spectrum);
+    }
+    else 
+    {
+        /**
+         * Reprocessed spectrum, get its index and update the spectrum
+         */
+        let spectrum_index = result_spectrum.spectrum_index;
+        hsqc_spectra[spectrum_index] = result_spectrum;
+    }
     
 
     /**
