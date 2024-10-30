@@ -37,6 +37,27 @@ var total_number_of_experimental_spectra = 0; //total number of experimental spe
 var current_fid_files;
 
 /**
+ * Current processing parameters
+ */
+    
+var acquisition_seq;
+var neg_imaginary;
+var apodization_direct;
+var apodization_indirect;
+var zf_direct;
+var zf_indirect;
+var phase_correction_direct_p0;
+var phase_correction_direct_p1;
+var auto_direct;
+var phase_correction_indirect_p0;
+var phase_correction_indirect_p1;
+var auto_indirect;
+var nuslist_as_string = '';
+
+
+
+
+/**
  * ft2 file drop processor
  */
 var ft2_file_drop_processor;
@@ -413,34 +434,7 @@ $(document).ready(function () {
         }
     });
 
-    /**
-     * test_form submission
-     */
-    document.getElementById('test_form').addEventListener('submit', function (e) {
-        e.preventDefault();
-        console.log("test_form submitted");
-        /**
-         * Read the file (binary) then send it to the worker
-         */
-        let file = document.getElementById('test_file').files[0];
-        if (file) {
-            var reader = new FileReader();
-            reader.onload = function () {
-                var data = reader.result;
-                /**
-                 * Convert to Uint8Array
-                 */
-                let data_uint8 = new Uint8Array(data);
-                webassembly_worker2.postMessage({
-                    spectrum_data: data_uint8,
-                });
-            };
-            reader.onerror = function (e) {
-                console.log("Error reading file");
-            };
-            reader.readAsArrayBuffer(file);
-        }
-    });
+
 
 
     /**
@@ -567,6 +561,11 @@ $(document).ready(function () {
                     else
                     {
                         current_fid_files = [new Uint8Array(result[0]), new Uint8Array(result[1]), new Uint8Array(result[2]), new Uint8Array(result[3])];
+                        /**
+                         * convert nuslist file content (arrayBuffer) to string
+                         */
+                        let nuslist_array = new Uint8Array(result[3]);
+                        nuslist_as_string = String.fromCharCode.apply(null, nuslist_array);
                     }
 
                     /**
@@ -575,6 +574,7 @@ $(document).ready(function () {
                     document.getElementById('acquisition_file').value = "";
                     document.getElementById('acquisition_file2').value = "";
                     document.getElementById('fid_file').value = "";
+                    document.getElementById('nuslist_file').value = "";
 
                     call_webassembly_worker_for_fid_process(0,0);
                     /**
@@ -675,49 +675,49 @@ function call_webassembly_worker_for_fid_process(flag,spectrum_index) {
     /**
      * Get HTML select "hsqc_acquisition_seq" value: "321" or "312"
     */
-    let acquisition_seq = document.getElementById("hsqc_acquisition_seq").value;
+    acquisition_seq = document.getElementById("hsqc_acquisition_seq").value;
     
     /**
      * Get HTML text input apodization_direct
      */
-    let apodization_direct = document.getElementById("apodization_direct").value;
+    apodization_direct = document.getElementById("apodization_direct").value;
 
     /**
      * Get HTML select zf_direct value: "2" or "4" or "8"
      */
-    let zf_direct = document.getElementById("zf_direct").value;
+    zf_direct = document.getElementById("zf_direct").value;
 
     /**
      * Get HTML number input phase_correction_direct_p0 and phase_correction_direct_p1
      * and checkbox auto_direct checked: true or false
      */
-    let phase_correction_direct_p0 = parseFloat(document.getElementById("phase_correction_direct_p0").value);
-    let phase_correction_direct_p1 = parseFloat(document.getElementById("phase_correction_direct_p1").value);
-    let auto_direct = document.getElementById("auto_direct").checked; //true or false
+    phase_correction_direct_p0 = parseFloat(document.getElementById("phase_correction_direct_p0").value);
+    phase_correction_direct_p1 = parseFloat(document.getElementById("phase_correction_direct_p1").value);
+    auto_direct = document.getElementById("auto_direct").checked; //true or false
     
     /**
      * Get HTML text input apodization_indirect
      */
-    let apodization_indirect = document.getElementById("apodization_indirect").value;
+    apodization_indirect = document.getElementById("apodization_indirect").value;
 
     /**
      * Get HTML select zf_indirect value: "2" or "4" or "8"
      */
-    let zf_indirect = document.getElementById("zf_indirect").value;
+    zf_indirect = document.getElementById("zf_indirect").value;
 
 
     /**
      * Get HTML number input phase_correction_indirect_p0 and phase_correction_indirect_p1
      */
-    let phase_correction_indirect_p0 = parseFloat(document.getElementById("phase_correction_indirect_p0").value);
-    let phase_correction_indirect_p1 = parseFloat(document.getElementById("phase_correction_indirect_p1").value);
-    let auto_indirect = document.getElementById("auto_indirect").checked; //true or false
+    phase_correction_indirect_p0 = parseFloat(document.getElementById("phase_correction_indirect_p0").value);
+    phase_correction_indirect_p1 = parseFloat(document.getElementById("phase_correction_indirect_p1").value);
+    auto_indirect = document.getElementById("auto_indirect").checked; //true or false
     
 
     /**
      * Get HTML checkbox "neg_imaginary".checked: true or false. Convert to "yes" or "no" for the worker
      */
-    let neg_imaginary = document.getElementById("neg_imaginary").checked ? "yes" : "no";
+    neg_imaginary = document.getElementById("neg_imaginary").checked ? "yes" : "no";
 
     /**
      * Result is an array of Uint8Array
@@ -815,18 +815,20 @@ webassembly_worker2.onmessage = function (e) {
      * If result is spectrum_data, it is the processed spectrum
      */
     if (e.data.spectrum_data) {
-        console.log("Porcessed smile spectrum data received");
+        console.log("Processed smile spectrum data received");
+        let spectrum_data = new Uint8Array(e.data.spectrum_data);
         /**
-         * Save as a file.
+         * Send e.data.spectrum_data to webassembly_worker to process it
          */
-        let blob = new Blob([e.data.spectrum_data], { type: 'application/octet-stream' });
-        let url = URL.createObjectURL(blob);
-        let a = document.createElement('a');
-        a.href = url;
-        a.download = "processed_spectrum.ft2";
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
+        webassembly_worker.postMessage({
+            file_data: [spectrum_data],
+            spectrum_index: e.data.spectrum_index,
+            phase_correction_indirect_p0: phase_correction_indirect_p0,
+            phase_correction_indirect_p1: phase_correction_indirect_p1,
+            apodization_indirect: apodization_indirect,
+            zf_indirect: zf_indirect,
+            processing_flag: e.data.processing_flag,
+        });
     }
 }
 
@@ -945,7 +947,7 @@ webassembly_worker.onmessage = function (e) {
         /**
          * Treat the received recon_spectrum as a frequency domain spectrum
          */
-        let arrayBuffer = new Uint8Array(e.data.recon_spectrum).buffer;
+        let arrayBuffer = new Uint8Array(e.data.recon_spectrum);
 
         /**
          * Process the frequency domain spectrum, spectrum name is "recon-".spectrum_origin.".ft2"
@@ -985,9 +987,49 @@ webassembly_worker.onmessage = function (e) {
     }
 
     /**
-     * If result is file_data and phasing_data, it is the frequency domain spectrum
+     * IF result is file_data and file_type is "direct", it is a hybrid spectrum
+     * (direct dimension only processing) from a NUS experiment
      */
-    else if (e.data.file_data && e.data.phasing_data) {
+    else if(e.data.file_data && e.data.file_type && e.data.file_type === 'direct')
+    {
+        /**
+         * Send e.data.file_data as Unit8Array to webass2 (smile) work to process it.
+         * Also need:
+         * nuslist file as a string
+         * apodization_direct as a string
+         * indirect phase correction p0 and p1 as numbers
+        */   
+        let arrayBuffer = new Uint8Array(e.data.file_data);
+
+        /**
+         * Also need to read header (512 float) from arrayBuffer
+         * to determine the size of inner dimension (the one NUS is applied)
+         * "FDSIZE" is the 99th (0 based) float in the header
+         * {"FDSPECNUM", "219"} is the outer dimension size (not needed at this point)
+         */
+        let header = new Float32Array(arrayBuffer,0,512);
+        let n_inner_dimension = header[99];
+
+        webassembly_worker2.postMessage({
+            spectrum_data: arrayBuffer,
+            nuslist_as_string: nuslist_as_string, //saved as global variable
+            apodization_direct: apodization_direct, //saved as global variable
+            phase_correction_indirect_p0: phase_correction_indirect_p0, 
+            phase_correction_indirect_p1: phase_correction_indirect_p1,
+            n_inner_dimension: n_inner_dimension,
+            /**
+             * Pass the current spectrum index to the worker
+             */
+            spectrum_index: e.data.spectrum_index,
+            processing_flag: e.data.processing_flag,
+        });
+    }
+
+    /**
+     * If result is file_data and phasing_data, it is the frequency domain spectrum returned from the worker
+     * from the time domain spectrum
+     */
+    else if (e.data.file_data && e.data.file_type && (e.data.file_type ==='full' || e.data.file_type ==='indirect') && e.data.phasing_data) {
 
         /**
          * e.data.phasing_data is a string with 4 numbers separated by space(s)
@@ -1007,7 +1049,7 @@ webassembly_worker.onmessage = function (e) {
         document.getElementById("phase_correction_indirect_p0").value = current_phase_correction[2];
         document.getElementById("phase_correction_indirect_p1").value = current_phase_correction[3];
 
-        let arrayBuffer = new Uint8Array(e.data.file_data).buffer;
+        let arrayBuffer = new Uint8Array(e.data.file_data);
         let result_spectrum = process_ft_file(arrayBuffer,"from_fid.ft2",-2);
         
         /**

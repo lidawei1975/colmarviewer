@@ -26,12 +26,113 @@ out = Module['print'];
 
 onmessage = function (e) {
     console.log('Message received from main script');
+    
+    /**
+     * If the message is file_data with only 1 file, this is the 2nd step of normal processing (indirect dimension)
+     * after NUS reconstruction. Save the file to the virtual file system and run fid (-process indirect) function
+     */
+    if (e.data.file_data && e.data.file_data.length === 1) {
+        console.log('File data received for indirect processing');
+
+        Module['FS_createDataFile']('/', 'test_smile.ft2', e.data.file_data[0], true, true, true);
+        let content = ' -first-only yes ';
+        content = content.concat(' -zf-indirect ',e.data.zf_indirect);
+        content = content.concat(' -apod-indirect ',e.data.apodization_indirect);
+        content = content.concat(' -in test_smile.ft2 ');
+        content = content.concat(' -process indirect ');
+        content = content.concat(' -phase-in phase-correction.txt -di yes -di-indirect yes');
+        content = content.concat(' -out test.ft2');
+
+        /**
+         * Write a file named "arguments_fid_2d.txt" to the virtual file system
+         */
+        Module['FS_createDataFile']('/', 'arguments_fid_2d.txt', content, true, true, true);
+
+        /**
+         * Write a file named "phase-correction.txt" to the virtual file system.
+         * first two numbers are for direct dimension, which will be ignored
+         */
+        let phase_correction = '0 0 ';
+        phase_correction=phase_correction.concat(e.data.phase_correction_indirect_p0.toString());
+        phase_correction=phase_correction.concat(' ', e.data.phase_correction_indirect_p1.toString());
+        Module['FS_createDataFile']('/', 'phase-correction.txt', phase_correction, true, true, true);
+
+        console.log(content);
+
+        api.fid();
+        console.log('Finished running fid for indirect dimension of NUS spectrum');
+
+        FS.unlink('test_smile.ft2');
+        FS.unlink('arguments_fid_2d.txt');
+        const phasing_data = FS.readFile('phase-correction.txt', { encoding: 'utf8' });
+        FS.unlink('phase-correction.txt');
+        const file_data = FS.readFile('test.ft2', { encoding: 'binary' });
+        FS.unlink('test.ft2');
+        console.log('File data read from virtual file system, type of file_data:', typeof file_data, ' and length:', file_data.length);
+        postMessage({
+            file_data: file_data,
+            file_type: 'indirect', //direct,indirect,full
+            phasing_data: phasing_data,
+            processing_flag: e.data.processing_flag, //passthrough the processing flag
+            spectrum_index: e.data.spectrum_index //for reprocessing only
+        });
+    }
 
     /**
-     * If the message is file_data, save them to the virtual file system and run fid and phasing functions
+     * If the message is file_data with 4 file, save them to the virtual file system and run direct dimension only processing.
+     * (This is a NUS spectrum with 4 files: acquisition_file, acquisition_file2, fid_file and nuslist)
+     */
+    if (e.data.file_data && e.data.file_data.length === 4) {
+        console.log('File data received for NUS processing');
+        /**
+         * Save the file data to the virtual file system
+         */
+        Module['FS_createDataFile']('/', 'acquisition_file', e.data.file_data[0], true, true, true);
+        Module['FS_createDataFile']('/', 'acquisition_file2', e.data.file_data[1], true, true, true);
+        Module['FS_createDataFile']('/', 'fid_file', e.data.file_data[2], true, true, true);
+        Module['FS_createDataFile']('/', 'nuslist', e.data.file_data[3], true, true, true);
+
+        /**
+         * Write a file named "arguments_fid_2d.txt" to the virtual file system
+         */
+        let content = ' -first-only yes -aqseq '.concat(e.data.acquisition_seq,' -negative ',e.data.neg_imaginary);
+        content = content.concat(' -zf '.concat(e.data.zf_direct));
+        content = content.concat(' -apod '.concat(e.data.apodization_direct));
+        content = content.concat(' -in fid_file acquisition_file acquisition_file2 none');
+        content = content.concat(' -nus nuslist');
+        content = content.concat(' -process direct -di yes');
+        content = content.concat(' -out test_direct.ft2');
+        Module['FS_createDataFile']('/', 'arguments_fid_2d.txt', content, true, true, true);
+        console.log(content);
+
+        /**
+         * Call fid function
+         */
+        this.postMessage({ stdout: "Running fid function to process direct dimension of NUS spectrum." });
+        api.fid();
+        console.log('Finished running fid for direct dimension of NUS spectrum');
+
+        FS.unlink('acquisition_file');
+        FS.unlink('acquisition_file2');
+        FS.unlink('fid_file');
+        FS.unlink('nuslist');
+        FS.unlink('arguments_fid_2d.txt');
+        const file_data = FS.readFile('test_direct.ft2', { encoding: 'binary' });
+        console.log('File data read from virtual file system, type of file_data:', typeof file_data, ' and length:', file_data.length);
+        FS.unlink('test_direct.ft2');
+        postMessage({
+            file_data: file_data,
+            file_type: 'direct', //direct,direct-smile,full
+            processing_flag: e.data.processing_flag, //passthrough the processing flag
+            spectrum_index: e.data.spectrum_index //for reprocessing only
+        });
+    }
+
+    /**
+     * If the message is file_data with 3 files, save them to the virtual file system and run fid and phasing functions
      * return the processed data to the main script as file_data
      */
-    if (e.data.file_data) {
+    if (e.data.file_data && e.data.file_data.length === 3) {
         console.log('File data received');
         /**
          * Save the file data to the virtual file system
@@ -160,6 +261,7 @@ onmessage = function (e) {
         FS.unlink('phase-correction.txt');
         postMessage({
             file_data: file_data,
+            file_type: 'full', //direct,indirect,full
             phasing_data: phasing_data,
             processing_flag: e.data.processing_flag, //passthrough the processing flag
             spectrum_index: e.data.spectrum_index //for reprocessing only

@@ -10,24 +10,40 @@ onmessage = function (e) {
 
     if (e.data.spectrum_data )
     {
-        console.log('Spectrum data received');
-        /**
-         * Save the spectrum data to the virtual file system
-         */
-        Module['FS_createDataFile']('/', 'half.ft2', e.data.spectrum_data, true, true, true);
-        console.log('File created in virtual file system');
-
-        /**
-         * write the command file "arguments_nus_pipe.txt"
-         */
-        let command = "-in half.ft2 -fn SMILE -nDim 2 -maxIter 2048 -nSigma 2.5 -report 1 -sample nuslist -xApod SP -xQ1 0.5 -xQ2 0.95 -xQ3 1 -xELB 0.0 -xGLB 0.0 -xT 122 -xP0 -13 -xP1 180 -out 34.ft2 -ov";
-        Module['FS_createDataFile']('/', 'arguments_nus_pipe.txt', command, true, true, true);
+        console.log('Spectrum data received by Smile worker');
 
         /**
          * Write a file named "nuslist"
          */
-        let nuslist = "0\n1\n2\n3\n4\n5\n6\n7\n8\n10\n11\n12\n14\n17\n19\n22\n25\n27\n30\n33\n35\n37\n39\n40\n44\n47\n49\n53\n55\n57\n60";
-        Module['FS_createDataFile']('/', 'nuslist', nuslist, true, true, true);
+        Module['FS_createDataFile']('/', 'nuslist', e.data.nuslist_as_string, true, true, true);
+
+        /**
+         * apodization_direct: "SP begin 0.5 end 0.875 pow 2 elb 0 c 0.5"
+         * We need to extract the values of begin, end, pow, and elb
+        */
+        let apodization_direct = e.data.apodization_direct;
+        let apodization_direct_values = apodization_direct.split(/\s+/);
+        let begin = apodization_direct_values[2];
+        let end = apodization_direct_values[4];
+        let pow = apodization_direct_values[6];
+        let elb = apodization_direct_values[8];
+
+        /**
+         * write the command file "arguments_nus_pipe.txt"
+         */
+        let command = "-in test_direct.ft2 -fn SMILE -nDim 2 -maxIter 2048 -nSigma 2.5 -report 1 -sample nuslist ";
+        command = command.concat(" -xApod SP -xQ1 ", begin, " -xQ2 ", end, " -xQ3 ", pow, " -xELB ", elb, " ");
+        command = command.concat(" -xGLB 0.0 -xT", e.data.n_inner_dimension);
+        command = command.concat(" -xP0 ", e.data.phase_correction_indirect_p0, " -xP1 ", e.data.phase_correction_indirect_p1);
+        command = command.concat(" -out test_nus.ft2 -ov");
+        Module['FS_createDataFile']('/', 'arguments_nus_pipe.txt', command, true, true, true);
+
+        /**
+         * Save the spectrum data to the virtual file system
+         *  spectrum_data: arrayBuffer,
+        */
+        Module['FS_createDataFile']('/', 'test_direct.ft2', e.data.spectrum_data, true, true, true);
+
 
         /**
          * Call the nusPipe function
@@ -37,19 +53,26 @@ onmessage = function (e) {
         /**
          * Read the output file "34.ft2" and send it back to the main thread
          */
-        let output = FS.readFile('34.ft2', { encoding: 'binary' });
+        let output = FS.readFile('test_nus.ft2', { encoding: 'binary' });
         console.log('Output file read from virtual file system');
 
         /**
          * Remove the files from the virtual file system
          */
-        Module['FS_unlink']('half.ft2');
+        Module['FS_unlink']('test_direct.ft2');
         Module['FS_unlink']('arguments_nus_pipe.txt');
-        Module['FS_unlink']('34.ft2');
+        Module['FS_unlink']('test_nus.ft2');
         Module['FS_unlink']('nuslist');
 
-        postMessage({ spectrum_data: output });
+        postMessage({
+            spectrum_data: output,
+            /**
+             * pass through the other parameters
+             */
+            spectrum_index: e.data.spectrum_index,
+            processing_flag: e.data.processing_flag,
+        });
     }
 
-    console.log('Message processed by nusPipe worker');
+    console.log('Smile worker finished processing the spectrum data');
 }
