@@ -22,6 +22,7 @@ catch (err) {
 
 
 var main_plot = null; //hsqc plot object
+var b_plot_initialized = false; //flag to indicate if the plot is initialized
 var tooldiv; //tooltip div (used by myplot1_new.js, this is not a good practice, but it is a quick fix)
 var current_spectrum_index_of_peaks = -1; //index of the spectrum that is currently showing peaks, -1 means none, -2 means pseudo 3D fitted peaks
 var current_flag_of_peaks = 'picked'; //flag of the peaks that is currently showing, 'picked' or 'fitted
@@ -543,7 +544,7 @@ $(document).ready(function () {
         if (button_name === "button_fid_process")
         {
             let promises;
-            if(nuslist_file === null)
+            if(typeof nuslist_file === "undefined")
             {
                 promises = [read_file(acquisition_file), read_file(acquisition_file2), read_file(fid_file)];
             }
@@ -575,7 +576,7 @@ $(document).ready(function () {
                     document.getElementById('acquisition_file2').value = "";
                     document.getElementById('fid_file').value = "";
 
-                    call_webassembly_worker_for_fid_process(0);
+                    call_webassembly_worker_for_fid_process(0,0);
                     /**
                      * Let user know the processing is started
                      */
@@ -590,8 +591,9 @@ $(document).ready(function () {
         {
             /**
              * We call the worker to process the fid data directly, because the fid files are already saved
+             * For reprocessing, spectrum_index is the current last spectrum in hsqc_spectra
              */
-            call_webassembly_worker_for_fid_process(1);    
+            call_webassembly_worker_for_fid_process(1,hsqc_spectra.length-1);    
             /**
              * Let user know the processing is started
              */
@@ -669,7 +671,7 @@ $(document).ready(function () {
 /**
  * When user click button to process fid data or reprocess fid data
  */
-function call_webassembly_worker_for_fid_process(flag) {
+function call_webassembly_worker_for_fid_process(flag,spectrum_index) {
     /**
      * Get HTML select "hsqc_acquisition_seq" value: "321" or "312"
     */
@@ -721,6 +723,7 @@ function call_webassembly_worker_for_fid_process(flag) {
      * Result is an array of Uint8Array
      */
     webassembly_worker.postMessage({
+        spectrum_index: spectrum_index, //if not reprocess, this value is not used
         file_data: current_fid_files,
         acquisition_seq: acquisition_seq,
         neg_imaginary: neg_imaginary,
@@ -988,8 +991,11 @@ webassembly_worker.onmessage = function (e) {
 
         /**
          * e.data.phasing_data is a string with 4 numbers separated by space(s)
+         * Firstly replace all space(s) with a single space
+         * Then convert it to an array of 4 numbers
          */
-        current_phase_correction = e.data.phasing_data.split(/(\s+)/);
+        let current_phase_correction = e.data.phasing_data.split(/\s+/).map(Number);
+
         /**
          * Fill HTML filed with id "phase_correction_direct_p0" and "phase_correction_direct_p1" with the first two numbers
          * and "phase_correction_indirect_p0" and "phase_correction_indirect_p1" with the last two numbers
@@ -1003,6 +1009,7 @@ webassembly_worker.onmessage = function (e) {
 
         let arrayBuffer = new Uint8Array(e.data.file_data).buffer;
         let result_spectrum = process_ft_file(arrayBuffer,"from_fid.ft2",-2);
+        
         /**
          * Determine whether this is a re-process or a new process
          * if b_reprocess is true, we will replace the current spectrum
@@ -1010,6 +1017,7 @@ webassembly_worker.onmessage = function (e) {
          * Both are done in draw_spectrum function
          */
         let b_reprocess = e.data.processing_flag == 1 ? true : false;
+        result_spectrum.spectrum_index = e.data.spectrum_index; //only used when reprocess
         draw_spectrum(result_spectrum,b_reprocess);
         /**
          * Clear the processing message
@@ -2205,6 +2213,11 @@ my_contour_worker.onmessage = (e) => {
  */
 function init_plot(input) {
 
+    if (b_plot_initialized) {
+        return;
+    }
+    b_plot_initialized = true;
+
     /**
      * main_plot need to know the size of the plot with ID visualization
      */
@@ -2810,12 +2823,14 @@ function draw_spectrum(result_spectrum, b_reprocess)
         return;
     }
 
+    let spectrum_index;
+
     if(b_reprocess === false)
     {
         /**
          * New spectrum, set its index (current length of the spectral array) and color
          */
-        let spectrum_index = hsqc_spectra.length;
+        spectrum_index = hsqc_spectra.length;
         result_spectrum.spectrum_index = spectrum_index;
         result_spectrum.spectrum_color = color_list[(spectrum_index*2) % color_list.length];
         result_spectrum.spectrum_color_negative = color_list[(spectrum_index*2+1) % color_list.length];
@@ -2826,7 +2841,7 @@ function draw_spectrum(result_spectrum, b_reprocess)
         /**
          * Reprocessed spectrum, get its index and update the spectrum
          */
-        let spectrum_index = result_spectrum.spectrum_index;
+        spectrum_index = result_spectrum.spectrum_index;
         hsqc_spectra[spectrum_index] = result_spectrum;
     }
     
@@ -2834,11 +2849,8 @@ function draw_spectrum(result_spectrum, b_reprocess)
     /**
      * initialize the plot with the first spectrum. This function only run once
      */
-    if(hsqc_spectra.length === 1)
-    {
-        init_plot(hsqc_spectra[0]);
-    }
-
+    init_plot(hsqc_spectra[0]);
+    
     /**
      * Positive contour calculation for the spectrum
      */

@@ -9,7 +9,8 @@ const api = {
     version: Module.cwrap("version", "number", []),
     deep: Module.cwrap("deep", "number", []),
     simple_picking: Module.cwrap("simple_picking", "number", []),
-    fid_phase: Module.cwrap("fid_phase", "number", []),
+    fid: Module.cwrap("fid", "number", []),
+    phasing: Module.cwrap("phasing", "number", []),
     voigt_fit: Module.cwrap("voigt_fit", "number", []),
     peak_match: Module.cwrap("peak_match", "number", []),
     cubic_spline: Module.cwrap("cubic_spline", "number",[]),
@@ -44,34 +45,31 @@ onmessage = function (e) {
          * Write a file named "arguments_fid_phasing.txt" to the virtual file system
          * C++ program will read it to get "command line arguments"
          */
-        let content = ' -first_only yes -aqseq '.concat(e.data.acquisition_seq,' -negative ',e.data.neg_imaginary);
+        let content = ' -first-only yes -aqseq '.concat(e.data.acquisition_seq,' -negative ',e.data.neg_imaginary);
         content = content.concat(' -zf '.concat(e.data.zf_direct,' -zf-indirect ',e.data.zf_indirect));
-        content = content.concat(' -apod '.concat(e.data.apodization));
+        content = content.concat(' -apod '.concat(e.data.apodization_direct));
         content = content.concat(' -apod-indirect '.concat(e.data.apodization_indirect));
         content = content.concat(' -out test0.ft2');
+        content = content.concat(' -in fid_file acquisition_file acquisition_file2 none');
 
         /**
-         * If either auto_direct and auto_indirect are false, add "-user_phase yes" to the content
-         * and write a file named "phase-correction.txt" to the virtual file system
-         * The file has for numbers separated by space: p0_direct p1_direct p0_indirect p1_indirect
-         * both p0 and p1 will be -400 if auto_direct or auto_indirect is true
+         * If both auto_direct and auto_indirect are false, add -phase-in phase-correction.txt to the content
+         * and write a file named "phase-correction.txt" to the virtual file system. 
+         * Later, we will skip the automatic phase correction program called "phasing"
+         * 
+         * Otherwise, add -phase-in none to the content. User input phase correction will be read by
+         * another program called "phasing", which will run one dimension or both dimensions phase correction
          */
-        if (e.data.auto_direct === false || e.data.auto_indirect === false) {
-            content = content.concat(' -user_phase yes');
-            let phase_correction = '';
-            if (e.data.auto_direct === false) {
-                phase_correction = phase_correction.concat(e.data.phase_correction[0], ' ', e.data.phase_correction[1], ' ');
-            }
-            else {
-                phase_correction = phase_correction.concat('-400 -400 ');
-            }
-            if (e.data.auto_indirect === false) {
-                phase_correction = phase_correction.concat(e.data.phase_correction[2], ' ', e.data.phase_correction[3]);
-            }
-            else {
-                phase_correction = phase_correction.concat('-400 -400');
-            }
+        if (e.data.auto_direct === false && e.data.auto_indirect === false) {
+            content = content.concat(' -phase-in phase-correction.txt ');
+            let phase_correction = e.data.phase_correction_direct_p0.toString();
+            phase_correction=phase_correction.concat(' ', e.data.phase_correction_direct_p1.toString());
+            phase_correction=phase_correction.concat(' ', e.data.phase_correction_indirect_p0.toString());
+            phase_correction=phase_correction.concat(' ', e.data.phase_correction_indirect_p1.toString());
             Module['FS_createDataFile']('/', 'phase-correction.txt', phase_correction, true, true, true);
+        }
+        else {
+            content = content.concat(' -phase-in none');
         }
         Module['FS_createDataFile']('/', 'arguments_fid_2d.txt', content, true, true, true);
         console.log(content);
@@ -81,8 +79,31 @@ onmessage = function (e) {
          */
         this.postMessage({ stdout: "Running fid function" });
         api.version();
-        api.fid_phase();
-        console.log('Finished running web assembly code');
+        api.fid();
+        console.log('Finished running fid');
+
+
+        /**
+         * If we need to run phasing program
+         */
+        if (e.data.auto_direct === true || e.data.auto_indirect === true) {
+            /**
+             * Step 1, run phasing program, which will generate a file named "phase-correction.txt"
+             */
+
+            /**
+             * Step 2, run "fid" function again, with the new phase correction and write the new data to test.ft2
+             */
+        }
+        else
+        {
+            /**
+             * Rename the file test0.ft2 to test.ft2
+             */
+            FS.rename('test0.ft2', 'test.ft2');
+        }
+
+
         /**
          * Remove the input files from the virtual file system
          * Read file test.ft2 from the virtual file system and send it back to the main script
@@ -93,6 +114,7 @@ onmessage = function (e) {
         FS.unlink('acquisition_file');
         FS.unlink('acquisition_file2');
         FS.unlink('fid_file');
+        FS.unlink('arguments_fid_2d.txt');
         // FS.unlink('arguments_fid_phasing.txt');
         const file_data = FS.readFile('test.ft2', { encoding: 'binary' });
         const phasing_data = FS.readFile('phase-correction.txt', { encoding: 'utf8' });
@@ -102,7 +124,8 @@ onmessage = function (e) {
         postMessage({
             file_data: file_data,
             phasing_data: phasing_data,
-            processing_flag: e.data.processing_flag //passthrough the processing flag
+            processing_flag: e.data.processing_flag, //passthrough the processing flag
+            spectrum_index: e.data.spectrum_index //for reprocessing only
         });
     }
 
