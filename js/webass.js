@@ -61,7 +61,7 @@ onmessage = function (e) {
          * another program called "phasing", which will run one dimension or both dimensions phase correction
          */
         if (e.data.auto_direct === false && e.data.auto_indirect === false) {
-            content = content.concat(' -phase-in phase-correction.txt ');
+            content = content.concat(' -phase-in phase-correction.txt -di yes -di-indirect yes');
             let phase_correction = e.data.phase_correction_direct_p0.toString();
             phase_correction=phase_correction.concat(' ', e.data.phase_correction_direct_p1.toString());
             phase_correction=phase_correction.concat(' ', e.data.phase_correction_indirect_p0.toString());
@@ -69,7 +69,7 @@ onmessage = function (e) {
             Module['FS_createDataFile']('/', 'phase-correction.txt', phase_correction, true, true, true);
         }
         else {
-            content = content.concat(' -phase-in none');
+            content = content.concat(' -phase-in none -di no -di-indirect no');
         }
         Module['FS_createDataFile']('/', 'arguments_fid_2d.txt', content, true, true, true);
         console.log(content);
@@ -90,10 +90,48 @@ onmessage = function (e) {
             /**
              * Step 1, run phasing program, which will generate a file named "phase-correction.txt"
              */
+            let content = ' -in test0.ft2 -out none -out-phase phase-correction.txt';
+            if(e.data.auto_direct === true)
+            {
+                content = content.concat(' -user no ');
+            }
+            else 
+            {
+                content = content.concat(' -user yes -user-phase '.concat(e.data.phase_correction_direct_p0.toString(),' ',e.data.phase_correction_direct_p1.toString()));
+            }
+            if(e.data.auto_indirect === true)
+            {
+                content = content.concat(' -user-indirect no ');
+            }
+            else 
+            {
+                content = content.concat(' -user-indirect yes -user-phase-indirect '.concat(e.data.phase_correction_indirect_p0.toString(),' ',e.data.phase_correction_indirect_p1.toString()));
+            }
+            Module['FS_createDataFile']('/', 'arguments_phase_2d.txt', content, true, true, true);
+            console.log(content);
+            this.postMessage({ stdout: "Running phasing function" });
+            api.phasing();
+            console.log('Finished running phasing');
+            FS.unlink('arguments_phase_2d.txt');
 
             /**
              * Step 2, run "fid" function again, with the new phase correction and write the new data to test.ft2
              */
+            content = ' -first-only yes -aqseq '.concat(e.data.acquisition_seq,' -negative ',e.data.neg_imaginary);
+            content = content.concat(' -zf '.concat(e.data.zf_direct,' -zf-indirect ',e.data.zf_indirect));
+            content = content.concat(' -apod '.concat(e.data.apodization_direct));
+            content = content.concat(' -apod-indirect '.concat(e.data.apodization_indirect));
+            content = content.concat(' -out test.ft2');
+            content = content.concat(' -in fid_file acquisition_file acquisition_file2 none');
+            content = content.concat(' -phase-in phase-correction.txt -di yes -di-indirect yes');
+
+            FS.unlink('test0.ft2');
+            FS.unlink('arguments_fid_2d.txt');
+            Module['FS_createDataFile']('/', 'arguments_fid_2d.txt', content, true, true, true);
+            console.log(content);
+            this.postMessage({ stdout: "Running fid function with automatic phase correction" });
+            api.fid();
+            console.log('Finished running fid with automatic phase correction');
         }
         else
         {
@@ -115,7 +153,6 @@ onmessage = function (e) {
         FS.unlink('acquisition_file2');
         FS.unlink('fid_file');
         FS.unlink('arguments_fid_2d.txt');
-        // FS.unlink('arguments_fid_phasing.txt');
         const file_data = FS.readFile('test.ft2', { encoding: 'binary' });
         const phasing_data = FS.readFile('phase-correction.txt', { encoding: 'utf8' });
         console.log('File data read from virtual file system, type of file_data:', typeof file_data, ' and length:', file_data.length);
