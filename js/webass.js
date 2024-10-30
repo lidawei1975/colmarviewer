@@ -27,7 +27,7 @@ onmessage = function (e) {
     console.log('Message received from main script');
 
     /**
-     * If the message is file_data, save them to the virtual file system and run fid_phase function
+     * If the message is file_data, save them to the virtual file system and run fid and phasing functions
      * return the processed data to the main script as file_data
      */
     if (e.data.file_data) {
@@ -45,9 +45,10 @@ onmessage = function (e) {
          * C++ program will read it to get "command line arguments"
          */
         let content = ' -first_only yes -aqseq '.concat(e.data.acquisition_seq,' -negative ',e.data.neg_imaginary);
-        content = content.concat(' -zf '.concat(e.data.zf_direct,' -zf_indirect ',e.data.zf_indirect));
+        content = content.concat(' -zf '.concat(e.data.zf_direct,' -zf-indirect ',e.data.zf_indirect));
         content = content.concat(' -apod '.concat(e.data.apodization));
-        content = content.concat(' -apod_indirect '.concat(e.data.apodization_indirect));
+        content = content.concat(' -apod-indirect '.concat(e.data.apodization_indirect));
+        content = content.concat(' -out test0.ft2');
 
         /**
          * If either auto_direct and auto_indirect are false, add "-user_phase yes" to the content
@@ -72,13 +73,13 @@ onmessage = function (e) {
             }
             Module['FS_createDataFile']('/', 'phase-correction.txt', phase_correction, true, true, true);
         }
-        Module['FS_createDataFile']('/', 'arguments_fid_phasing.txt', content, true, true, true);
+        Module['FS_createDataFile']('/', 'arguments_fid_2d.txt', content, true, true, true);
         console.log(content);
 
         /**
          * Run fid_phase function
          */
-        this.postMessage({ stdout: "Running fid_phase function" });
+        this.postMessage({ stdout: "Running fid function" });
         api.version();
         api.fid_phase();
         console.log('Finished running web assembly code');
