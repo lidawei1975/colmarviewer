@@ -23,6 +23,7 @@ Module['print'] = function (text) {
     postMessage({ stdout: text });
 };
 out = Module['print'];
+err = Module['print'];
 
 onmessage = function (e) {
     console.log('Message received from main script');

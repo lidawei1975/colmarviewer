@@ -4,6 +4,14 @@ const api = {
     nusPipe: Module.cwrap("nuspipe", "number", []),
 };
 
+/**
+ * Redirect the stdout and stderr to postMessage
+ */
+Module['print'] = function (text) {
+    postMessage({ stdout: text });
+};
+out = Module['print'];
+err = Module['print'];
 
 onmessage = function (e) {
     console.log('Message received from main script to nuspipe worker');

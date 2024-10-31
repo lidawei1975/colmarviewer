@@ -821,10 +821,23 @@ function run_pseudo3d(flag) {
 }
 
 webassembly_worker2.onmessage = function (e) {
+
+    /**
+     * if result is stdout, it is the processing message
+     */
+    if (e.data.stdout) {
+
+        /**
+         * Append e.data.stdout to textarea with ID "log"
+         * and add a new line
+         */
+        document.getElementById("log").value += e.data.stdout + "\n";
+        document.getElementById("log").scrollTop = document.getElementById("log").scrollHeight;
+    }
     /**
      * If result is spectrum_data, it is the processed spectrum
      */
-    if (e.data.spectrum_data) {
+    else if (e.data.spectrum_data) {
         console.log("Processed smile spectrum data received");
         let spectrum_data = new Uint8Array(e.data.spectrum_data);
         /**
