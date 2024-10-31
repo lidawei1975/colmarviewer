@@ -143,6 +143,8 @@ onmessage = function (e) {
         Module['FS_createDataFile']('/', 'fid_file', e.data.file_data[2], true, true, true);    
         console.log('File data saved to virtual file system');
 
+        let apodization_indirect = e.data.apodization_indirect;
+
         /**
          * Write a file named "arguments_fid_phasing.txt" to the virtual file system
          * C++ program will read it to get "command line arguments"
@@ -150,7 +152,7 @@ onmessage = function (e) {
         let content = ' -first-only yes -aqseq '.concat(e.data.acquisition_seq,' -negative ',e.data.neg_imaginary);
         content = content.concat(' -zf '.concat(e.data.zf_direct,' -zf-indirect ',e.data.zf_indirect));
         content = content.concat(' -apod '.concat(e.data.apodization_direct));
-        content = content.concat(' -apod-indirect '.concat(e.data.apodization_indirect));
+        content = content.concat(' -apod-indirect '.concat(apodization_indirect));
         content = content.concat(' -ext '.concat(e.data.extract_direct_from, ' ', e.data.extract_direct_to));
         content = content.concat(' -out test0.ft2');
         content = content.concat(' -in fid_file acquisition_file acquisition_file2 none');
@@ -218,12 +220,45 @@ onmessage = function (e) {
             FS.unlink('arguments_phase_2d.txt');
 
             /**
+             * Check phase-correction.txt file and get the last number (indirect phase correction p1)
+             */
+            let phase_correction = FS.readFile('phase-correction.txt', { encoding: 'utf8' });
+            let phase_correction_values = phase_correction.trim().split(/\s+/);
+            /**
+             * If indirect p1 is not 0, set indirect c parameter to 1.0
+             * Otherwise, set it to 0.5
+             */
+            let c = 0.5;
+            if (Math.abs(parseFloat(phase_correction_values[3])) > 20.0) {
+                c = 1.0;
+            }
+
+            
+            /**
+             * Replace the c value in apodization_indirect with the new c value
+             * apodization_indirect example: "SP begin 0.5 end 0.875 pow 2 elb 0 c 0.5"
+             */
+            let apodization_indirect_values = apodization_indirect.trim().split(/\s+/);
+            /**
+             * Find location of c in apodization_indirect_values
+             */
+            let c_index = apodization_indirect_values.indexOf('c');
+            /**
+             * Replace the value of c with the new value
+             */
+            apodization_indirect_values[c_index + 1] = c.toString();
+            /**
+             * Join the array back to a string
+             */
+            apodization_indirect = apodization_indirect_values.join(' ');
+
+            /**
              * Step 2, run "fid" function again, with the new phase correction and write the new data to test.ft2
              */
             content = ' -first-only yes -aqseq '.concat(e.data.acquisition_seq,' -negative ',e.data.neg_imaginary);
             content = content.concat(' -zf '.concat(e.data.zf_direct,' -zf-indirect ',e.data.zf_indirect));
             content = content.concat(' -apod '.concat(e.data.apodization_direct));
-            content = content.concat(' -apod-indirect '.concat(e.data.apodization_indirect));
+            content = content.concat(' -apod-indirect '.concat(apodization_indirect));
             content = content.concat(' -ext '.concat(e.data.extract_direct_from, ' ', e.data.extract_direct_to));
             content = content.concat(' -out test.ft2');
             content = content.concat(' -in fid_file acquisition_file acquisition_file2 none');
@@ -266,6 +301,7 @@ onmessage = function (e) {
             file_data: file_data,
             file_type: 'full', //direct,indirect,full
             phasing_data: phasing_data,
+            apodization_indirect: apodization_indirect, //auto phasing may change the c value in apodization_indirect
             processing_flag: e.data.processing_flag, //passthrough the processing flag
             spectrum_index: e.data.spectrum_index //for reprocessing only
         });

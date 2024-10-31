@@ -1050,6 +1050,11 @@ webassembly_worker.onmessage = function (e) {
             document.getElementById("phase_correction_direct_p1").value = current_phase_correction[1];
             document.getElementById("phase_correction_indirect_p0").value = current_phase_correction[2];
             document.getElementById("phase_correction_indirect_p1").value = current_phase_correction[3];
+            /**
+             * In case of full, also need to update apodization_indirect because auto phase correction may change it
+             */
+            apodization_indirect = e.data.apodization_indirect;
+            document.getElementById("apodization_indirect").value = apodization_indirect;
         }
 
         let arrayBuffer = new Uint8Array(e.data.file_data).buffer;
