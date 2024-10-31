@@ -947,7 +947,7 @@ webassembly_worker.onmessage = function (e) {
         /**
          * Treat the received recon_spectrum as a frequency domain spectrum
          */
-        let arrayBuffer = new Uint8Array(e.data.recon_spectrum);
+        let arrayBuffer = new Uint8Array(e.data.recon_spectrum).buffer;
 
         /**
          * Process the frequency domain spectrum, spectrum name is "recon-".spectrum_origin.".ft2"
@@ -1001,22 +1001,12 @@ webassembly_worker.onmessage = function (e) {
         */   
         let arrayBuffer = new Uint8Array(e.data.file_data);
 
-        /**
-         * Also need to read header (512 float) from arrayBuffer
-         * to determine the size of inner dimension (the one NUS is applied)
-         * "FDSIZE" is the 99th (0 based) float in the header
-         * {"FDSPECNUM", "219"} is the outer dimension size (not needed at this point)
-         */
-        let header = new Float32Array(arrayBuffer,0,512);
-        let n_inner_dimension = header[99];
-
         webassembly_worker2.postMessage({
             spectrum_data: arrayBuffer,
             nuslist_as_string: nuslist_as_string, //saved as global variable
             apodization_direct: apodization_direct, //saved as global variable
             phase_correction_indirect_p0: phase_correction_indirect_p0, 
             phase_correction_indirect_p1: phase_correction_indirect_p1,
-            n_inner_dimension: n_inner_dimension,
             /**
              * Pass the current spectrum index to the worker
              */
@@ -1049,7 +1039,7 @@ webassembly_worker.onmessage = function (e) {
         document.getElementById("phase_correction_indirect_p0").value = current_phase_correction[2];
         document.getElementById("phase_correction_indirect_p1").value = current_phase_correction[3];
 
-        let arrayBuffer = new Uint8Array(e.data.file_data);
+        let arrayBuffer = new Uint8Array(e.data.file_data).buffer;
         let result_spectrum = process_ft_file(arrayBuffer,"from_fid.ft2",-2);
         
         /**

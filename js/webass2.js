@@ -29,14 +29,23 @@ onmessage = function (e) {
         let elb = apodization_direct_values[8];
 
         /**
+         * Get the last number in the nuslist_as_string. Need trim() because there might be a space at the end of the string
+         * This number+1 (becaused 0 based) is the number of points in the indirect dimension after NUS reconstruction. *2 because the data is complex
+         */
+        let nuslist_as_string = e.data.nuslist_as_string;
+        let nuslist_as_string_values = nuslist_as_string.trim().split(/\s+/);
+        let xT = (parseInt(nuslist_as_string_values[nuslist_as_string_values.length - 1])+1) * 2;
+
+        /**
          * write the command file "arguments_nus_pipe.txt"
          */
         let command = "-in test_direct.ft2 -fn SMILE -nDim 2 -maxIter 2048 -nSigma 2.5 -report 1 -sample nuslist ";
         command = command.concat(" -xApod SP -xQ1 ", begin, " -xQ2 ", end, " -xQ3 ", pow, " -xELB ", elb, " ");
-        command = command.concat(" -xGLB 0.0 -xT", e.data.n_inner_dimension);
+        command = command.concat(" -xGLB 0.0 -xT ", xT);
         command = command.concat(" -xP0 ", e.data.phase_correction_indirect_p0, " -xP1 ", e.data.phase_correction_indirect_p1);
         command = command.concat(" -out test_nus.ft2 -ov");
         Module['FS_createDataFile']('/', 'arguments_nus_pipe.txt', command, true, true, true);
+        console.log(command);
 
         /**
          * Save the spectrum data to the virtual file system

@@ -100,7 +100,7 @@ onmessage = function (e) {
         content = content.concat(' -apod '.concat(e.data.apodization_direct));
         content = content.concat(' -in fid_file acquisition_file acquisition_file2 none');
         content = content.concat(' -nus nuslist');
-        content = content.concat(' -process direct -di yes');
+        content = content.concat(' -process direct -di yes -di-indirect no');
         content = content.concat(' -out test_direct.ft2');
         Module['FS_createDataFile']('/', 'arguments_fid_2d.txt', content, true, true, true);
         console.log(content);
