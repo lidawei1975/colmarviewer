@@ -53,6 +53,8 @@ var phase_correction_indirect_p0;
 var phase_correction_indirect_p1;
 var auto_indirect;
 var nuslist_as_string = '';
+var extract_direct_from = 0.0;
+var extract_direct_to = 1.0;
 
 
 
@@ -554,7 +556,7 @@ $(document).ready(function () {
                      * For each element in result (raw data of the files), we will convert it to Uint8Array
                      * so that they can be transferred to the worker
                      */
-                    if(nuslist_file === null)
+                    if(typeof nuslist_file === "undefined")
                     {
                         current_fid_files = [new Uint8Array(result[0]), new Uint8Array(result[1]), new Uint8Array(result[2])];
                     }
@@ -694,6 +696,12 @@ function call_webassembly_worker_for_fid_process(flag,spectrum_index) {
     phase_correction_direct_p0 = parseFloat(document.getElementById("phase_correction_direct_p0").value);
     phase_correction_direct_p1 = parseFloat(document.getElementById("phase_correction_direct_p1").value);
     auto_direct = document.getElementById("auto_direct").checked; //true or false
+
+    /**
+     * Get HTML text input extract_direct_from and extract_direct_to. Input is in percentage
+     */
+    extract_direct_from = parseFloat(document.getElementById("extract_direct_from").value)/100.0;
+    extract_direct_to = parseFloat(document.getElementById("extract_direct_to").value)/100.0;
     
     /**
      * Get HTML text input apodization_indirect
@@ -737,6 +745,8 @@ function call_webassembly_worker_for_fid_process(flag,spectrum_index) {
         phase_correction_indirect_p1: phase_correction_indirect_p1,
         zf_direct: zf_direct,
         zf_indirect: zf_indirect,
+        extract_direct_from: extract_direct_from,
+        extract_direct_to: extract_direct_to,
         processing_flag: flag, //0: process, 1: reprocess
     });
 }
@@ -1034,10 +1044,13 @@ webassembly_worker.onmessage = function (e) {
          * IF these numbers are already filled (then send to the worker), they will be returned without change,
          * that is, there is no need to fill them again, but won't hurt to fill them again (because they are the same)
          */
-        document.getElementById("phase_correction_direct_p0").value = current_phase_correction[0];
-        document.getElementById("phase_correction_direct_p1").value = current_phase_correction[1];
-        document.getElementById("phase_correction_indirect_p0").value = current_phase_correction[2];
-        document.getElementById("phase_correction_indirect_p1").value = current_phase_correction[3];
+        if(e.data.file_type === 'full')
+        {
+            document.getElementById("phase_correction_direct_p0").value = current_phase_correction[0];
+            document.getElementById("phase_correction_direct_p1").value = current_phase_correction[1];
+            document.getElementById("phase_correction_indirect_p0").value = current_phase_correction[2];
+            document.getElementById("phase_correction_indirect_p1").value = current_phase_correction[3];
+        }
 
         let arrayBuffer = new Uint8Array(e.data.file_data).buffer;
         let result_spectrum = process_ft_file(arrayBuffer,"from_fid.ft2",-2);
@@ -1055,6 +1068,11 @@ webassembly_worker.onmessage = function (e) {
          * Clear the processing message
          */
         document.getElementById("webassembly_message").innerText = "";
+        /**
+         * Unselect auto phase correction
+         */
+        document.getElementById("auto_direct").checked = false;
+        document.getElementById("auto_indirect").checked = false;
     }
 
     /**

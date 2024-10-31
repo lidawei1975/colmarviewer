@@ -100,6 +100,7 @@ onmessage = function (e) {
         content = content.concat(' -apod '.concat(e.data.apodization_direct));
         content = content.concat(' -in fid_file acquisition_file acquisition_file2 none');
         content = content.concat(' -nus nuslist');
+        content = content.concat(' -ext '.concat(e.data.extract_direct_from, ' ', e.data.extract_direct_to));
         content = content.concat(' -process direct -di yes -di-indirect no');
         content = content.concat(' -out test_direct.ft2');
         Module['FS_createDataFile']('/', 'arguments_fid_2d.txt', content, true, true, true);
@@ -150,6 +151,7 @@ onmessage = function (e) {
         content = content.concat(' -zf '.concat(e.data.zf_direct,' -zf-indirect ',e.data.zf_indirect));
         content = content.concat(' -apod '.concat(e.data.apodization_direct));
         content = content.concat(' -apod-indirect '.concat(e.data.apodization_indirect));
+        content = content.concat(' -ext '.concat(e.data.extract_direct_from, ' ', e.data.extract_direct_to));
         content = content.concat(' -out test0.ft2');
         content = content.concat(' -in fid_file acquisition_file acquisition_file2 none');
 
@@ -222,6 +224,7 @@ onmessage = function (e) {
             content = content.concat(' -zf '.concat(e.data.zf_direct,' -zf-indirect ',e.data.zf_indirect));
             content = content.concat(' -apod '.concat(e.data.apodization_direct));
             content = content.concat(' -apod-indirect '.concat(e.data.apodization_indirect));
+            content = content.concat(' -ext '.concat(e.data.extract_direct_from, ' ', e.data.extract_direct_to));
             content = content.concat(' -out test.ft2');
             content = content.concat(' -in fid_file acquisition_file acquisition_file2 none');
             content = content.concat(' -phase-in phase-correction.txt -di yes -di-indirect yes');
