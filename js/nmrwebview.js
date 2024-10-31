@@ -2079,6 +2079,8 @@ my_contour_worker.onmessage = (e) => {
     /**
      * Type is full and  hsqc_spectra.length === main_plot.levels_length.length
      * We are updating an existing overlay to the main plot
+     * IMPORTANT: if might be a recalculated spectrum, so we need to update the spectral_information array
+     * it can also be a recalculation of the contour of the same spectrum, which doesn't change the spectral_information array
      */
     else if (e.data.spectrum_type === "full" && hsqc_spectra.length === main_plot.levels_length.length)
     {
@@ -2153,6 +2155,21 @@ my_contour_worker.onmessage = (e) => {
             main_plot.levels_length_negative[e.data.spectrum_index] = e.data.levels_length;
             main_plot.polygon_length_negative[e.data.spectrum_index] = e.data.polygon_length;
         }
+
+        /**
+         * Reprocess may change the spectral information, so we update the spectral_information array
+         * so that we can redraw the contour plot correctly
+         */
+        main_plot.spectral_information[e.data.spectrum_index]={
+            n_direct: hsqc_spectra[e.data.spectrum_index].n_direct,
+            n_indirect: hsqc_spectra[e.data.spectrum_index].n_indirect,
+            x_ppm_start: hsqc_spectra[e.data.spectrum_index].x_ppm_start,
+            x_ppm_step: hsqc_spectra[e.data.spectrum_index].x_ppm_step,
+            y_ppm_start: hsqc_spectra[e.data.spectrum_index].y_ppm_start,
+            y_ppm_step: hsqc_spectra[e.data.spectrum_index].y_ppm_step,
+            x_ppm_ref: hsqc_spectra[e.data.spectrum_index].x_ppm_ref,
+            y_ppm_ref: hsqc_spectra[e.data.spectrum_index].y_ppm_ref,
+        };
 
         /**
          * Step 3, update the contour plot
@@ -2352,7 +2369,38 @@ function init_plot(input) {
 
 
 function resetzoom() {
-    main_plot.resetzoom();
+
+    /**
+     * this.xscale = [input.x_ppm_start, input.x_ppm_start + input.x_ppm_step * input.n_direct];
+     * this.yscale = [input.y_ppm_start, input.y_ppm_start + input.y_ppm_step * input.n_indirect];
+     */
+
+    /**
+     * Loop through all the spectra to get 
+     * max of x_ppm_start and min of x_ppm_end (x_ppm_start + x_ppm_step * n_direct)
+     * max of y_ppm_start and min of y_ppm_end (y_ppm_start + y_ppm_step * n_indirect)
+     */
+    let x_ppm_start = -1000.0;
+    let x_ppm_end = 1000.0;
+    let y_ppm_start = -1000.0;
+    let y_ppm_end = 1000.0;
+
+    for (let i = 0; i < hsqc_spectra.length; i++) {
+        if (hsqc_spectra[i].x_ppm_start + hsqc_spectra[i].x_ppm_ref > x_ppm_start) {
+            x_ppm_start = hsqc_spectra[i].x_ppm_start +  + hsqc_spectra[i].x_ppm_ref;
+        }
+        if (hsqc_spectra[i].x_ppm_start  + hsqc_spectra[i].x_ppm_ref + hsqc_spectra[i].x_ppm_step * hsqc_spectra[i].n_direct < x_ppm_end) {
+            x_ppm_end = hsqc_spectra[i].x_ppm_start + hsqc_spectra[i].x_ppm_step * hsqc_spectra[i].n_direct  + hsqc_spectra[i].x_ppm_ref ;
+        }
+        if (hsqc_spectra[i].y_ppm_start  + hsqc_spectra[i].y_ppm_ref > y_ppm_start) {
+            y_ppm_start = hsqc_spectra[i].y_ppm_start + hsqc_spectra[i].y_ppm_ref ;
+        }
+        if (hsqc_spectra[i].y_ppm_start + hsqc_spectra[i].y_ppm_step * hsqc_spectra[i].n_indirect + hsqc_spectra[i].y_ppm_ref < y_ppm_end) {
+            y_ppm_end = hsqc_spectra[i].y_ppm_start + hsqc_spectra[i].y_ppm_step * hsqc_spectra[i].n_indirect+ hsqc_spectra[i].y_ppm_ref ;
+        }
+    }
+
+    main_plot.resetzoom([x_ppm_start, x_ppm_end], [y_ppm_start, y_ppm_end]);
 }
 
 function popzoom() {
