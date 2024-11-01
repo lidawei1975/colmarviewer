@@ -256,6 +256,14 @@ class file_drop_processor {
                  */
                 document.getElementById("auto_indirect").checked = false;
                 document.getElementById("auto_indirect").disabled = true;
+                /**
+                 * At this moment, also disable extract_direct_from and extract_direct_to
+                 * because smile (my implementation) doesn't support NUS processing
+                 */
+                document.getElementById("extract_direct_from").value = 0;
+                document.getElementById("extract_direct_to").value = 100;
+                document.getElementById("extract_direct_from").disabled = true;
+                document.getElementById("extract_direct_to").disabled = true;
             }
             else
             {
@@ -1015,6 +1023,14 @@ webassembly_worker.onmessage = function (e) {
      */
     else if(e.data.file_data && e.data.file_type && e.data.file_type === 'direct')
     {
+        /**
+         * Update direct dimension phase correction values
+         * from e.data.phasing_data
+         */
+        let current_phase_correction = e.data.phasing_data.split(/\s+/).map(Number);
+        document.getElementById("phase_correction_direct_p0").value = current_phase_correction[0];
+        document.getElementById("phase_correction_direct_p1").value = current_phase_correction[1];
+
         /**
          * Send e.data.file_data as Unit8Array to webass2 (smile) work to process it.
          * Also need:

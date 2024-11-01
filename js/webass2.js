@@ -65,6 +65,7 @@ onmessage = function (e) {
         /**
          * Call the nusPipe function
          */
+        postMessage({ stdout: 'Calling nusPipe function' });
         api.nusPipe();
 
         /**

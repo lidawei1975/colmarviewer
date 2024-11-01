@@ -60,6 +60,7 @@ onmessage = function (e) {
 
         console.log(content);
 
+        postMessage({ stdout: "Running fid function to process indirect dimension of NUS spectrum" });
         api.fid();
         console.log('Finished running fid for indirect dimension of NUS spectrum');
 
@@ -93,6 +94,93 @@ onmessage = function (e) {
         Module['FS_createDataFile']('/', 'fid_file', e.data.file_data[2], true, true, true);
         Module['FS_createDataFile']('/', 'nuslist', e.data.file_data[3], true, true, true);
 
+        let direct_phase_correction_p0 = e.data.phase_correction_direct_p0;
+        let direct_phase_correction_p1 = e.data.phase_correction_direct_p1;
+
+        /**
+         * If e.data.auto_direct is true, we will run automatic phase correction for direct dimension
+         */
+        if(e.data.auto_direct === true)
+        {
+            /**
+             * Portend this is NOT a NUS spectrum, but a normal spectrum.
+             * For phasing purpose, do NOT use ext
+             */
+            let content = ' -first-only yes -aqseq '.concat(e.data.acquisition_seq,' -negative ',e.data.neg_imaginary);
+            content = content.concat(' -zf '.concat(e.data.zf_direct));
+            content = content.concat(' -apod '.concat(e.data.apodization_direct));
+            content = content.concat(' -in fid_file acquisition_file acquisition_file2 none');
+            content = content.concat(' -nus nuslist'); //to fill in zeros for not sampled points
+            content = content.concat(' -process full -di no -di-indirect no');
+            content = content.concat(' -out test0.ft2');
+            Module['FS_createDataFile']('/', 'arguments_fid_2d.txt', content, true, true, true);
+            console.log(content);
+
+            /**
+             * Write a file named "phase-correction.txt" to the virtual file system.
+             * leave direct phase correction as 0 0 (for automatic phase correction)
+             * and indirect phase correction from user input (this is required for NUS processing)
+             */
+            let phase_correction = '0 0 ';
+            phase_correction=phase_correction.concat(e.data.phase_correction_indirect_p0.toString());
+            phase_correction=phase_correction.concat(' ', e.data.phase_correction_indirect_p1.toString());
+            Module['FS_createDataFile']('/', 'phase-correction.txt', phase_correction, true, true, true);
+
+            /**
+             * Call fid function
+             */
+            postMessage({ stdout: "Running fid function to process NUS spectrum as normal for phasing estimation" });
+            api.fid();
+            console.log('Finished running fid for direct dimension of NUS spectrum');
+
+            /**
+             * Remove files from virtual file system. Keep FID, because we will use them in final processing
+             */
+            FS.unlink('arguments_fid_2d.txt');
+            FS.unlink('phase-correction.txt');
+
+            /**
+             * Write a file named "arguments_phase_2d.txt" to the virtual file system
+             */
+            content = ' -in test0.ft2 -out none -out-phase phase-correction.txt';
+            content = content.concat(' -user no ');
+            content = content.concat(' -user-indirect yes -user-phase-indirect 0 0'); //because we already applied phase correction for indirect dimension above
+            Module['FS_createDataFile']('/', 'arguments_phase_2d.txt', content, true, true, true);
+
+            console.log(content);
+
+            /**
+             * Call phasing function
+             */
+            postMessage({ stdout: "Running phasing function to estimate phase correction for direct dimension" });
+            api.phasing();
+            console.log('Finished running phasing for direct dimension of NUS spectrum');
+
+            FS.unlink('arguments_phase_2d.txt');
+            FS.unlink('test0.ft2');
+
+            /**
+             * At this time, first two numbers in phase-correction.txt are estimated phase correction for direct dimension
+             * last two numbers are 0 and 0, because test0.ft2 has already has indirect phase correction applied.
+             * Update direct phase correction values
+             */
+            let phase_correction_values = FS.readFile('phase-correction.txt', { encoding: 'utf8' }).trim().split(/\s+/);
+            direct_phase_correction_p0 = parseFloat(phase_correction_values[0]);
+            direct_phase_correction_p1 = parseFloat(phase_correction_values[1]);
+
+            FS.unlink('phase-correction.txt');
+        }
+
+        /**
+         * Write file named 'phase-correction.txt' to the virtual file system, with direct phase correction values
+         * and indirect phase correction values as 0 0, because they are not used in this step.
+         */
+        let phase_correction = direct_phase_correction_p0.toString();
+        phase_correction=phase_correction.concat(' ', direct_phase_correction_p1.toString());
+        phase_correction=phase_correction.concat(' 0 0');
+        Module['FS_createDataFile']('/', 'phase-correction.txt', phase_correction, true, true, true);
+
+
         /**
          * Write a file named "arguments_fid_2d.txt" to the virtual file system
          */
@@ -110,7 +198,7 @@ onmessage = function (e) {
         /**
          * Call fid function
          */
-        this.postMessage({ stdout: "Running fid function to process direct dimension of NUS spectrum." });
+        postMessage({ stdout: "Running fid function to process direct dimension of NUS spectrum." });
         api.fid();
         console.log('Finished running fid for direct dimension of NUS spectrum');
 
@@ -119,12 +207,14 @@ onmessage = function (e) {
         FS.unlink('fid_file');
         FS.unlink('nuslist');
         FS.unlink('arguments_fid_2d.txt');
+        FS.unlink('phase-correction.txt');
         const file_data = FS.readFile('test_direct.ft2', { encoding: 'binary' });
         console.log('File data read from virtual file system, type of file_data:', typeof file_data, ' and length:', file_data.length);
         FS.unlink('test_direct.ft2');
         postMessage({
             file_data: file_data,
             file_type: 'direct', //direct,direct-smile,full
+            phasing_data: phase_correction,
             processing_flag: e.data.processing_flag, //passthrough the processing flag
             spectrum_index: e.data.spectrum_index //for reprocessing only
         });
@@ -154,7 +244,6 @@ onmessage = function (e) {
         content = content.concat(' -zf '.concat(e.data.zf_direct,' -zf-indirect ',e.data.zf_indirect));
         content = content.concat(' -apod '.concat(e.data.apodization_direct));
         content = content.concat(' -apod-indirect '.concat(apodization_indirect));
-        content = content.concat(' -ext '.concat(e.data.extract_direct_from, ' ', e.data.extract_direct_to));
         content = content.concat(' -out test0.ft2');
         content = content.concat(' -in fid_file acquisition_file acquisition_file2 none');
 
@@ -168,6 +257,10 @@ onmessage = function (e) {
          */
         if (e.data.auto_direct === false && e.data.auto_indirect === false) {
             content = content.concat(' -phase-in phase-correction.txt -di yes -di-indirect yes');
+            /**
+             * Do not apply ext if we need to run phasing program
+             */
+            content = content.concat(' -ext '.concat(e.data.extract_direct_from, ' ', e.data.extract_direct_to));
             let phase_correction = e.data.phase_correction_direct_p0.toString();
             phase_correction=phase_correction.concat(' ', e.data.phase_correction_direct_p1.toString());
             phase_correction=phase_correction.concat(' ', e.data.phase_correction_indirect_p0.toString());
@@ -183,8 +276,7 @@ onmessage = function (e) {
         /**
          * Run fid_phase function
          */
-        this.postMessage({ stdout: "Running fid function" });
-        api.version();
+        postMessage({ stdout: "Running fid function" });
         api.fid();
         console.log('Finished running fid');
 
@@ -215,7 +307,7 @@ onmessage = function (e) {
             }
             Module['FS_createDataFile']('/', 'arguments_phase_2d.txt', content, true, true, true);
             console.log(content);
-            this.postMessage({ stdout: "Running phasing function" });
+            postMessage({ stdout: "Running phasing function" });
             api.phasing();
             console.log('Finished running phasing');
             FS.unlink('arguments_phase_2d.txt');
@@ -269,7 +361,7 @@ onmessage = function (e) {
             FS.unlink('arguments_fid_2d.txt');
             Module['FS_createDataFile']('/', 'arguments_fid_2d.txt', content, true, true, true);
             console.log(content);
-            this.postMessage({ stdout: "Running fid function with automatic phase correction" });
+            postMessage({ stdout: "Running fid function with automatic phase correction" });
             api.fid();
             console.log('Finished running fid with automatic phase correction');
         }
@@ -357,7 +449,7 @@ onmessage = function (e) {
         /**
          * Run voigt_fit function
          */
-        this.postMessage({ stdout: "Running voigt_fit function" });
+        postMessage({ stdout: "Running voigt_fit function" });
         api.voigt_fit();
         console.log('Finished running web assembly code');
         /**
@@ -434,11 +526,11 @@ onmessage = function (e) {
          * Run deep function
          */
         if(e.data.flag === 0){
-            this.postMessage({ stdout: "Running deep function" });
+            postMessage({ stdout: "Running deep function" });
             api.deep();
         }
         else{
-            this.postMessage({ stdout: "Running simple picking" });
+            postMessage({ stdout: "Running simple picking" });
             api.simple_picking();
         }
         console.log('Finished running web assembly code');
@@ -518,7 +610,7 @@ onmessage = function (e) {
         /**
          * Run voigt_fit function
          */
-        this.postMessage({ stdout: "Running pseudo-3D fitting" });
+        postMessage({ stdout: "Running pseudo-3D fitting" });
         api.voigt_fit();
         console.log('Finished running web assembly code');
         /**
@@ -571,7 +663,7 @@ onmessage = function (e) {
         /**
          * Run peak_match function
          */
-        this.postMessage({ stdout: "Running peak_match function" });
+        postMessage({ stdout: "Running peak_match function" });
         api.peak_match();
         console.log('Finished running web assembly code of assignment transfer');
         /**
@@ -613,7 +705,7 @@ onmessage = function (e) {
         /**
          * Run cubic_spline function
          */
-        this.postMessage({ stdout: "Running cubic_spline function" });
+        postMessage({ stdout: "Running cubic_spline function" });
         api.cubic_spline();
         console.log('Finished running web assembly code of cubic spline interpolation');
         /**
