@@ -252,9 +252,14 @@ plotit.prototype.popzoom = function () {
     }
 };
 
-plotit.prototype.resetzoom = function () {
-    while (this.xscales.length > 1) { this.xscales.pop(); }
-    while (this.yscales.length > 1) { this.yscales.pop(); }
+plotit.prototype.resetzoom = function (x,y) {
+    /**
+     * Clear the zoom stack
+     */
+    this.xscales = [];
+    this.yscales = [];
+    this.xscales.push(x);
+    this.yscales.push(y);
     this.popzoom();
 };
 

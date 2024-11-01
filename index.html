@@ -114,8 +114,15 @@
 
                     <p>
                     <details>
-                        <summary>How to process spectrum from Bruker time domain data (Experimental features, still in
-                            development):</summary>
+                        <summary>How to process spectrum from Bruker time domain data (Experimental features, still in development):</summary>
+                        <p>1. Currently only supports 2D or pseudo-3D. For NUS, only supports 2D.</p>
+                        <p>2. Upload the fid file (usually called fid or ser) and acquisition file (usually called acqus) for the direct dimension.</p>
+                        <p>3. Upload the acquisition file (usually called acqu2s, or acqu3s for pseudo-3D) for the indirect dimension.</p>
+                        <p>4. For NUS experiment, upload the NUS list file (usually called nuslist). Indirect phase correction must be provided.</p>
+                        <p>5. You can also drag and drop the Bruker folder (which contains the required files) into the dashed area.</p>
+                        <p>6. Set the apodization function, zero filling factor, phase correction for both dimensions. Default values work fine for most cases</p>
+                        <p>7. Click "Upload experimental files and process" to process the spectrum.</p>
+                        <p>8. If you want to reprocess the same files, click "Reprocess same experimental files" after adjusting processing parameters.</p>
                     </details>
                     </p>
 
@@ -146,39 +153,94 @@
                 <div id="fid_file_area" class="drop-area" style="width: 1200px;">
                     <form id="fid_file_form" action="" enctype="multipart/form-data">
                         <h4>Upload Bruker time domain data for processing:</h4>
-                        <label for="fid_file">fid file (required, usually called fid or ser): </label><input type="file"
-                            name="fid_file" id="fid_file" multiple><br>
-                        <label for="acquisition_file">Direct dimension acquisition file (required, usually called
-                            acqus):
-                        </label><input type="file" name="acquisition_file" id="acquisition_file"><br>
-                        <label for="acquisition_file2">Indirect dimension acquisition file (required, usually called
-                            acqu2s
-                            (in pseudo-3D: acqu3s)): </label><input type="file" name="acquisition_file2"
-                            id="acquisition_file2"><br>
-                        <label for="hsqc_acquisition_seq">pseudo-3D acquisition sequence </label>
-                        <select name="hsqc_acquisition_seq" id="hsqc_acquisition_seq">
-                            <option value="321">321</option>
-                            <option value="312">312</option>
-                        </select><br>
-                        <label for="zf_direct">Zero filling factor for direct dimension (2, 4, 8): </label>
-                        <select name="zf_direct" id="zf_direct">
-                            <option value="2">2</option>
-                            <option value="4">4</option>
-                            <option value="8">8</option>
-                        </select><br>
-                        <label for="zf_indirect">Zero filling factor for indirect dimension (2, 4, 8): </label>
-                        <select name="zf_indirect" id="zf_indirect">
-                            <option value="2">2</option>
-                            <option value="4">4</option>
-                            <option value="8">8</option>
-                        </select> <br>
-                        <input type="checkbox" name="neg_imaginary" id="neg_imaginary" value="yes"><label
-                            for="neg_imaginary">Negative imaginary data (indirect dimension)?</label> <br>
-                        <input type="submit" id="button_fid_process" name="Submit"
-                            value="Upload fid files for processing"></br>
-                        <label class="information"> You can also drag and drop Bruker folder (which contains required
-                            files)
-                            here.</label><br>
+
+                        <div class="input-section" id="input_files">
+                            <label for="fid_file">fid file (required, usually called fid or ser): </label><input type="file" name="fid_file"
+                                id="fid_file" multiple><br>
+                            <label for="acquisition_file">Direct dimension acquisition file (required, usually called acqus):</label>
+                            <input type="file" name="acquisition_file" id="acquisition_file"><br>
+                            <label for="acquisition_file2">Indirect dimension acquisition file (required, usually called acqu2s (in pseudo-3D: acqu3s)): </label>
+                            <input type="file" name="acquisition_file2" id="acquisition_file2"><br>
+                            <label for="nuslist_file">NUS list file (for NUS experiment only, usually called nuslist): </label>
+                            <input type="file" name="nuslist_file" id="nuslist_file"><br>
+
+                            <label class="information"> You can also drag and drop Bruker folder (which contains required files here).</label><br>
+                        </div>
+
+                        <div class="input-section" id="input_files" > 
+                            <span> 
+                                <label for="apodization_direct">Direct dimension apodization function</label>
+                                <input type="text" name="apodization_direct" id="apodization_direct" value="SP begin 0.5 end 0.875 pow 2 elb 0 c 0.5" size="50">
+                            </span>
+
+                            <span>
+                                <label for="zf_direct">Zero filling factor for direct dimension (2, 4, 8): </label>
+                                <select name="zf_direct" id="zf_direct">
+                                    <option value="2">2</option>
+                                    <option value="4">4</option>
+                                    <option value="8">8</option>
+                                </select>
+                            </span>
+
+                            <span>
+                                <label for="phase_correction_direct_p0">Phase correction for direct dimension P0: </label>
+                                <input type="number" name="phase_correction_direct_p0" id="phase_correction_direct_p0" value="0" step="any">
+                                <label for="phase_correction_direct_p1">P1: </label>
+                                <input type="number" name="phase_correction_direct_p1" id="phase_correction_direct_p1" value="0" step="any">
+                                <input type="checkbox" name="auto_direct" id="auto_direct" value="yes" checked>
+                                <label for="auto_direct">Automated phase correction?</label>
+                            </span>
+
+                            <span>
+                                <label for="extract_direct_from">Extract direct dimension from (percentage): </label>
+                                <input type="number" name="extract_direct_from" id="extract_direct_from" value="0" step="any" min="0" max="100">
+                                <label for="extract_direct_to">to</label>
+                                <input type="number" name="extract_direct_to" id="extract_direct_to" value="100" step="any" min="0" max="100">
+                            </span>
+
+                            <span>
+                                <label for="apodization_indirect">Indirect dimension apodization function</label>
+                                <input type="text" name="apodization_indirect" id="apodization_indirect" value="SP begin 0.5 end 0.875 pow 2 elb 0 c 0.5" size="50">
+                            </span>
+
+                            <span>
+                                <label for="zf_indirect">Zero filling factor for indirect dimension (2, 4, 8): </label>
+                                <select name="zf_indirect" id="zf_indirect">
+                                    <option value="2">2</option>
+                                    <option value="4">4</option>
+                                    <option value="8">8</option>
+                                </select>
+                            </span>
+
+                            <span>
+                                <label for="phase_correction_indirect_p0">Phase correction for indirect dimension P0: </label>
+                                <input type="number" name="phase_correction_indirect_p0" id="phase_correction_indirect_p0" value="0" step="any">
+                                <label for="phase_correction_indirect_p1">P1: </label>
+                                <input type="number" name="phase_correction_indirect_p1" id="phase_correction_indirect_p1" value="0" step="any">
+                                <input type="checkbox" name="auto_indirect" id="auto_indirect" value="yes" checked>
+                                <label for="auto_direct">Automated phase correction?</label>
+                            </span>
+                            
+                            <span> 
+                                <input type="checkbox" name="neg_imaginary" id="neg_imaginary" value="yes">
+                                <label for="neg_imaginary">Negative imaginary data (indirect dimension)?</label>
+                            </span>
+                            
+
+                        </div>
+
+                        <div class="input-section" id="Pseudo-3D-section">
+                            <label for="hsqc_acquisition_seq">pseudo-3D acquisition sequence </label>
+                            <select name="hsqc_acquisition_seq" id="hsqc_acquisition_seq">
+                                <option value="321">321</option>
+                                <option value="312">312</option>
+                            </select>
+                        </div>  
+
+                        <input type="submit" id="button_fid_process" name="button_fid_process" value="Upload experimental files and process">
+                        <input type="submit" id="button_fid_reprocess" name="button_fid_reprocess" value="Reprocess same experimental files">
+                        </br>
+
                     </form>
                 </div>
 
@@ -279,8 +341,6 @@
             </div>
 
         </div>
-
-
 
         <div id="footer" style="width: 1200px;">
             <p>For questions or comments, please contact us at <a href="mailto:lidawei@gmail.com">lidawei@gmail.com</a>
