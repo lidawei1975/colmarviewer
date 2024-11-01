@@ -114,8 +114,15 @@
 
                     <p>
                     <details>
-                        <summary>How to process spectrum from Bruker time domain data (Experimental features, still in
-                            development):</summary>
+                        <summary>How to process spectrum from Bruker time domain data (Experimental features, still in development):</summary>
+                        <p>1. Currently only supports 2D or pseudo-3D. For NUS, only supports 2D.</p>
+                        <p>2. Upload the fid file (usually called fid or ser) and acquisition file (usually called acqus) for the direct dimension.</p>
+                        <p>3. Upload the acquisition file (usually called acqu2s, or acqu3s for pseudo-3D) for the indirect dimension.</p>
+                        <p>4. For NUS experiment, upload the NUS list file (usually called nuslist). Indirect phase correction must be provided.</p>
+                        <p>5. You can also drag and drop the Bruker folder (which contains the required files) into the dashed area.</p>
+                        <p>6. Set the apodization function, zero filling factor, phase correction for both dimensions. Default values work fine for most cases</p>
+                        <p>7. Click "Upload experimental files and process" to process the spectrum.</p>
+                        <p>8. If you want to reprocess the same files, click "Reprocess same experimental files" after adjusting processing parameters.</p>
                     </details>
                     </p>
 
