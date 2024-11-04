@@ -65,7 +65,9 @@ function plotit(input) {
      * y_domain is [0,1]
      */
     this.x_cross_section_plot = new cross_section_plot();
-    this.x_cross_section_plot.init(this.WIDTH, 200, [], this.xscale, [0, 1], "cross_section_svg_x");
+    this.x_cross_section_plot.init( this.WIDTH, 200, [], this.xscale, [0, 1],{ top: 10, right: 10, bottom: 10, left: 70 }, "cross_section_svg_x","horizontal");
+    this.y_cross_section_plot = new cross_section_plot();
+    this.y_cross_section_plot.init(200, this.HEIGHT, [], this.yscale, [0, 1],{ top: 20, right: 10, bottom: 70, left: 10 }, "cross_section_svg_y",'vertical');
 
 };
 
@@ -293,8 +295,8 @@ plotit.prototype.zoomout = function () {
     m2 = m2 - c;
     this.yscale = [m1, m2];
 
-    this.xRange.domain(this.xscale).nice();
-    this.yRange.domain(this.yscale).nice();
+    this.xRange.domain(this.xscale);
+    this.yRange.domain(this.yscale);
 
     /**
      * Because of nice. The domain may be changed. So we need to update xscale and yscale
@@ -323,10 +325,10 @@ plotit.prototype.draw = function () {
 
 
     this.xRange = d3.scaleLinear().range([this.MARGINS.left, this.WIDTH - this.MARGINS.right])
-        .domain(this.xscale).nice();
+        .domain(this.xscale);
 
     this.yRange = d3.scaleLinear().range([this.HEIGHT - this.MARGINS.bottom, this.MARGINS.top])
-        .domain(this.yscale).nice();
+        .domain(this.yscale);
 
     /**
      * Because of nice. The domain may be changed. So we need to update xscale and yscale
@@ -499,31 +501,6 @@ plotit.prototype.draw = function () {
                  */
                 self.x_cross_section_plot.zoom(self.xscale,[-data_abs_max, data_abs_max]);
                 self.x_cross_section_plot.update_data(data);
-
-                /**
-                 * Define a y range for the cross section line plot
-                 * 0: at current coordinates[1]
-                 * [-data_abs_max,data_abs_max]: at current [coordinates[1] + 200, coordinates[1] - 200]
-                 * Remember that yRange is from top to bottom, +200 is below, -200 is above in the plot
-                 */
-                let cross_section_yRange = d3.scaleLinear().range([coordinates[1]+200,coordinates[1]-200]).domain([-data_abs_max, data_abs_max]);
-
-                let lineFunc = d3.line()
-                    .x(function (d) { 
-                        return self.xRange(d[0])
-                    })
-                    .y(function (d) {
-                        return cross_section_yRange(d[1]);
-                    })
-                    .curve(d3.curveBasis);
-                
-                self.vis.selectAll('.Horizontal_cross_section').remove();
-                self.vis.append('svg:path')
-                    .attr('d', lineFunc(data))
-                    .attr('stroke', 'black')
-                    .attr('stroke-width', 2)
-                    .attr('fill', 'none')
-                    .attr('class', 'Horizontal_cross_section');
             } //end of horizontal
 
             if(self.vertical) {
@@ -585,35 +562,18 @@ plotit.prototype.draw = function () {
                 let data_abs_max = 0.0;
                 let data = [];
                 for(let i = 0; i < data_ppm.length; i++) {
-                    data.push([data_ppm[i], data_height[i]]);
+                    data.push([data_height[i], data_ppm[i], data_height[i]]);
                     if(Math.abs(data_height[i]) > data_abs_max) {
                         data_abs_max = Math.abs(data_height[i]);
                     }
                 }
 
                 /**
-                 * Define a x range for the cross section line plot
-                 * 0: at current coordinates[0]
-                 * [-max_abs_data,max_abs_data]: at current [coordinates[0] -200, coordinates[0] + 200]
+                 * Draw cross section line plot on the cross_section_svg_y
                  */
-                let cross_section_xRange = d3.scaleLinear().range([coordinates[0]-200,coordinates[0]+200]).domain([-data_abs_max, data_abs_max]);
+                self.y_cross_section_plot.zoom([-data_abs_max, data_abs_max],self.yscale);
+                self.y_cross_section_plot.update_data(data);
 
-                let lineFunc = d3.line()
-                    .x(function (d) { 
-                        return cross_section_xRange(d[1])
-                    })
-                    .y(function (d) {
-                        return self.yRange(d[0]);
-                    })
-                    .curve(d3.curveBasis);
-                
-                self.vis.selectAll('.vertical_cross_section').remove();
-                self.vis.append('svg:path')
-                    .attr('d', lineFunc(data))
-                    .attr('stroke', 'black')
-                    .attr('stroke-width', 2)
-                    .attr('fill', 'none')
-                    .attr('class', 'vertical_cross_section');
             } //end of vertical
 
         }, 200);
@@ -621,12 +581,6 @@ plotit.prototype.draw = function () {
         .on("mouseleave", function (d) {
             tooldiv.style.opacity = 0.0;
             document.activeElement.blur();
-            /**
-             * Remove the cross section line plot. 
-             * This is safe even if the line plot is not drawn, because it will remove nothing
-             */
-            self.vis.selectAll('.Horizontal_cross_section').remove();   
-            self.vis.selectAll('.vertical_cross_section').remove();
             if(self.timeout) {
                 clearTimeout(self.timeout);
             }

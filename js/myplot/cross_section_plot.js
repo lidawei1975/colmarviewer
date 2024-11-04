@@ -18,14 +18,15 @@ class cross_section_plot {
      * 
      * This function will init the plot and add the experimental spectrum only
      */
-    init(width, height, data, x_domain, y_domain, svg_id) {
+    init(width, height, data, x_domain, y_domain, margin, svg_id, orientation) {
 
         if (!Array.isArray(data)) {
             throw new Error('colmar_1d_double_zoom init argument "data" must be array');
         }
 
-        // this.margin = margin;
-        this.margin = ({ top: 10, right: 10, bottom: 10, left: 70 });
+        this.orientation = orientation; //"horizontal" or "vertical"
+
+        this.margin = margin;
 
 
         this.width = width;
@@ -60,16 +61,26 @@ class cross_section_plot {
 
         
         /**
-         * Define y axis object. Add y axis to the plot and y label
+         * Define y axis object. Add y axis to the plot and y label for "horizontal" orientation
         */
-        this.yAxis = d3.axisLeft(this.y).ticks(this.true_height / 50.0).tickFormat(d3.format(".1e"));
-
-        this.yAxis_element
-            = this.vis.append('svg:g')
-                .attr('class', 'yaxis')
-                .attr('transform', 'translate(' + (this.margin.left) + ',0)')
-                .style("stroke-width", 3.5)
-                .call(this.yAxis);
+        if(this.orientation === "horizontal"){
+            this.Axis = d3.axisLeft(this.y).ticks(this.true_height / 50.0).tickFormat(d3.format(".1e"));
+            this.Axis_element
+                = this.vis.append('svg:g')
+                    .attr('class', 'yaxis')
+                    .attr('transform', 'translate(' + (this.margin.left) + ',0)')
+                    .style("stroke-width", 2.5)
+                    .call(this.Axis);
+        }
+        else if(this.orientation === "vertical"){
+            this.Axis = d3.axisBottom(this.x).ticks(this.true_width / 50.0).tickFormat(d3.format(".1e"));
+            this.Axis_element
+                = this.vis.append('svg:g')
+                    .attr('class', 'xaxis')
+                    .attr('transform', 'translate(0,' + (this.height - this.margin.bottom) + ')')
+                    .style("stroke-width", 3.5)
+                    .call(this.Axis);
+        }
        
         /**
          * Define line object
@@ -85,7 +96,7 @@ class cross_section_plot {
         */
         this.clip_space
             = this.vis.append("defs").append("clipPath")
-                .attr("id", "clip")
+                .attr("id", "clip"+this.orientation)
                 .append("rect")
                 .attr("transform", "translate(" + this.margin.left + "," + this.margin.top + ")")
                 .attr("width", width - this.margin.left - this.margin.right)
@@ -112,7 +123,7 @@ class cross_section_plot {
         this.line_exp = this.vis.append("g")
             .attr("class", "line_exp_g")
             .append("path")
-            .attr("clip-path", "url(#clip)")
+            .attr("clip-path", "url(#clip"+this.orientation+")")
             .data(data)
             .attr("class", "line_exp")
             .attr("fill", "none")
@@ -158,22 +169,33 @@ class cross_section_plot {
 
             /**
              * Get the amp of the mouse position. Y zoom only in this plot
-             */
-            let bound = document.getElementById('cross_section_x').getBoundingClientRect();
-            let amp = self.y.invert(e.clientY - bound.top);
-
-            /**
+             *
              * Get top and bottom of the visible range
              * We need to zoom in/out around the mouse position
              * So, we need to calculate the new top and bottom of the visible range
              * Note: Y axis is inverted
              * So, top is smaller than bottom
              */
-            let top = self.y.domain()[0];
-            let bottom = self.y.domain()[1];
-            let new_top = amp - (amp - top) * delta;
-            let new_bottom = amp + (bottom - amp) * delta;
-            this.y.domain([new_top, new_bottom]);
+            if(orientation === "horizontal")
+            {
+                let bound = document.getElementById('cross_section_x').getBoundingClientRect();
+                let amp = self.y.invert(e.clientY - bound.top);
+                let top = self.y.domain()[0];
+                let bottom = self.y.domain()[1];
+                let new_top = amp - (amp - top) * delta;
+                let new_bottom = amp + (bottom - amp) * delta;
+                this.y.domain([new_top, new_bottom]);
+            }
+            else
+            {
+                let bound = document.getElementById('cross_section_y').getBoundingClientRect();
+                let amp = self.x.invert(e.clientX - bound.left);
+                let left = self.x.domain()[0];
+                let right = self.x.domain()[1];
+                let new_left = amp - (amp - left) * delta;
+                let new_right = amp + (right - amp) * delta;
+                this.x.domain([new_left, new_right]);
+            }
             
            
             this.redraw();
@@ -190,10 +212,18 @@ class cross_section_plot {
             this.x.domain(x_domain);
             this.y.domain(y_domain);
 
-            this.yAxis = d3.axisLeft(this.y).ticks(this.true_height / 50.0).tickFormat(d3.format(".1e"));
-            this.yAxis_element
-                .attr('transform', 'translate(' + (this.margin.left) + ',0)')
-                .call(this.yAxis);
+            if(this.orientation === "horizontal"){
+                this.Axis = d3.axisLeft(this.y).ticks(this.true_height / 50.0).tickFormat(d3.format(".1e"));
+                this.Axis_element
+                    .attr('transform', 'translate(' + (this.margin.left) + ',0)')
+                    .call(this.Axis);
+            }
+            else if(this.orientation === "vertical"){
+                this.Axis = d3.axisBottom(this.x).ticks(this.true_width / 50.0).tickFormat(d3.format(".1e"));
+                this.Axis_element
+                    .attr('transform', 'translate(0,' + (this.height - this.margin.bottom) + ')')
+                    .call(this.Axis);
+            }
 
             this.redraw();
     }
@@ -213,7 +243,7 @@ class cross_section_plot {
         this.line_exp = this.vis.append("g")
             .attr("class", "line_exp_g")
             .append("path")
-            .attr("clip-path", "url(#clip)")
+            .attr("clip-path", "url(#clip"+this.orientation+")")
             .data(data)
             .attr("class", "line_exp")
             .attr("fill", "none")
@@ -267,34 +297,9 @@ class cross_section_plot {
      * It will be called when the user zooms or pans the plot, resize the plot or replace the experimental spectrum
     */
     redraw() {
-
         var self = this;
-
-        this.line.x((d) => this.x(d[0])).y((d) => this.y(d[1]));
-
-        this.min_d = self.x.invert(self.margin.left);
-        this.max_d = self.x.invert(self.width - self.margin.right);
-
-        if (this.min_d > this.max_d) {
-            let temp = this.min_d;
-            this.min_d = this.max_d;
-            this.max_d = temp;
-        }
-        /** To save computational resource, we filter out data points that are out of visible range or too close to each other
-         * because this.data is an array of [x,y,z] pairs, this.data_strided is a shallow copy of this.data (share the same data!!)
-        */
-        this.data_strided = this.data.filter((row) => row[0] > this.min_d && row[0] < this.max_d);
-        if (this.data_strided.length > 20000) {
-            let step = Math.ceil(this.data_strided.length / 20000);
-            //step is the number of data points to skip. Make sure step must <=4, otherwise the plot will be too sparse
-            if (step > 4) {
-                step = 4;
-            }
-            this.data_strided = this.data_strided.filter((x, i) => i % step == 0);
-        }
-        this.line_exp.attr("d", this.line(this.data_strided)).style("stroke-width", self.exp_line_width);
-
-        this.yAxis_element.call(this.yAxis);
+        this.line_exp.attr("d", this.line(this.data)).style("stroke-width", self.exp_line_width);
+        this.Axis_element.call(this.Axis);
     }
 
     /**
@@ -378,15 +383,29 @@ class cross_section_plot {
          * If the mouse is down, we need to pan the plot. Y axis only
          */
         if (this.mouse_is_down == true) {
-            /**
-             * Convert deltaY to ppm and intensity
-             */
-            let delta_intensity = this.y.invert(e.clientY) - this.y.invert(this.startMousePos[1]);
 
-            /**
-             * Update self.x and self.y
-             */
-            self.y.domain([self.y.domain()[0] - delta_intensity, self.y.domain()[1] - delta_intensity]);
+            if(this.orientation === "horizontal"){
+                /**
+                 * Convert deltaY intensity
+                 */
+                let delta_intensity = this.y.invert(e.clientY) - this.y.invert(this.startMousePos[1]);
+
+                /**
+                 * Update self.y
+                 */
+                self.y.domain([self.y.domain()[0] - delta_intensity, self.y.domain()[1] - delta_intensity]);
+            }
+            else if(this.orientation === "vertical"){
+                /**
+                 * Convert deltaX intensity
+                 */
+                let delta_intensity = this.x.invert(e.clientX) - this.x.invert(this.startMousePos[0]);
+
+                /**
+                 * Update self.x
+                 */
+                self.x.domain([self.x.domain()[0] - delta_intensity, self.x.domain()[1] - delta_intensity]);
+            }
 
             /**
              * Update self.startMousePos
@@ -427,7 +446,7 @@ class cross_section_plot {
 
     }
 
-        /**
+    /**
      * 
      * get event center position
      * this is actually required when users use two fingers to zoom in or out
@@ -435,12 +454,12 @@ class cross_section_plot {
      */
 
 
-        event_center(event, target, width, height) {
-            if (event.sourceEvent) {
-                const p = d3.pointers(event, target);
-                return [d3.mean(p, d => d[0]), d3.mean(p, d => d[1])];
-            }
-            return [width / 2, height / 2];
-        };
+    event_center(event, target, width, height) {
+        if (event.sourceEvent) {
+            const p = d3.pointers(event, target);
+            return [d3.mean(p, d => d[0]), d3.mean(p, d => d[1])];
+        }
+        return [width / 2, height / 2];
+    };
 
 };
