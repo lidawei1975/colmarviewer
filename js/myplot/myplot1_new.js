@@ -56,6 +56,17 @@ function plotit(input) {
     this.peak_size = 6;
     this.peak_thickness = 5;
 
+
+    /**
+     * Init cross section plot
+     * At this time, height is 200, width is the same as the main plot
+     * data is empty
+     * x_domain is this.xcale
+     * y_domain is [0,1]
+     */
+    this.x_cross_section_plot = new cross_section_plot();
+    this.x_cross_section_plot.init(this.WIDTH, 200, [], this.xscale, [0, 1], "cross_section_svg_x");
+
 };
 
 /**
@@ -478,11 +489,16 @@ plotit.prototype.draw = function () {
                 let data_abs_max = 0.0;
                 let data = [];
                 for(let i = 0; i < data_ppm.length; i++) {
-                    data.push([data_ppm[i], data_height[i]]);
+                    data.push([data_ppm[i], data_height[i], data_height[i]]);
                     if(Math.abs(data_height[i]) > data_abs_max) {
                         data_abs_max = Math.abs(data_height[i]);
                     }
                 }
+                /**
+                 * Draw cross section line plot on the cross_section_svg_x
+                 */
+                self.x_cross_section_plot.zoom(self.xscale,[-data_abs_max, data_abs_max]);
+                self.x_cross_section_plot.update_data(data);
 
                 /**
                  * Define a y range for the cross section line plot

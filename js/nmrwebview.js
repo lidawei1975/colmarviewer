@@ -2403,6 +2403,7 @@ function init_plot(input) {
         main_plot.peak_thickness = parseInt(this.value);
         main_plot.redraw_peaks();
     });
+
 };
 
 
@@ -3021,7 +3022,6 @@ function draw_spectrum(result_spectrum, b_reprocess)
     spectrum_information.contour_sign = 1;
     spectrum_information.levels = result_spectrum.negative_levels;
     my_contour_worker.postMessage({ response_value: result_spectrum.raw_data, spectrum: spectrum_information });
-  
 }
 
 /**
