@@ -287,46 +287,69 @@
                 </div>
 
 
-                <div id="plot" class="drop-area-neighbor" style=" Padding: 10px; width: min-content;">
-                    <strong>Control:</strong>
-                    <button onclick="resetzoom()">Reset all Zoom</button>,
-                    <button onclick="popzoom()">Zoom Back</button>,
-                    <button onclick="zoomout()">Zoom out 120%</button>
-                    <button onclick="download_plot()">Download plot</button>
-                    <br>
+                <div id="plot" class="drop-area-neighbor" style=" Padding: 10px;">
 
-                    <input type="checkbox" id="Horizontal_cross_section">
-                    <label for="Horizontal_cross_section"> Show Horizontal Cross Section </label>&nbsp;&nbsp;
-                    <input type="checkbox" id="Vertical_cross_section">
-                    <label for="Vertical_cross_section"> Show Vertical Cross Section </label>&nbsp;&nbsp;
-                    <label for="peak_color">Peak color: </label>
-                    <input type="color" id="peak_color" value="#ff0000">&nbsp;&nbsp;
-                    <label for="peak_size">Peak size: </label>
-                    <input type="number" id="peak_size" value="6" min="1" max="20">&nbsp;&nbsp;
-                    <label for="peak_thickness">Thickness: </label>
-                    <input type="number" id="peak_thickness" value="5" min="1" max="10">
-                    <br>
+                    <div>
+                        <strong>Control:</strong>
+                        <button onclick="resetzoom()">Reset all Zoom</button>,
+                        <button onclick="popzoom()">Zoom Back</button>,
+                        <button onclick="zoomout()">Zoom out 120%</button>
+                        <button onclick="download_plot()">Download plot</button>
+                        <br>
+
+                        <input type="checkbox" id="Horizontal_cross_section">
+                        <label for="Horizontal_cross_section"> Show Horizontal Cross Section </label>&nbsp;&nbsp;
+                        <input type="checkbox" id="Vertical_cross_section">
+                        <label for="Vertical_cross_section"> Show Vertical Cross Section </label>&nbsp;&nbsp;
+                        <label for="peak_color">Peak color: </label>
+                        <input type="color" id="peak_color" value="#ff0000">&nbsp;&nbsp;
+                        <label for="peak_size">Peak size: </label>
+                        <input type="number" id="peak_size" value="6" min="1" max="20">&nbsp;&nbsp;
+                        <label for="peak_thickness">Thickness: </label>
+                        <input type="number" id="peak_thickness" value="5" min="1" max="10">
+                        <br>
 
 
-                    <input type="checkbox" id="allow_brush_to_remove" disabled>
-                    <label for="allow_brush_to_remove"> Brush to remove peaks.</label>
-                    <input type="checkbox" id="allow_drag_and_drop" disabled>
-                    <label for="allow_drag_and_drop"> Drag and drop to move (or remove) peaks.</label>
-                    <input type="checkbox" id="allow_click_to_add_peak" disabled>
-                    <label for="allow_click_to_add_peak"> Click to add peaks.</label>
-                    <br><br>
+                        <input type="checkbox" id="allow_brush_to_remove" disabled>
+                        <label for="allow_brush_to_remove"> Brush to remove peaks.</label>
+                        <input type="checkbox" id="allow_drag_and_drop" disabled>
+                        <label for="allow_drag_and_drop"> Drag and drop to move (or remove) peaks.</label>
+                        <input type="checkbox" id="allow_click_to_add_peak" disabled>
+                        <label for="allow_click_to_add_peak"> Click to add peaks.</label>
+                        <br><br>
+                    </div>
 
-                    <div id="vis_parent" class="resizable" style="position: relative; width: 1200px; height: 800px;">
-                        <div id="information_bar" class="tooltip"
-                            style="position: absolute; top: 0px; right: 40px; width:400px; z-index: 3;">
-                            <span id="infor">Information</span>
+                    <div style = "display: flex; flex-direction: column; gap: 10px;"> 
+                        <div style = "display: flex; flex-direction: row; gap: 10px;">   
+                            <!-- Empty div with size 200*200 -->
+                            <div id="cross_section_empty" class="resizable_stack" style="width: 200px; height: 200px;"></div>
+
+                            <!-- On top of the main plot, show 1D cross section of selected trace. Same width as 2D plot -->
+                            <div id="cross_section_x"  class="resizable_stack" style="width:fit-content; height: fit-content;">
+                                <svg id="cross_section_svg" width="1200" height="200"></svg>
+                            </div>
                         </div>
-                        <div id="canvas_parent" style="position: absolute; top: 0px; left: 0px; z-index: 1;">
-                            <canvas id="canvas1" style="border:0px;"></canvas>
-                        </div>
 
-                        <div id="svg_parent" style="position: absolute; bottom: 0px; left: 0px; z-index: 2;">
-                            <svg id="visualization"></svg>
+                        <div style = "display: flex; flex-direction: row; gap: 10px;">   
+                            <!-- On the left of the main plot, show vertical 1D cross section. Same height as 2D plot -->
+                            <div id="cross_section_y" class="resizable_stack"  style="width:fit-content; height: fit-content;">
+                                <svg id="cross_section_svg_y" width="200" height="800"></svg>
+                            </div>
+
+                            <!-- This is the main 2D plot -->
+                            <div id="vis_parent" class="resizable" style="position: relative; width: 1200px; height: 800px;">
+                                <div id="information_bar" class="tooltip"
+                                    style="position: absolute; top: 0px; right: 40px; width:400px; z-index: 3;">
+                                    <span id="infor">Information</span>
+                                </div>
+                                <div id="canvas_parent" style="position: absolute; top: 0px; left: 0px; z-index: 1;">
+                                    <canvas id="canvas1" style="border:0px;"></canvas>
+                                </div>
+
+                                <div id="svg_parent" style="position: absolute; bottom: 0px; left: 0px; z-index: 2;">
+                                    <svg id="visualization"></svg>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

@@ -1236,6 +1236,13 @@ function resize_main_plot(wid, height, padding, margin_left, margin_top)
     if (main_plot !== null) {
         main_plot.update(input);
     }
+
+    /**
+     * Also resize cross_section_x width to be the same as the width of the visualization div
+     * and cross_section_y height to be the same as the height of the visualization div
+     */
+    document.getElementById('cross_section_x').style.width = wid.toString().concat('px');
+    document.getElementById('cross_section_y').style.height = height.toString().concat('px');
 }
 
 /**
