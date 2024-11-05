@@ -228,6 +228,29 @@ class cross_section_plot {
             this.redraw();
     }
 
+    zoom_x(x_domain) {
+        this.x.domain(x_domain);
+        this.redraw();
+    }
+
+    zoom_y(y_domain) {
+        this.y.domain(y_domain);
+        this.redraw();
+    }
+
+    resize_x(width) {
+        this.width = width;
+        this.x.range([this.margin.left, this.width - this.margin.right]);
+        this.redraw();
+    }
+
+    resize_y(height) {
+        this.height = height;
+        this.y.range([this.height - this.margin.bottom, this.margin.top]);
+        this.redraw();
+    }
+
+
     update_data(data) {
         /**
          * Remove old experimental spectrum, including "g" element and "path" element

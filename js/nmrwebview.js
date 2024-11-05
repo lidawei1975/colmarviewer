@@ -1490,6 +1490,38 @@ function add_to_list(index) {
          * Add a line break
          */
         new_spectrum_div.appendChild(document.createElement("br"));
+
+        /**
+         * Add 3 radio buttons to select:
+         * 1. show cross section
+         * 2. show projection (default, checked)
+         * and a new line
+         */
+        let show_cross_section_radio = document.createElement("input");
+        show_cross_section_radio.setAttribute("type", "radio");
+        show_cross_section_radio.setAttribute("id", "show_cross_section-".concat(index));   
+        show_cross_section_radio.setAttribute("name", "show-".concat(index));
+        show_cross_section_radio.onclick = function () { show_cross_section(index); };
+        let show_cross_section_label = document.createElement("label");
+        show_cross_section_label.setAttribute("for", "show_cross_section-".concat(index));
+        show_cross_section_label.innerText = " Cross section ";
+        new_spectrum_div.appendChild(show_cross_section_radio);
+        new_spectrum_div.appendChild(show_cross_section_label);
+
+        let show_projection_radio = document.createElement("input");
+        show_projection_radio.setAttribute("type", "radio");
+        show_projection_radio.setAttribute("id", "show_projection-".concat(index));
+        show_projection_radio.setAttribute("name", "show-".concat(index));
+        show_projection_radio.checked = true;
+        show_projection_radio.onclick = function () { show_projection(index); };
+        let show_projection_label = document.createElement("label");
+        show_projection_label.setAttribute("for", "show_projection-".concat(index));
+        show_projection_label.innerText = " Projection ";
+        new_spectrum_div.appendChild(show_projection_radio);
+        new_spectrum_div.appendChild(show_projection_label);
+        show_projection(index);
+
+        new_spectrum_div.appendChild(document.createElement("br"));
     }
 
 
@@ -2350,8 +2382,8 @@ function init_plot(input) {
     /**
      * Check whether checkbox Horizontal_cross_section and Vertical_cross_section are checked
      */
-    input.horizontal = document.getElementById("Horizontal_cross_section").checked;
-    input.vertical = document.getElementById("Vertical_cross_section").checked;
+    input.horizontal = false;
+    input.vertical = false;
 
 
     main_plot = new plotit(input);
@@ -2375,16 +2407,6 @@ function init_plot(input) {
     main_plot.points_start_negative = [];
     main_plot.points = new Float32Array();
 
-    /**
-     * Add event listener to checkbox Horizontal_cross_section and Vertical_cross_section
-     */
-    document.getElementById("Horizontal_cross_section").addEventListener("change", function () {
-        main_plot.horizontal = this.checked;
-    });
-
-    document.getElementById("Vertical_cross_section").addEventListener("change", function () {
-        main_plot.vertical = this.checked;
-    });
 
     /**
      * Event listener for peak_color, peak_size and peak_thickness
@@ -2406,7 +2428,31 @@ function init_plot(input) {
 
 };
 
+function show_cross_section(index) {
+    uncheck_all_1d_except(index);
+    main_plot.current_spectral_index = index;
+    main_plot.b_show_cross_section = true;
+    main_plot.b_show_projection = false;
+}
 
+function show_projection(index) {
+    uncheck_all_1d_except(index);
+    main_plot.current_spectral_index = index;
+    main_plot.b_show_cross_section = false;
+    main_plot.b_show_projection = true;
+    main_plot.show_projection();
+}
+
+function uncheck_all_1d_except(index) {
+    for(let i=0;i<hsqc_spectra.length;i++)
+    {
+        if(i!==index && hsqc_spectra[i].spectrum_origin < 0) {
+            document.getElementById("show_cross_section".concat("-").concat(i)).checked = false;
+            document.getElementById("show_projection".concat("-").concat(i)).checked = false;
+            document.getElementById("show_none".concat("-").concat(i)).checked = false;
+        }
+    }
+}
 
 
 
@@ -2855,6 +2901,37 @@ function process_ft_file(arrayBuffer,file_name, spectrum_type) {
      * Get max and min of z (z is sorted)
      */
     [result.spectral_max, result.spectral_min] = find_max_min(result.raw_data);
+
+    /**
+     * raw_data is row major, size is  n_indirect (rows) * n_direct (columns).
+     * Get projection of the spectrum along direct and indirect dimensions
+     */
+    result.projection_direct = new Float32Array(result.n_direct);
+    result.projection_indirect = new Float32Array(result.n_indirect);
+
+    for (let i = 0; i < result.n_direct; i++) {
+        let sum = 0.0;
+        for (let j = 0; j < result.n_indirect; j++) {
+            sum += result.raw_data[j * result.n_direct + i];
+        }
+        result.projection_direct[i] = sum;
+    }
+
+    for(let i=0;i<result.n_indirect;i++)
+    {
+        let sum = 0.0;
+        for(let j=0;j<result.n_direct;j++)
+        {
+            sum += result.raw_data[i*result.n_direct+j];
+        }
+        result.projection_indirect[i] = sum;
+    }
+
+    /**
+     * Get max,min of the projection
+     */
+    [result.projection_direct_max, result.projection_direct_min] = find_max_min(result.projection_direct);
+    [result.projection_indirect_max, result.projection_indirect_min] = find_max_min(result.projection_indirect);
 
     /**
      * In case of reconstructed spectrum from fitting or from NUS, noise_level is usually 0.
