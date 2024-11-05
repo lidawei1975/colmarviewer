@@ -241,12 +241,29 @@ class cross_section_plot {
     resize_x(width) {
         this.width = width;
         this.x.range([this.margin.left, this.width - this.margin.right]);
+        /**
+         * Change width of the clip space according to the new width of the main_plot object
+         */
+        this.clip_space.attr("width", width - this.margin.left - this.margin.right);
         this.redraw();
     }
 
     resize_y(height) {
         this.height = height;
         this.y.range([this.height - this.margin.bottom, this.margin.top]);
+        /**
+         * Remove old axis element and add new axis element
+         */
+        this.vis.selectAll(".xaxis").remove();
+        this.Axis_element = this.vis.append('svg:g')
+                    .attr('class', 'xaxis')
+                    .attr('transform', 'translate(0,' + (this.height - this.margin.bottom) + ')')
+                    .style("stroke-width", 3.5)
+                    .call(this.Axis);
+        /**
+         * Change height of the clip space according to the new height of the main_plot object
+         */
+        this.clip_space.attr("height", height - this.margin.top - this.margin.bottom);
         this.redraw();
     }
 

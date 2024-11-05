@@ -1242,7 +1242,9 @@ function resize_main_plot(wid, height, padding, margin_left, margin_top)
      * and cross_section_y height to be the same as the height of the visualization div
      */
     document.getElementById('cross_section_x').style.width = wid.toString().concat('px');
+    document.getElementById('cross_section_svg_x').setAttribute("width", wid.toString().concat('px'));
     document.getElementById('cross_section_y').style.height = height.toString().concat('px');
+    document.getElementById('cross_section_svg_y').setAttribute("height", height.toString().concat('px'));
 }
 
 /**
