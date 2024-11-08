@@ -127,6 +127,14 @@
             min-height: 300px;
         }
 
+        div.resizable_stack {
+            border: 2px solid #40375f;
+            border-radius: 0.5rem;
+            padding: 20px;
+            resize: none;
+            overflow: hidden;
+        }
+
         .rotate90 {
             transform: rotate(90deg);
         }
