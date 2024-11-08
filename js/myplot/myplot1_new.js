@@ -449,6 +449,33 @@ plotit.prototype.draw = function () {
              */
             document.getElementById("infor").innerHTML 
                 = "x_ppm: " + x_ppm.toFixed(3) + ", y_ppm: " + y_ppm.toFixed(2)+ ", Intensity: " + data_height.toExponential(2);
+
+            /**
+             * Show a horizontal line at current y location
+            */
+            self.vis.selectAll(".hline").remove();
+            self.vis.append("line")
+                .attr("class", "hline")
+                .attr("x1", self.MARGINS.left)
+                .attr("y1", event.offsetY)
+                .attr("x2", self.WIDTH - self.MARGINS.right)
+                .attr("y2", event.offsetY)
+                .attr("stroke-width", 1)
+                .attr("stroke", "black");
+            
+            /**
+             * Show a vertical line at current x location
+             */
+            self.vis.selectAll(".vline").remove();
+            self.vis.append("line")
+                .attr("class", "vline")
+                .attr("x1", event.offsetX)
+                .attr("y1", self.MARGINS.top)
+                .attr("x2", event.offsetX)
+                .attr("y2", self.HEIGHT - self.MARGINS.bottom)
+                .attr("stroke-width", 1)
+                .attr("stroke", "black");
+
             
 
             if(self.b_show_cross_section)
@@ -592,6 +619,11 @@ plotit.prototype.draw = function () {
             if(self.timeout) {
                 clearTimeout(self.timeout);
             }
+            /**
+             * Remove the horizontal line and vertical line
+             */
+            self.vis.selectAll(".hline").remove();
+            self.vis.selectAll(".vline").remove();
         });
     /**
      * Draw contour on the canvas, which is a background layer

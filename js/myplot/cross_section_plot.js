@@ -106,20 +106,6 @@ class cross_section_plot {
         this.original_data = this.data.map((x) => [x[0], x[1], x[2]]);
        
 
-        /**  To save computational time, we will only draw at most 20000 points using stride 
-         * this.data_strided is a shallow copy of this.data (share the same data!!)
-        */
-        this.data_strided = this.data;
-        if (this.data_strided.length > 10000) {
-            let step = Math.ceil(this.data_strided.length / 10000);
-            //step is the number of data points to skip. Make sure step must <=4, otherwise the plot will be too sparse
-            if (step > 4) {
-                step = 4;
-            }
-            this.data_strided = this.data_strided.filter((x, i) => i % step === 0);
-        }
-
-
         this.line_exp = this.vis.append("g")
             .attr("class", "line_exp_g")
             .append("path")
@@ -129,7 +115,37 @@ class cross_section_plot {
             .attr("fill", "none")
             .style("stroke", "black")
             .style("stroke-width", this.exp_line_width)
-            .attr("d", this.line(this.data_strided));
+            .attr("d", this.line(this.data));
+
+        /**
+         * Add a line to show the 0 intensity
+         */
+        if(this.orientation === "horizontal")
+        {
+            this.line_zero = this.vis.append("g")
+                .attr("class", "line_zero_g")
+                .append("line")
+                .attr("clip-path", "url(#clip"+this.orientation+")")
+                .attr("x1", this.x.range()[0])
+                .attr("y1", this.y(0))
+                .attr("x2", this.x.range()[1])
+                .attr("y2", this.y(0))
+                .style("stroke", "red")
+                .style("stroke-width", 1.5);
+        }
+        else //vertical
+        {
+            this.line_zero = this.vis.append("g")
+                .attr("class", "line_zero_g")
+                .append("line")
+                .attr("clip-path", "url(#clip"+this.orientation+")")
+                .attr("x1", this.x(0))
+                .attr("y1", this.y.range()[0])
+                .attr("x2", this.x(0))
+                .attr("y2", this.y.range()[1])
+                .style("stroke", "red")
+                .style("stroke-width", 1.5);
+        }
 
 
         /**
@@ -340,6 +356,26 @@ class cross_section_plot {
         var self = this;
         this.line_exp.attr("d", this.line(this.data)).style("stroke-width", self.exp_line_width);
         this.Axis_element.call(this.Axis);
+
+        /**
+         * Update the line that shows the 0 intensity
+         */
+        if(this.orientation === "horizontal")
+        {
+            this.line_zero
+                .attr("x1", this.x.range()[0])
+                .attr("y1", this.y(0))
+                .attr("x2", this.x.range()[1])
+                .attr("y2", this.y(0));
+        }
+        else //vertical
+        {
+            this.line_zero
+                .attr("x1", this.x(0))
+                .attr("y1", this.y.range()[0])
+                .attr("x2", this.x(0))
+                .attr("y2", this.y.range()[1]);
+        }
     }
 
     /**
