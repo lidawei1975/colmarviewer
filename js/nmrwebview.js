@@ -97,7 +97,10 @@ var current_phase_correction = [0, 0, 0, 0];
 class spectrum {
     constructor() {
         this.header = new Float32Array(512); //header of the spectrum, 512 float32 numbers
-        this.raw_data = new Float32Array(); //raw data from the server
+        this.raw_data = new Float32Array(); //raw data, real real
+        this.raw_data_ri = new Float32Array(); //raw data for real (along indirect dimension) and imaginary (along indirect dimension) part
+        this.raw_data_ir = new Float32Array(); //raw data for imaginary (along indirect dimension) and real (along indirect dimension) part
+        this.raw_data_ii = new Float32Array(); //raw data for imaginary (along indirect dimension) and imaginary (along indirect dimension) part
         this.noise_level = 0.001; //noise level of the input spectrum
         this.levels = [0.001, 0.002, 0.003]; //levels of the contour plot
         this.spectral_max = Number.MAX_VALUE; //maximum value of the spectrum
@@ -700,10 +703,12 @@ function call_webassembly_worker_for_fid_process(flag,spectrum_index) {
     /**
      * Get HTML number input phase_correction_direct_p0 and phase_correction_direct_p1
      * and checkbox auto_direct checked: true or false
+     * and checkbox delete_direct checked: true or false
      */
     phase_correction_direct_p0 = parseFloat(document.getElementById("phase_correction_direct_p0").value);
     phase_correction_direct_p1 = parseFloat(document.getElementById("phase_correction_direct_p1").value);
     auto_direct = document.getElementById("auto_direct").checked; //true or false
+    delete_direct = document.getElementById("delete_imaginary").checked; //true or false
 
     /**
      * Get HTML text input extract_direct_from and extract_direct_to. Input is in percentage
@@ -724,10 +729,13 @@ function call_webassembly_worker_for_fid_process(flag,spectrum_index) {
 
     /**
      * Get HTML number input phase_correction_indirect_p0 and phase_correction_indirect_p1
+     * and checkbox auto_indirect checked: true or false
+     * and checkbox delete_indirect checked: true or false
      */
     phase_correction_indirect_p0 = parseFloat(document.getElementById("phase_correction_indirect_p0").value);
     phase_correction_indirect_p1 = parseFloat(document.getElementById("phase_correction_indirect_p1").value);
     auto_indirect = document.getElementById("auto_indirect").checked; //true or false
+    delete_indirect = document.getElementById("delete_imaginary_indirect").checked; //true or false
     
 
     /**
@@ -747,6 +755,8 @@ function call_webassembly_worker_for_fid_process(flag,spectrum_index) {
         apodization_indirect: apodization_indirect,
         auto_direct: auto_direct,
         auto_indirect: auto_indirect,
+        delete_direct: delete_direct,
+        delete_indirect: delete_indirect,
         phase_correction_direct_p0: phase_correction_direct_p0,
         phase_correction_direct_p1: phase_correction_direct_p1,
         phase_correction_indirect_p0: phase_correction_indirect_p0,
@@ -2809,11 +2819,12 @@ function process_ft_file(arrayBuffer,file_name, spectrum_type) {
     result.datatype_indirect = result.header[56];
 
     /**
-     * We only read real at this moment
+     * result.datatype_direct: 1 means real, 0 means complex
+     * result.datatype_indirect: 1 means real, 0 means complex
      */
-    if (result.datatype_direct !== 1 || result.datatype_indirect !== 1) {
-        result.error = "Only real data is supported";
-        return result;
+    if ( result.datatype_direct == 0 && result.datatype_indirect == 0) {
+        console.log("Complex data along both dimensions.");
+        result.n_indirect /= 2; //complex data along both dimensions, per nmrPipe format, so we divide by 2
     }
 
     result.direct_ndx = result.header[24]; //must be 2
@@ -2886,7 +2897,70 @@ function process_ft_file(arrayBuffer,file_name, spectrum_type) {
 
     let data_size = arrayBuffer.byteLength / 4 - 512;
 
-    result.raw_data = new Float32Array(arrayBuffer, 512 * 4, data_size);
+    /**
+     * Let assess data_size, if it is not equal to n_direct * n_indirect * number_of_data_type, set error and return
+     * number_of_data_type =1, if both direct and indirect dimensions are real
+     * number_of_data_type =2, if either direct or indirect dimension is complex
+     * number_of_data_type =4, if both direct and indirect dimensions are complex
+     */
+    let data_size_per_point = 1;
+    if (result.datatype_direct === 1 && result.datatype_indirect === 1) {
+        data_size_per_point = 1;
+    }
+    else if (result.datatype_direct === 0 && result.datatype_indirect === 1) {
+        data_size_per_point = 2;
+    }
+    else if (result.datatype_direct === 1 && result.datatype_indirect === 0) {
+        data_size_per_point = 2;
+    }
+    else if (result.datatype_direct === 0 && result.datatype_indirect === 0) {
+        data_size_per_point = 4;
+    }
+
+    if (data_size !== result.n_direct * result.n_indirect * data_size_per_point) {
+        result.error = "Data size does not match the size of the spectrum";
+        return result;
+    }
+
+    /**
+     * result.raw_data is a Float32Array of the spectrum data, real (along indirect) real (along direct)
+     * result.raw_data_ri is a Float32Array of the spectrum data, real (along indirect) imaginary (along direct)
+     * result.raw_data_ir is a Float32Array of the spectrum data, imaginary (along indirect) real (along direct)
+     * result.raw_data_ii is a Float32Array of the spectrum data, imaginary (along indirect) imaginary (along direct)
+     * 
+     * They are all row major, size is  n_indirect (rows) * n_direct (columns).
+     * Order of data in arrayBuffer, after the 512 float (4 bytes) header
+     * raw_data row1, raw_data_ri row1, raw_data_ir row1, raw_data_ii row1, 
+     * raw_data row2, raw_data_ri row2, raw_data_ir row2, raw_data_ii row2, ...
+     */
+    let current_position = 512;
+    for(let i=0;i<result.n_indirect;i++)
+    {
+        let temp_data = new Float32Array(arrayBuffer, current_position * 4, result.n_direct);
+        result.raw_data = Float32Concat(result.raw_data,temp_data);
+        current_position += result.n_direct;
+
+        if(result.datatype_direct === 0)
+        {
+            temp_data = new Float32Array(arrayBuffer, current_position * 4, result.n_direct);
+            result.raw_data_ri = Float32Concat(result.raw_data_ri,temp_data);
+            current_position += result.n_direct;
+        }
+        if(result.datatype_indirect === 0)
+        {
+            temp_data = new Float32Array(arrayBuffer, current_position * 4, result.n_direct);
+            result.raw_data_ir = Float32Concat(result.raw_data_ir,temp_data);
+            current_position += result.n_direct;
+        }
+        if(result.datatype_direct === 0 && result.datatype_indirect === 0)
+        {
+            temp_data = new Float32Array(arrayBuffer, current_position * 4, result.n_direct);
+            result.raw_data_ii = Float32Concat(result.raw_data_ii,temp_data);
+            current_position += result.n_direct;
+        }
+    }
+
+    
 
     /**
      * Keep original file name

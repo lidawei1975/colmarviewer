@@ -188,10 +188,12 @@
                                 <label for="phase_correction_direct_p1">P1: </label>
                                 <input type="number" name="phase_correction_direct_p1" id="phase_correction_direct_p1" value="0" step="any">
                                 <input type="checkbox" name="auto_direct" id="auto_direct" value="yes" checked>
-                                <label for="auto_direct">Automated phase correction?</label>
+                                <label for="auto_direct">Automated PC</label>
+                                <input type="checkbox" name="delete_imaginary" id="delete_imaginary" value="yes">
+                                <label for="delete_imaginary">Delete imaginary data
                             </span>
 
-                            <span>
+                            <span> 
                                 <label for="extract_direct_from">Extract direct dimension from (percentage): </label>
                                 <input type="number" name="extract_direct_from" id="extract_direct_from" value="0" step="any" min="0" max="100">
                                 <label for="extract_direct_to">to</label>
@@ -218,7 +220,9 @@
                                 <label for="phase_correction_indirect_p1">P1: </label>
                                 <input type="number" name="phase_correction_indirect_p1" id="phase_correction_indirect_p1" value="0" step="any">
                                 <input type="checkbox" name="auto_indirect" id="auto_indirect" value="yes" checked>
-                                <label for="auto_direct">Automated phase correction?</label>
+                                <label for="auto_direct">Automated PC</label>
+                                <input type="checkbox" name="delete_imaginary_indirect" id="delete_imaginary_indirect" value="yes">
+                                <label for="delete_imaginary_indirect">Delete imaginary data
                             </span>
                             
                             <span> 

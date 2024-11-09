@@ -244,7 +244,6 @@ onmessage = function (e) {
         content = content.concat(' -zf '.concat(e.data.zf_direct,' -zf-indirect ',e.data.zf_indirect));
         content = content.concat(' -apod '.concat(e.data.apodization_direct));
         content = content.concat(' -apod-indirect '.concat(apodization_indirect));
-        content = content.concat(' -out test0.ft2');
         content = content.concat(' -in fid_file acquisition_file acquisition_file2 none');
 
         /**
@@ -256,39 +255,74 @@ onmessage = function (e) {
          * another program called "phasing", which will run one dimension or both dimensions phase correction
          */
         if (e.data.auto_direct === false && e.data.auto_indirect === false) {
-            content = content.concat(' -phase-in phase-correction.txt -di yes -di-indirect yes');
+
+            /**
+             * if e.data.delete_direct === true, delete the direct dimension " -di yes ", otherwise "-di no "
+             */
+            if(e.data.delete_direct === true)
+            {
+                content = content.concat(' -di yes ');
+            }
+            else
+            {
+                content = content.concat(' -di no ');
+            }
+
+            /**
+             * if e.data.delete_indirect === true, delete the indirect dimension " -di-indirect yes ", otherwise "-di-indirect no "
+             */
+            if(e.data.delete_indirect === true)
+            {
+                content = content.concat(' -di-indirect yes ');
+            }
+            else
+            {
+                content = content.concat(' -di-indirect no ');
+            }
+
+            content = content.concat(' -phase-in phase-correction.txt ');
             /**
              * Do not apply ext if we need to run phasing program
              */
             content = content.concat(' -ext '.concat(e.data.extract_direct_from, ' ', e.data.extract_direct_to));
+            content = content.concat(' -out test.ft2');
             let phase_correction = e.data.phase_correction_direct_p0.toString();
             phase_correction=phase_correction.concat(' ', e.data.phase_correction_direct_p1.toString());
             phase_correction=phase_correction.concat(' ', e.data.phase_correction_indirect_p0.toString());
             phase_correction=phase_correction.concat(' ', e.data.phase_correction_indirect_p1.toString());
             Module['FS_createDataFile']('/', 'phase-correction.txt', phase_correction, true, true, true);
+
+            Module['FS_createDataFile']('/', 'arguments_fid_2d.txt', content, true, true, true);
+            console.log(content);
+    
+            /**
+             * Run fid_phase function
+             */
+            postMessage({ stdout: "Running fid function" });
+            api.fid();
+            console.log('Finished running fid');
         }
-        else {
+        else
+        {
+            content = content.concat(' -out test0.ft2');
+            /**
+             * To run automatic phase correction, we need to set -phase-in none and keep -di no and -di-indirect no
+             */
             content = content.concat(' -phase-in none -di no -di-indirect no');
-        }
-        Module['FS_createDataFile']('/', 'arguments_fid_2d.txt', content, true, true, true);
-        console.log(content);
-
-        /**
-         * Run fid_phase function
-         */
-        postMessage({ stdout: "Running fid function" });
-        api.fid();
-        console.log('Finished running fid');
-
-
-        /**
-         * If we need to run phasing program
-         */
-        if (e.data.auto_direct === true || e.data.auto_indirect === true) {
+            Module['FS_createDataFile']('/', 'arguments_fid_2d.txt', content, true, true, true);
+            console.log(content);
+    
+            /**
+             * Run fid_phase function
+             */
+            postMessage({ stdout: "Running fid function" });
+            api.fid();
+            console.log('Finished running fid');
+       
             /**
              * Step 1, run phasing program, which will generate a file named "phase-correction.txt"
              */
-            let content = ' -in test0.ft2 -out none -out-phase phase-correction.txt';
+            content = ' -in test0.ft2 -out none -out-phase phase-correction.txt';
             if(e.data.auto_direct === true)
             {
                 content = content.concat(' -user no ');
@@ -355,7 +389,30 @@ onmessage = function (e) {
             content = content.concat(' -ext '.concat(e.data.extract_direct_from, ' ', e.data.extract_direct_to));
             content = content.concat(' -out test.ft2');
             content = content.concat(' -in fid_file acquisition_file acquisition_file2 none');
-            content = content.concat(' -phase-in phase-correction.txt -di yes -di-indirect yes');
+            content = content.concat(' -phase-in phase-correction.txt ');
+            /**
+             * if e.data.delete_direct === true, delete the direct dimension " -di yes ", otherwise "-di no "
+             */
+            if(e.data.delete_direct === true)
+            {
+                content = content.concat(' -di yes ');
+            }
+            else
+            {
+                content = content.concat(' -di no ');
+            }
+
+            /**
+             * if e.data.delete_indirect === true, delete the indirect dimension " -di-indirect yes ", otherwise "-di-indirect no "
+             */
+            if(e.data.delete_indirect === true)
+            {
+                content = content.concat(' -di-indirect yes ');
+            }
+            else
+            {
+                content = content.concat(' -di-indirect no ');
+            }
 
             FS.unlink('test0.ft2');
             FS.unlink('arguments_fid_2d.txt');
@@ -365,13 +422,7 @@ onmessage = function (e) {
             api.fid();
             console.log('Finished running fid with automatic phase correction');
         }
-        else
-        {
-            /**
-             * Rename the file test0.ft2 to test.ft2
-             */
-            FS.rename('test0.ft2', 'test.ft2');
-        }
+       
 
 
         /**
