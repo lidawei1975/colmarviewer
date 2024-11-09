@@ -2451,7 +2451,6 @@ function uncheck_all_1d_except(index) {
         if(i!==index && hsqc_spectra[i].spectrum_origin < 0) {
             document.getElementById("show_cross_section".concat("-").concat(i)).checked = false;
             document.getElementById("show_projection".concat("-").concat(i)).checked = false;
-            document.getElementById("show_none".concat("-").concat(i)).checked = false;
         }
     }
 }
