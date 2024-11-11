@@ -502,8 +502,6 @@ plotit.prototype.draw = function () {
                     currect_vis_x_ppm_end = hsqc_spectra[spe_index].x_ppm_start+hsqc_spectra[spe_index].x_ppm_ref + hsqc_spectra[spe_index].x_ppm_step * hsqc_spectra[spe_index].n_direct;
                 }
 
-                let x_pos_start = Math.floor((currect_vis_x_ppm_start - hsqc_spectra[spe_index].x_ppm_ref - hsqc_spectra[spe_index].x_ppm_start)/ hsqc_spectra[spe_index].x_ppm_step);
-                let x_pos_end = Math.floor((currect_vis_x_ppm_end - hsqc_spectra[spe_index].x_ppm_ref - hsqc_spectra[spe_index].x_ppm_start)/hsqc_spectra[spe_index].x_ppm_step);
                 let y_pos = Math.floor((y_ppm - hsqc_spectra[spe_index].y_ppm_ref - hsqc_spectra[spe_index].y_ppm_start)/hsqc_spectra[spe_index].y_ppm_step);
 
                 /**
@@ -516,20 +514,20 @@ plotit.prototype.draw = function () {
                      * to hsqc_spectra[spe_index].x_ppm_start + x_pos_end * hsqc_spectra[spe_index].x_ppm_step
                      */
                     let data_ppm = [];
-                    for(let i = x_pos_start; i < x_pos_end; i++) {
+                    for(let i = 0; i < hsqc_spectra[spe_index].n_direct; i++) {
                         data_ppm.push(hsqc_spectra[spe_index].x_ppm_start + hsqc_spectra[spe_index].x_ppm_ref + i * hsqc_spectra[spe_index].x_ppm_step);
                     }
 
                     /**
                      * Get the data from hsqc_spectra[spe_index].raw_data, at row y_pos, from column x_pos_start to x_pos_end
                      */
-                    let data_height = hsqc_spectra[spe_index].raw_data.slice(y_pos *  hsqc_spectra[spe_index].n_direct + x_pos_start, y_pos *  hsqc_spectra[spe_index].n_direct + x_pos_end);
+                    let data_height = hsqc_spectra[spe_index].raw_data.slice(y_pos *  hsqc_spectra[spe_index].n_direct, (y_pos+1) *  hsqc_spectra[spe_index].n_direct );
                     let data_height_i = [];
                     /**
                      * If hsqc_spectra[spe_index].raw_data_ri is not empty, then use it to get the data_height_i
                      */
                     if(hsqc_spectra[spe_index].raw_data_ri.length > 0) {
-                        data_height_i = hsqc_spectra[spe_index].raw_data_ri.slice(y_pos *  hsqc_spectra[spe_index].n_direct + x_pos_start, y_pos *  hsqc_spectra[spe_index].n_direct + x_pos_end);
+                        data_height_i = hsqc_spectra[spe_index].raw_data_ri.slice(y_pos *  hsqc_spectra[spe_index].n_direct , (y_pos+1) *  hsqc_spectra[spe_index].n_direct );
                     }
                     
                     /**
@@ -574,8 +572,6 @@ plotit.prototype.draw = function () {
                     currect_vis_y_ppm_end = hsqc_spectra[spe_index].y_ppm_start + hsqc_spectra[spe_index].y_ppm_ref + hsqc_spectra[spe_index].y_ppm_step * hsqc_spectra[spe_index].n_indirect;
                 }
 
-                let y_pos_start = Math.floor((currect_vis_y_ppm_start - hsqc_spectra[spe_index].y_ppm_ref -  hsqc_spectra[spe_index].y_ppm_start)/ hsqc_spectra[spe_index].y_ppm_step);
-                let y_pos_end = Math.floor((currect_vis_y_ppm_end - hsqc_spectra[spe_index].y_ppm_ref - hsqc_spectra[spe_index].y_ppm_start)/hsqc_spectra[spe_index].y_ppm_step);
                 let x_pos = Math.floor((x_ppm - hsqc_spectra[spe_index].x_ppm_ref - hsqc_spectra[spe_index].x_ppm_start)/hsqc_spectra[spe_index].x_ppm_step);
 
                 /**
@@ -587,7 +583,7 @@ plotit.prototype.draw = function () {
                      * to hsqc_spectra[spe_index].y_ppm_start + y_pos_end * hsqc_spectra[spe_index].y_ppm_step
                      */
                      let data_ppm = [];
-                     for(let i = y_pos_start; i < y_pos_end; i++) {
+                     for(let i = 0; i < hsqc_spectra[spe_index].n_indirect; i++) {
                          data_ppm.push(hsqc_spectra[spe_index].y_ppm_start + hsqc_spectra[spe_index].y_ppm_ref + i * hsqc_spectra[spe_index].y_ppm_step);
                      }
 
@@ -599,7 +595,7 @@ plotit.prototype.draw = function () {
                      * So, x_pos = (x_ppm - x_ppm_start)/x_ppm_step, y_pos = (y_ppm - y_ppm_start)/y_ppm_step
                      */
                     let data_height = [];
-                    for(let i = y_pos_start; i < y_pos_end; i++) {
+                    for(let i = 0; i < hsqc_spectra[spe_index].n_indirect; i++) {
                         data_height.push(hsqc_spectra[spe_index].raw_data[i *  hsqc_spectra[spe_index].n_direct + x_pos]);
                     }
                     let data_height_i = [];
@@ -607,7 +603,9 @@ plotit.prototype.draw = function () {
                      * If hsqc_spectra[spe_index].raw_data_ir is not empty, then use it to get the data_height_i
                      */
                     if(hsqc_spectra[spe_index].raw_data_ir.length > 0) {
-                        data_height_i = hsqc_spectra[spe_index].raw_data_ir.slice(y_pos_start *  hsqc_spectra[spe_index].n_direct + x_pos, y_pos_end *  hsqc_spectra[spe_index].n_direct + x_pos);
+                        for(let i = 0; i < hsqc_spectra[spe_index].n_indirect; i++){
+                            data_height_i.push(hsqc_spectra[spe_index].raw_data_ir[i *  hsqc_spectra[spe_index].n_direct + x_pos]);
+                        }
                     }
                    
                     /**
@@ -632,7 +630,7 @@ plotit.prototype.draw = function () {
 
             } //end of vertical
 
-        }, 2000);
+        }, 500);
     })
         .on("mouseleave", function (d) {
             tooldiv.style.opacity = 0.0;
