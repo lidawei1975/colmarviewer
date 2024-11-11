@@ -97,10 +97,10 @@ var current_phase_correction = [0, 0, 0, 0];
 class spectrum {
     constructor() {
         this.header = new Float32Array(512); //header of the spectrum, 512 float32 numbers
-        this.raw_data = new Float32Array(); //raw data, real real
-        this.raw_data_ri = new Float32Array(); //raw data for real (along indirect dimension) and imaginary (along indirect dimension) part
-        this.raw_data_ir = new Float32Array(); //raw data for imaginary (along indirect dimension) and real (along indirect dimension) part
-        this.raw_data_ii = new Float32Array(); //raw data for imaginary (along indirect dimension) and imaginary (along indirect dimension) part
+        this.raw_data = new Float32Array(0); //raw data, real real
+        this.raw_data_ri = new Float32Array(0); //raw data for real (along indirect dimension) and imaginary (along indirect dimension) part
+        this.raw_data_ir = new Float32Array(0); //raw data for imaginary (along indirect dimension) and real (along indirect dimension) part
+        this.raw_data_ii = new Float32Array(0); //raw data for imaginary (along indirect dimension) and imaginary (along indirect dimension) part
         this.noise_level = 0.001; //noise level of the input spectrum
         this.levels = [0.001, 0.002, 0.003]; //levels of the contour plot
         this.spectral_max = Number.MAX_VALUE; //maximum value of the spectrum
@@ -2894,6 +2894,7 @@ function process_ft_file(arrayBuffer,file_name, spectrum_type) {
     result.x_ppm_ref = 0.0;
     result.y_ppm_ref = 0.0;
 
+    const spectral_data = new Float32Array(arrayBuffer, 512, arrayBuffer.byteLength / 4 - 512);
 
     let data_size = arrayBuffer.byteLength / 4 - 512;
 
@@ -2933,29 +2934,46 @@ function process_ft_file(arrayBuffer,file_name, spectrum_type) {
      * raw_data row1, raw_data_ri row1, raw_data_ir row1, raw_data_ii row1, 
      * raw_data row2, raw_data_ri row2, raw_data_ir row2, raw_data_ii row2, ...
      */
-    let current_position = 512;
+    let current_position = 0;
+
+    /**
+     * Initialize result.raw_data, result.raw_data_ri, result.raw_data_ir, result.raw_data_ii
+     * If no initialization here, it will have default size of 0 (empty array)
+     */
+    result.raw_data = new Float32Array(result.n_indirect*result.n_direct);
+    if(result.datatype_direct === 0){
+        result.raw_data_ri = new Float32Array(result.n_indirect*result.n_direct);
+    }
+    if(result.datatype_indirect === 0){
+        result.raw_data_ir = new Float32Array(result.n_indirect*result.n_direct);
+    }
+    if(result.datatype_direct === 0 && result.datatype_indirect === 0){
+        result.raw_data_ii = new Float32Array(result.n_indirect*result.n_direct);
+    }
+   
+
     for(let i=0;i<result.n_indirect;i++)
     {
-        let temp_data = new Float32Array(arrayBuffer, current_position * 4, result.n_direct);
-        result.raw_data = Float32Concat(result.raw_data,temp_data);
+        /**
+         * Copy from spectral_data (from current_position, for a length of  result.n_direct)
+         * to result.raw_data (from i*result.n_direct, for a length of result.n_direct)
+         */
+        result.raw_data.set(spectral_data.subarray(current_position,current_position+result.n_direct),i*result.n_direct);
         current_position += result.n_direct;
 
         if(result.datatype_direct === 0)
         {
-            temp_data = new Float32Array(arrayBuffer, current_position * 4, result.n_direct);
-            result.raw_data_ri = Float32Concat(result.raw_data_ri,temp_data);
+            result.raw_data_ri.set(spectral_data.subarray(current_position,current_position+result.n_direct),i*result.n_direct);
             current_position += result.n_direct;
         }
         if(result.datatype_indirect === 0)
         {
-            temp_data = new Float32Array(arrayBuffer, current_position * 4, result.n_direct);
-            result.raw_data_ir = Float32Concat(result.raw_data_ir,temp_data);
+            result.raw_data_ir.set(spectral_data.subarray(current_position,current_position+result.n_direct),i*result.n_direct);
             current_position += result.n_direct;
         }
         if(result.datatype_direct === 0 && result.datatype_indirect === 0)
         {
-            temp_data = new Float32Array(arrayBuffer, current_position * 4, result.n_direct);
-            result.raw_data_ii = Float32Concat(result.raw_data_ii,temp_data);
+            result.raw_data_ii.set(spectral_data.subarray(current_position,current_position+result.n_direct),i*result.n_direct);
             current_position += result.n_direct;
         }
     }
@@ -3070,31 +3088,41 @@ function process_ft_file(arrayBuffer,file_name, spectrum_type) {
          * One or two dimension(s) are complex
          */
         else
-        {
+        {   
+            let n_size = hsqc_spectra[index].n_direct * hsqc_spectra[index].n_indirect;
+            if(hsqc_spectra[index].datatype_direct === 0 && hsqc_spectra[index].datatype_indirect === 0)
+            {
+                n_size *= 4;
+            }
+            else if(hsqc_spectra[index].datatype_direct === 0 || hsqc_spectra[index].datatype_indirect === 0)
+            {
+                n_size *= 2;
+            }
+
+            data = new Float32Array(512 + n_size);
             let current_position = 0;
-            data = new Float32Array(hsqc_spectra[index].header);
+            data.set(hsqc_spectra[index].header, current_position);
+            current_position += 512;
             for(let i=0;i<hsqc_spectra[index].n_indirect;i++)
             {
-                let temp_data = new Float32Array(hsqc_spectra[index].raw_data.buffer, current_position * 4, hsqc_spectra[index].n_direct);
-                data = Float32Concat(data, temp_data);
+                data.set(hsqc_spectra[index].raw_data.subarray(i*hsqc_spectra[index].n_direct,(i+1)*hsqc_spectra[index].n_direct), current_position);
+                current_position += hsqc_spectra[index].n_direct;
 
                 if(hsqc_spectra[index].datatype_direct === 0)
                 {
-                    temp_data = new Float32Array(hsqc_spectra[index].raw_data_ri.buffer, current_position * 4, hsqc_spectra[index].n_direct);
-                    data = Float32Concat(data,temp_data);
+                    data.set(hsqc_spectra[index].raw_data_ri.subarray(i*hsqc_spectra[index].n_direct,(i+1)*hsqc_spectra[index].n_direct), current_position);
+                    current_position += hsqc_spectra[index].n_direct;
                 }
                 if(hsqc_spectra[index].datatype_indirect === 0)
                 {
-                    temp_data = new Float32Array(hsqc_spectra[index].raw_data_ir.buffer, current_position * 4, hsqc_spectra[index].n_direct);
-                    data = Float32Concat(data,temp_data);
+                    data.set(hsqc_spectra[index].raw_data_ir.subarray(i*hsqc_spectra[index].n_direct,(i+1)*hsqc_spectra[index].n_direct), current_position);
+                    current_position += hsqc_spectra[index].n_direct;
                 }
                 if(hsqc_spectra[index].datatype_direct === 0 && hsqc_spectra[index].datatype_indirect === 0)
                 {
-                    temp_data = new Float32Array(hsqc_spectra[index].raw_data_ii.buffer, current_position * 4, hsqc_spectra[index].n_direct);
-                    data = Float32Concat(data,temp_data);
+                    data.set(hsqc_spectra[index].raw_data_ii.subarray(i*hsqc_spectra[index].n_direct,(i+1)*hsqc_spectra[index].n_direct), current_position);
+                    current_position += hsqc_spectra[index].n_direct;
                 }
-
-                current_position += hsqc_spectra[index].n_direct;
             }
         }
     }
@@ -3347,8 +3375,12 @@ function run_DEEP_Picker(spectrum_index,flag)
 
     /**
      * Combine hsqc_spectra[0].raw_data and hsqc_spectra[0].header into one Float32Array
+     * Need to copy the header first, modify complex flag (doesn't hurt even when not necessary), then concatenate with raw_data
      */
-    let data = Float32Concat(hsqc_spectra[spectrum_index].header, hsqc_spectra[spectrum_index].raw_data);
+    let header = new Float32Array(hsqc_spectra[spectrum_index].header);
+    header[55] = 1.0;
+    header[56] = 1.0;
+    let data = Float32Concat(header, hsqc_spectra[spectrum_index].raw_data);
     /**
      * Convert to Uint8Array to be transferred to the worker
      */
@@ -3417,9 +3449,13 @@ function run_Voigt_fitter(spectrum_index,flag)
 
 
     /**
-     * Combine hsqc_spectra[0].raw_data and hsqc_spectra[0].header into one Float32Array
+     * Combine hsqc_spectra[spectrum_index].raw_data and hsqc_spectra[spectrum_index].header into one Float32Array
+     * Need to copy the header first, modify complex flag (doesn't hurt even when not necessary), then concatenate with raw_data
      */
-    let data = Float32Concat(hsqc_spectra[spectrum_index].header, hsqc_spectra[spectrum_index].raw_data);
+    let header = new Float32Array(hsqc_spectra[spectrum_index].header);
+    header[55] = 1.0;
+    header[56] = 1.0;
+    let data = Float32Concat(header, hsqc_spectra[spectrum_index].raw_data);
     /**
      * Convert to Uint8Array to be transferred to the worker
      */
