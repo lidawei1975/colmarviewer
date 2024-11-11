@@ -14,15 +14,11 @@ class cross_section_plot {
      * 
      * @param {int} width  width of the plot SVG element
      * @param {int} height height of the plot SVG element
-     * @param {array} data   //data is an array of [x,y,z] pairs. X: chemical shift, Y: intensity, Z: imaginary part of the spectrum. Z might not exist
+     * @param {array} data   //data is an array of [x,y,z] pairs. X: chemical shift, Y: intensity, Z: imaginary_data part of the spectrum. Z might not exist
      * 
      * This function will init the plot and add the experimental spectrum only
      */
-    init(width, height, data, x_domain, y_domain, margin, svg_id, orientation) {
-
-        if (!Array.isArray(data)) {
-            throw new Error('colmar_1d_double_zoom init argument "data" must be array');
-        }
+    init(width, height, x_domain, y_domain, margin, svg_id, orientation) {
 
         this.orientation = orientation; //"horizontal" or "vertical"
 
@@ -31,8 +27,6 @@ class cross_section_plot {
 
         this.width = width;
         this.height = height;
-
-        this.data = data;
 
         this.svg_id = svg_id;
 
@@ -101,21 +95,6 @@ class cross_section_plot {
                 .attr("transform", "translate(" + this.margin.left + "," + this.margin.top + ")")
                 .attr("width", width - this.margin.left - this.margin.right)
                 .attr("height", height - this.margin.top - this.margin.bottom);
-
-       
-        this.original_data = this.data.map((x) => [x[0], x[1], x[2]]);
-       
-
-        this.line_exp = this.vis.append("g")
-            .attr("class", "line_exp_g")
-            .append("path")
-            .attr("clip-path", "url(#clip"+this.orientation+")")
-            .data(data)
-            .attr("class", "line_exp")
-            .attr("fill", "none")
-            .style("stroke", "black")
-            .style("stroke-width", this.exp_line_width)
-            .attr("d", this.line(this.data));
 
         /**
          * Add a line to show the 0 intensity
@@ -292,9 +271,35 @@ class cross_section_plot {
         this.vis.selectAll(".line_exp_g").remove();
 
         /**
-         * Add new experimental spectrum 
+         * data is an array of [x,y,z] pairs. X: chemical shift, Y: intensity, Z: imaginary_data part of the spectrum. Z might not exist (length of Z is 0)
+         * Convert to an array of [x,y] pairs. X: chemical shift, Y: intensity or [x,y,z] pairs. X: chemical shift, Y: intensity, Z: imaginary_data part of the spectrum
          */
-        this.data = data;
+        if (data[2].length === 0) {
+            this.imagine_exist = false;
+            this.ppm = data[0];
+            this.real_data = data[1];
+            this.imaginary_data = [];
+        }
+        else {
+            this.imagine_exist = true;
+            this.ppm = data[0];
+            this.real_data = data[1];
+            this.imaginary_data = data[2];
+        }
+
+        this.data = new Array(this.ppm.length);
+        if (this.orientation === "horizontal") {
+            for (var i = 0; i < data[0].length; i++) {
+                this.data[i] = [this.ppm[i], this.real_data[i]];
+            }
+        }
+        else if (this.orientation === "vertical") {
+            for (var i = 0; i < data[0].length; i++) {
+                this.data[i] = [this.real_data[i], this.ppm[i]];
+            }
+        }
+        
+        var self = this;
 
         this.line_exp = this.vis.append("g")
             .attr("class", "line_exp_g")
@@ -305,7 +310,7 @@ class cross_section_plot {
             .attr("fill", "none")
             .style("stroke", "black")
             .style("stroke-width", this.exp_line_width)
-            .attr("d", this.line(data));
+            .attr("d", this.line(self.data));
 
         this.redraw();
     };
@@ -354,7 +359,9 @@ class cross_section_plot {
     */
     redraw() {
         var self = this;
-        this.line_exp.attr("d", this.line(this.data)).style("stroke-width", self.exp_line_width);
+        if(this.line_exp){
+            this.line_exp.attr("d", this.line(this.data)).style("stroke-width", self.exp_line_width);
+        }
         this.Axis_element.call(this.Axis);
 
         /**
@@ -380,7 +387,7 @@ class cross_section_plot {
 
     /**
      * This function will apply phase correction to the experimental spectrum.
-     * this.data is an array of [x,y,z] pairs. X is ppm, Y is read part and Z is imaginary part of the spectrum
+     * this.data is an array of [x,y,z] pairs. X is ppm, Y is read part and Z is imaginary_data part of the spectrum
      * @param {double} phase0 phase correction for the experimental spectrum at the left end of the spectrum (smaller ppm)
      * @param {double} phase1 phase correction for the experimental spectrum at the right end of the spectrum (largest ppm)
      * But in visualization, max ppm is drawn on the left and min ppm is drawn on the right.
@@ -395,7 +402,7 @@ class cross_section_plot {
             throw new Error('colmar_1d_double_zoom function apply_phase_correction phase0 and phase1 must be numbers');
         }
         if (this.imagine_exist === false) {
-            throw new Error('colmar_1d_double_zoom function apply_phase_correction cannot apply phase correction because imaginary part is not provided');
+            throw new Error('colmar_1d_double_zoom function apply_phase_correction cannot apply phase correction because imaginary_data part is not provided');
         }
 
         /**
@@ -442,7 +449,7 @@ class cross_section_plot {
          * Throw error if imagine_exist is false
         */
         if (this.imagine_exist === false) {
-            throw new Error('colmar_1d_double_zoom function permanent_phase_correction cannot apply phase correction because imaginary part is not provided');
+            throw new Error('colmar_1d_double_zoom function permanent_phase_correction cannot apply phase correction because imaginary_data part is not provided');
         }
         this.original_data = this.data.map((x) => [x[0], x[1], x[2]]);
     }
