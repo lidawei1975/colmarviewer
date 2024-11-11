@@ -3060,8 +3060,43 @@ function process_ft_file(arrayBuffer,file_name, spectrum_type) {
         filename = hsqc_spectra[index].filename;
         /**
          * generate a blob, which is hsqc_spectra[index].header + hsqc_spectra[index].raw_data
+         * case 1: both are real
          */
-        data = Float32Concat(hsqc_spectra[index].header, hsqc_spectra[index].raw_data);
+        if(hsqc_spectra[index].datatype_direct === 1 && hsqc_spectra[index].datatype_indirect === 1)
+        {
+            data = Float32Concat(hsqc_spectra[index].header, hsqc_spectra[index].raw_data);
+        }
+        /**
+         * One or two dimension(s) are complex
+         */
+        else
+        {
+            let current_position = 0;
+            data = new Float32Array(hsqc_spectra[index].header);
+            for(let i=0;i<hsqc_spectra[index].n_indirect;i++)
+            {
+                let temp_data = new Float32Array(hsqc_spectra[index].raw_data.buffer, current_position * 4, hsqc_spectra[index].n_direct);
+                data = Float32Concat(data, temp_data);
+
+                if(hsqc_spectra[index].datatype_direct === 0)
+                {
+                    temp_data = new Float32Array(hsqc_spectra[index].raw_data_ri.buffer, current_position * 4, hsqc_spectra[index].n_direct);
+                    data = Float32Concat(data,temp_data);
+                }
+                if(hsqc_spectra[index].datatype_indirect === 0)
+                {
+                    temp_data = new Float32Array(hsqc_spectra[index].raw_data_ir.buffer, current_position * 4, hsqc_spectra[index].n_direct);
+                    data = Float32Concat(data,temp_data);
+                }
+                if(hsqc_spectra[index].datatype_direct === 0 && hsqc_spectra[index].datatype_indirect === 0)
+                {
+                    temp_data = new Float32Array(hsqc_spectra[index].raw_data_ii.buffer, current_position * 4, hsqc_spectra[index].n_direct);
+                    data = Float32Concat(data,temp_data);
+                }
+
+                current_position += hsqc_spectra[index].n_direct;
+            }
+        }
     }
     else if(flag==='diff')
     {   
@@ -3088,8 +3123,15 @@ function process_ft_file(arrayBuffer,file_name, spectrum_type) {
         }
         /**
          * generate a blob, which is hsqc_spectra[index].header + diff_data
+         * First, make a copy of the header and then concatenate with diff_data
          */
-        data = Float32Concat(hsqc_spectra[index].header, diff_data);
+        let header = new Float32Array(hsqc_spectra[index].header);
+        /**
+         * Set datatype to 1, since the difference spectrum is always real
+         */
+        header[55] = 1.0;
+        header[56] = 1.0;
+        data = Float32Concat(header, diff_data);
     }
 
 

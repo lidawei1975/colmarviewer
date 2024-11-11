@@ -611,7 +611,7 @@ plotit.prototype.draw = function () {
 
             } //end of vertical
 
-        }, 200);
+        }, 2000);
     })
         .on("mouseleave", function (d) {
             tooldiv.style.opacity = 0.0;
