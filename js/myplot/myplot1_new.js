@@ -67,11 +67,13 @@ function plotit(input) {
     this.current_spectral_index = -1;
     this.b_show_cross_section = false;
     this.b_show_projection = false; 
-    this.x_cross_section_plot = new cross_section_plot();
+    this.x_cross_section_plot = new cross_section_plot(this);
     this.x_cross_section_plot.init( this.WIDTH, 200, this.xscale, [0, 1],{ top: 10, right: 10, bottom: 10, left: 70 }, "cross_section_svg_x","horizontal");
-    this.y_cross_section_plot = new cross_section_plot();
+    this.y_cross_section_plot = new cross_section_plot(this);
     this.y_cross_section_plot.init(200, this.HEIGHT,[0, 1], this.yscale, { top: 20, right: 10, bottom: 70, left: 10 }, "cross_section_svg_y",'vertical');
 
+    this.lastCallTime_zoom_x = Date.now();
+    this.lastCallTime_zoom_y = Date.now();
 };
 
 /**
@@ -258,6 +260,41 @@ plotit.prototype.brushend = function (e) {
     this.y_cross_section_plot.zoom_y(this.yscale);
 
     this.vis.select(".brush").call(this.brush.move, null);
+};
+
+plotit.prototype.zoom_x = function (x_ppm) {
+    
+    let self = this;
+    this.xscale = x_ppm;
+    /**
+     * Save the current time. Update stack of xscales and yscales only when the time difference is greater than 1s
+     */
+    if (Date.now() - self.lastCallTime_zoom_x > 1000) {
+        this.xscales.push(this.xscale);
+        this.yscales.push(this.yscale);
+        self.lastCallTime_zoom_x = Date.now();
+    }
+    this.xRange.domain(this.xscale);
+    this.contour_plot.setCamera_ppm(this.xscale[0], this.xscale[1], this.yscale[0], this.yscale[1]);
+    this.contour_plot.drawScene();
+    this.reset_axis();
+};
+
+plotit.prototype.zoom_y = function (y_ppm) {
+    let self = this;
+    this.yscale = y_ppm;
+    /**
+     * Save the current time. Update stack of xscales and yscales only when the time difference is greater than 1s
+     */
+    if (Date.now() - self.lastCallTime_zoom_y > 1000) {
+        this.xscales.push(this.xscale);
+        this.yscales.push(this.yscale);
+        self.lastCallTime_zoom_y = Date.now();
+    }
+    this.yRange.domain(this.yscale);
+    this.contour_plot.setCamera_ppm(this.xscale[0], this.xscale[1], this.yscale[0], this.yscale[1]);
+    this.contour_plot.drawScene();
+    this.reset_axis();
 };
 
 
@@ -650,7 +687,7 @@ plotit.prototype.draw = function () {
 
             } //end of vertical
 
-        }, 500);
+        }, 1500);
     })
         .on("mouseleave", function (d) {
             tooldiv.style.opacity = 0.0;

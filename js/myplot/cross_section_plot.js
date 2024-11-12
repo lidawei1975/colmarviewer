@@ -1,5 +1,5 @@
 class cross_section_plot {
-    constructor(url) {
+    constructor(parent_plot) {
 
         // test d3 exist
         if (!d3) throw Error('d3 library not set');
@@ -8,6 +8,7 @@ class cross_section_plot {
         this.data = []; //experimental spectrum, with phase correction applied.
         this.original_data = []; //experimental spectrum before phase correction
         this.data_strided = []; //experimental spectrum that will be plotted at current zoom level and pan position, shallow copy of this.data
+        this.parent_plot = parent_plot; //parent plot object
     }
 
     /**
@@ -213,25 +214,78 @@ class cross_section_plot {
                  * So, top is smaller than bottom
                  */
                 if (orientation === "horizontal") {
+
                     let bound = document.getElementById('cross_section_x').getBoundingClientRect();
+                    let ppm = self.x.invert(e.clientX - bound.left);
                     let amp = self.y.invert(e.clientY - bound.top);
-                    let top = self.y.domain()[0];
-                    let bottom = self.y.domain()[1];
-                    let new_top = amp - (amp - top) * delta;
-                    let new_bottom = amp + (bottom - amp) * delta;
-                    this.y.domain([new_top, new_bottom]);
+
+                    if (e.clientX - bound.left < self.margin.left || e.shiftKey == true) {
+                        /**
+                         * Get top and bottom of the visible range
+                         * We need to zoom in/out around the mouse position
+                         * So, we need to calculate the new top and bottom of the visible range
+                         * Note: Y axis is inverted
+                         * So, top is smaller than bottom
+                         */
+                        let top = self.y.domain()[0];
+                        let bottom = self.y.domain()[1];
+                        let new_top = amp - (amp - top) * delta;
+                        let new_bottom = amp + (bottom - amp) * delta;
+                        this.y.domain([new_top, new_bottom]);
+                    }
+                    /**
+                     * Right side of the Y axis, X zoom only
+                     */
+                    else if (e.clientX - bound.left > self.margin.left && e.clientX - bound.left < self.width - self.margin.right) {
+                        /**
+                         * Get left and right of the visible range
+                         * We need to zoom in/out around the mouse position
+                         * So, we need to calculate the new left and right of the visible range
+                         */
+                        let left = self.x.domain()[0];
+                        let right = self.x.domain()[1];
+                        let new_left = ppm - (ppm - left) * delta;
+                        let new_right = ppm + (right - ppm) * delta;
+                        this.x.domain([new_left, new_right]);
+                        /**
+                         * Update parent plot (main_plot)'s x domain
+                         */
+                        this.parent_plot.zoom_x([this.x.domain()[0], this.x.domain()[1]]);
+                    }
                 }
                 else {
                     let bound = document.getElementById('cross_section_y').getBoundingClientRect();
+                    let ppm = self.y.invert(e.clientY - bound.top);
                     let amp = self.x.invert(e.clientX - bound.left);
-                    let left = self.x.domain()[0];
-                    let right = self.x.domain()[1];
-                    let new_left = amp - (amp - left) * delta;
-                    let new_right = amp + (right - amp) * delta;
-                    this.x.domain([new_left, new_right]);
+
+                    /**
+                     * Above the X axis, Y zoom only
+                     */
+                    if (e.clientY - bound.top < self.height - self.margin.bottom && e.clientY - bound.top > self.margin.top) 
+                    {
+                        let top = self.y.domain()[0];
+                        let bottom = self.y.domain()[1];
+                        let new_top = ppm - (ppm - top) * delta;
+                        let new_bottom = ppm + (bottom - ppm) * delta;
+                        this.y.domain([new_top, new_bottom]);
+                        /**
+                         * Update parent plot (main_plot)'s y domain
+                         */
+                        this.parent_plot.zoom_y([this.y.domain()[0], this.y.domain()[1]]);
+                    }
+                    /**
+                     * Below the X axis, X zoom only (amplitude zoom)
+                     */
+                    else if (e.clientY - bound.top > self.height - self.margin.bottom)
+                    {
+                        let left = self.x.domain()[0];
+                        let right = self.x.domain()[1];
+                        let new_left = amp - (amp - left) * delta;
+                        let new_right = amp + (right - amp) * delta;
+                        this.x.domain([new_left, new_right]);
+                    }
                 }
             }
-
 
             this.redraw();
         });
@@ -516,9 +570,8 @@ class cross_section_plot {
     handleMouseMove(e) {
         var self = this;
 
-
         /**
-         * If the mouse is down, we need to pan the plot. Y axis only
+         * If the mouse is down, we need to pan the plot.
          */
         if (this.mouse_is_down == true) {
 
@@ -529,11 +582,25 @@ class cross_section_plot {
                  * Convert deltaY intensity
                  */
                 let delta_intensity = this.y.invert(e.clientY) - this.y.invert(this.startMousePos[1]);
-
                 /**
                  * Update self.y
                  */
                 self.y.domain([self.y.domain()[0] - delta_intensity, self.y.domain()[1] - delta_intensity]);
+
+                /**
+                 * Convert deltaX ppm
+                 */
+                let delta_ppm = this.x.invert(e.clientX) - this.x.invert(this.startMousePos[0]);
+                /**
+                 * Update self.x
+                 */
+                self.x.domain([self.x.domain()[0] - delta_ppm, self.x.domain()[1] - delta_ppm]);
+
+                /**
+                 * Also update parent plot (main_plot)'s x domain
+                 */
+                this.parent_plot.zoom_x([this.x.domain()[0], this.x.domain()[1]]);
+
             }
             else if (this.orientation === "vertical") {
                 /**
@@ -545,6 +612,20 @@ class cross_section_plot {
                  * Update self.x
                  */
                 self.x.domain([self.x.domain()[0] - delta_intensity, self.x.domain()[1] - delta_intensity]);
+
+                /**
+                 * Convert deltaY ppm
+                 */
+                let delta_ppm = this.y.invert(e.clientY) - this.y.invert(this.startMousePos[1]);
+                /**
+                 * Update self.y
+                 */
+                self.y.domain([self.y.domain()[0] - delta_ppm, self.y.domain()[1] - delta_ppm]);
+
+                /**
+                 * Also update parent plot (main_plot)'s y domain
+                 */
+                this.parent_plot.zoom_y([this.y.domain()[0], this.y.domain()[1]]);
             }
 
             /**
