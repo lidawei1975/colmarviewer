@@ -126,6 +126,7 @@ plotit.prototype.update = function (input) {
         .attr("width", this.WIDTH - this.MARGINS.right - this.MARGINS.left)
         .attr("height", this.HEIGHT - this.MARGINS.bottom - this.MARGINS.top);
 
+
     /**
      * Update webgl contour. No need to update view
      */
@@ -171,6 +172,12 @@ plotit.prototype.reset_axis = function () {
         .attr('cy', function (d) {
             return self.yRange(d.cs_y);
         });
+
+    /**
+     * Reset vline and hline
+     */
+    this.vis.selectAll(".hline").attr("d", self.lineFunc(self.hline_data));
+    this.vis.selectAll(".vline").attr("d", self.lineFunc(self.vline_data));
 };
 
 
@@ -371,6 +378,14 @@ plotit.prototype.draw = function () {
     this.yAxis_svg = this.vis.append('svg:g')
         .attr('class', 'yaxis')
         .attr('transform', 'translate(' + (this.MARGINS.left) + ',0)');
+
+    /**
+     * Place holder vline and hline, not visible
+     */
+    this.hline_data = [[0.1,-1000],[0,-1000]];
+    this.vline_data = [[-1000,0],[-1000,1]];
+    this.vis.selectAll(".hline").attr("d", self.lineFunc(self.hline_data));
+    this.vis.selectAll(".vline").attr("d", self.lineFunc(self.vline_data));
     
     this.reset_axis();
 
@@ -450,31 +465,36 @@ plotit.prototype.draw = function () {
             document.getElementById("infor").innerHTML 
                 = "x_ppm: " + x_ppm.toFixed(3) + ", y_ppm: " + y_ppm.toFixed(2)+ ", Intensity: " + data_height.toExponential(2);
 
+            let x_ppm_start = hsqc_spectra[spe_index].x_ppm_start + hsqc_spectra[spe_index].x_ppm_ref;
+            let x_ppm_end = x_ppm_start + hsqc_spectra[spe_index].x_ppm_step * hsqc_spectra[spe_index].n_direct;
+            let y_ppm_start = hsqc_spectra[spe_index].y_ppm_start + hsqc_spectra[spe_index].y_ppm_ref;
+            let y_ppm_end = y_ppm_start + hsqc_spectra[spe_index].y_ppm_step * hsqc_spectra[spe_index].n_indirect;
+
             /**
-             * Show a horizontal line at current y location
-            */
-            self.vis.selectAll(".hline").remove();
-            self.vis.append("line")
-                .attr("class", "hline")
-                .attr("x1", self.MARGINS.left)
-                .attr("y1", event.offsetY)
-                .attr("x2", self.WIDTH - self.MARGINS.right)
-                .attr("y2", event.offsetY)
-                .attr("stroke-width", 1)
-                .attr("stroke", "black");
-            
-            /**
-             * Show a vertical line at current x location
+             * Add a horizontal line at the current y ppm, from x_ppm_start to x_ppm_end
+             * This line is subject to zoom, pan, resize, etc
              */
-            self.vis.selectAll(".vline").remove();
-            self.vis.append("line")
-                .attr("class", "vline")
-                .attr("x1", event.offsetX)
-                .attr("y1", self.MARGINS.top)
-                .attr("x2", event.offsetX)
-                .attr("y2", self.HEIGHT - self.MARGINS.bottom)
+            self.hline_data = [[x_ppm_start, y_ppm], [x_ppm_end, y_ppm]];
+            self.vis.selectAll(".hline").remove();
+            self.vis.append("path")
+                .attr("class", "hline")
+                .attr("clip-path", "url(#clip)")
+                .attr("d", self.lineFunc(self.hline_data))
                 .attr("stroke-width", 1)
-                .attr("stroke", "black");
+                .attr("stroke", "green");
+
+            /**
+             * Add a vertical line at the current x ppm, from y_ppm_start to y_ppm_end
+             * This line is subject to zoom, pan, resize, etc
+             */
+            self.vline_data = [[x_ppm, y_ppm_start], [x_ppm, y_ppm_end]];
+            self.vis.selectAll(".vline").remove();
+            self.vis.append("path")
+                .attr("class", "vline")
+                .attr("clip-path", "url(#clip)")
+                .attr("d", self.lineFunc(self.vline_data))
+                .attr("stroke-width", 1)
+                .attr("stroke", "green");
 
             
 
@@ -638,11 +658,6 @@ plotit.prototype.draw = function () {
             if(self.timeout) {
                 clearTimeout(self.timeout);
             }
-            /**
-             * Remove the horizontal line and vertical line
-             */
-            self.vis.selectAll(".hline").remove();
-            self.vis.selectAll(".vline").remove();
         });
     /**
      * Draw contour on the canvas, which is a background layer

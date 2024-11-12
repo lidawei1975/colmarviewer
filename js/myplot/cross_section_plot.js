@@ -21,7 +21,7 @@ class cross_section_plot {
     init(width, height, x_domain, y_domain, margin, svg_id, orientation) {
 
         this.phase_correction = 0.0;
-        this.anchor_ppm = 0.0;
+        this.anchor_ppm = -100.0;
         this.phase_correction_p1 = 0.0;
 
 
@@ -131,6 +131,13 @@ class cross_section_plot {
         }
 
         /**
+         * Turn off the default right click menu
+         */
+        this.vis.on("contextmenu", function (e) {
+            e.preventDefault();
+        });
+
+        /**
          * Handle zoom and pan event
          */
         var self = this;
@@ -142,14 +149,11 @@ class cross_section_plot {
          */
         this.vis.on('mousedown', (e) => {
             e.preventDefault();
-            // console.log('mousedown');
-            // console.log(e.clientX, e.clientY);
-            this.mouse_is_down = true;
-            this.mouse_is_moving = false;
 
+            this.mouse_is_down = true;
+            this.mouse_is_moving = false;            
             this.handleMouseUpHandler = this.handleMouseUp.bind(this);
             this.vis.on('mouseup', (e) => { self.handleMouseUpHandler(e); });
-            // window.addEventListener('mouseup', self.handleMouseUpHandler);
             self.startMousePos = [e.clientX, e.clientY];
         });
 
@@ -561,7 +565,10 @@ class cross_section_plot {
         var self = this;
         this.vis.on('mouseup', null);
         this.mouse_is_down = false;
-        if(this.mouse_is_moving === false)
+        /**
+         * Left click event
+         */
+        if(this.mouse_is_moving === false && e.button === 0)
         {
             /**
              * If the mouse is not moving, we have a click event.
@@ -572,17 +579,32 @@ class cross_section_plot {
             {
                 let ppm = this.x.invert(e.offsetX);
                 this.anchor_ppm = ppm;
-                document.getElementById('anchor_direct').innerHTML = ppm.toFixed(2);
+                document.getElementById('anchor_direct').innerHTML = ppm.toFixed(2)+" ppm";
             }
             else
             {
                 let ppm = this.y.invert(e.offsetY);
                 this.anchor_ppm = ppm;
-                document.getElementById('anchor_indirect').innerHTML = ppm.toFixed(2);
+                document.getElementById('anchor_indirect').innerHTML = ppm.toFixed(2)+" ppm";
             }
-            
-            return;
         }
+        /**
+         * Right click event
+         */
+        else if(this.mouse_is_moving === false && e.button === 2)
+        {
+            /**
+             * Clear anchor ppm
+             */
+            this.anchor_ppm = -100.0;
+            if(this.orientation === "horizontal"){
+                document.getElementById('anchor_direct').innerHTML = "not set";
+            }
+            else{
+                document.getElementById('anchor_indirect').innerHTML = "not set";
+            }
+        }
+        return;
     }
 
     median(values) {
