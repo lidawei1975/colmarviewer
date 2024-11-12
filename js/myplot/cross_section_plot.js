@@ -171,27 +171,62 @@ class cross_section_plot {
              * 2. If not, zoom in/out
              */
             if (e.shiftKey && this.imagine_exist === true) {
-                if(delta > 0) {
-                    this.phase_correction -=1/180*Math.PI;
+
+                /**
+                 * If anchor ppm is not set, we change this.phase_correction
+                 */
+                if(this.anchor_ppm < -99.0)
+                {
+                    if(delta > 0) {
+                        this.phase_correction -=1/180*Math.PI;
+                    }
+                    else {
+                        this.phase_correction +=1/180*Math.PI;
+                    }
                 }
+                /**
+                 * If anchor ppm is set, we change this.phase_correction_p1
+                 */
                 else {
-                    this.phase_correction +=1/180*Math.PI;
+                    if (delta > 0) {
+                        this.phase_correction_p1 -= 1 / 180 * Math.PI;
+                    }
+                    else {
+                        this.phase_correction_p1 += 1 / 180 * Math.PI;
+                    }
                 }
+                /**
+                     * Get index of the anchor ppm. phase_correction_array[anchor_index] = this.phase_correction
+                     * and phase_correction_array[last] - phase_correction_array[0] = this.phase_correction_p1
+                     */
+                this.make_phase_correction_array();
                 /**
                  * Update real_data and imaginary_data with phase correction
                  */
                 if (orientation === "horizontal") {
-                    document.getElementById('p0_direct').innerHTML = (this.phase_correction/Math.PI*180).toFixed(1);
-                    for (var i = 0; i < this.data.length; i++) {
-                        this.data[i][1] = this.real_data[i] * Math.cos(this.phase_correction) + this.imaginary_data[i] * Math.sin(this.phase_correction);
+                    if(this.anchor_ppm < -99.0){
+                        document.getElementById('p0_direct').innerHTML = (this.phase_correction/Math.PI*180).toFixed(1);
                     }
+                    else{
+                        document.getElementById('p1_direct').innerHTML = (this.phase_correction_p1/Math.PI*180).toFixed(1);
+                    }
+                    
+                    for (var i = 0; i < this.data.length; i++) {
+                        this.data[i][1] = this.real_data[i] * Math.cos(this.phase_correction_array[i]) - this.imaginary_data[i] * Math.sin(this.phase_correction_array[i]);
+                
+                }
                    
                 }
                 else
                 {
-                    document.getElementById('p0_indirect').innerHTML = (this.phase_correction/Math.PI*180).toFixed(1);
+                    if(this.anchor_ppm < -99.0){
+                        document.getElementById('p0_indirect').innerHTML = (this.phase_correction/Math.PI*180).toFixed(1);
+                    }
+                    else{
+                        document.getElementById('p1_indirect').innerHTML = (this.phase_correction_p1/Math.PI*180).toFixed(1);
+                    }
                     for (var i = 0; i < this.data.length; i++) {
-                        this.data[i][0] = this.real_data[i] * Math.cos(this.phase_correction) + this.imaginary_data[i] * Math.sin(this.phase_correction);
+                        this.data[i][0] = this.real_data[i] * Math.cos(this.phase_correction_array[i]) - this.imaginary_data[i] * Math.sin(this.phase_correction_array[i]);
                     }
                 }
                 this.redraw();
@@ -219,7 +254,7 @@ class cross_section_plot {
                     let ppm = self.x.invert(e.clientX - bound.left);
                     let amp = self.y.invert(e.clientY - bound.top);
 
-                    if (e.clientX - bound.left < self.margin.left || e.shiftKey == true) {
+                    if (e.clientX - bound.left < self.margin.left ) {
                         /**
                          * Get top and bottom of the visible range
                          * We need to zoom in/out around the mouse position
@@ -355,14 +390,34 @@ class cross_section_plot {
         this.clip_space.attr("height", height - this.margin.top - this.margin.bottom);
         this.redraw();
     }
+    
+    make_phase_correction_array()
+    {
+        if(this.anchor_ppm < -99.0){
+            this.phase_correction_array = new Array(this.ppm_size);
+            for (var i = 0; i < this.ppm_size; i++) {
+                this.phase_correction_array[i] = this.phase_correction;
+            }
+        }
+        else{
+            let anchor_index = Math.round((this.anchor_ppm-this.ppm_start)/this.ppm_step);
+            this.phase_correction_array = new Array(this.ppm_size);
+            for (var i = 0; i < this.ppm_size; i++) {
+                this.phase_correction_array[i] = this.phase_correction + this.phase_correction_p1 * (i-anchor_index) / this.ppm_size;
+            }
+        }
+    }
 
-
-    update_data(data) {
+    update_data(data0,data) {
         /**
          * Remove old experimental spectrum, including "g" element and "path" element
          */
         this.vis.selectAll(".line_exp").remove();
         this.vis.selectAll(".line_exp_g").remove();
+
+        this.ppm_start = data0[0];
+        this.ppm_step = data0[1];
+        this.ppm_size = data0[2];
 
         /**
          * data is an array of [x,y,z] pairs. X: chemical shift, Y: intensity, Z: imaginary_data part of the spectrum. Z might not exist (length of Z is 0)
@@ -373,12 +428,30 @@ class cross_section_plot {
             this.ppm = data[0];
             this.real_data = data[1];
             this.imaginary_data = [];
+            /**
+             * Hide phase correction panel
+             */
+            if (this.orientation === "horizontal") {
+                document.getElementById('cross_section_x_info').style.display = "none";
+            }
+            else {
+                document.getElementById('cross_section_y_info').style.display = "none";
+            }
         }
         else {
             this.imagine_exist = true;
             this.ppm = data[0];
             this.real_data = data[1];
             this.imaginary_data = data[2];
+            /**
+             * Show phase correction panel
+             */
+            if (this.orientation === "horizontal") {
+                document.getElementById('cross_section_x_info').style.display = "block";
+            }
+            else {
+                document.getElementById('cross_section_y_info').style.display = "block";
+            }
         }
 
         this.data = new Array(this.ppm.length);
@@ -397,14 +470,15 @@ class cross_section_plot {
         }
         else
         {
+            this.make_phase_correction_array();
             if (this.orientation === "horizontal") {
                 for (var i = 0; i < data[0].length; i++) {
-                    this.data[i] = [this.ppm[i], this.real_data[i] * Math.cos(this.phase_correction) + this.imaginary_data[i] * Math.sin(this.phase_correction)];
+                    this.data[i] = [this.ppm[i], this.real_data[i] * Math.cos(this.phase_correction_array[i]) - this.imaginary_data[i] * Math.sin(this.phase_correction_array[i])];
                 }
             }
             else if (this.orientation === "vertical") {
                 for (var i = 0; i < data[0].length; i++) {
-                    this.data[i] = [this.real_data[i] * Math.cos(this.phase_correction) + this.imaginary_data[i] * Math.sin(this.phase_correction), this.ppm[i]];
+                    this.data[i] = [this.real_data[i] * Math.cos(this.phase_correction_array[i]) - this.imaginary_data[i] * Math.sin(this.phase_correction_array[i]), this.ppm[i]];
                 }
             }
         }
@@ -424,6 +498,46 @@ class cross_section_plot {
 
         this.redraw();
     };
+
+    clear() {
+        /**
+         * Clear this.data
+         */
+        this.data = [];
+        this.imagine_exist = false;
+        if (this.orientation === "horizontal") {
+            document.getElementById('cross_section_x_info').style.display = "none";
+        }
+        else {
+            document.getElementById('cross_section_y_info').style.display = "none";
+        }
+        this.redraw();
+    }
+
+
+    get_phase_correction() {
+        /**
+         * Need to get phase_correction at index 0
+         */
+        let phase_correction_at_0 = this.phase_correction_array[0];
+        return [phase_correction_at_0, this.phase_correction_p1];
+    }
+
+    clear_phase_correction() {
+        this.phase_correction = 0.0;
+        this.phase_correction_p1 = 0.0;
+        this.anchor_ppm = -100.0;
+        this.phase_correction_array =[];
+
+        if (this.orientation === "horizontal") {
+            document.getElementById('p0_direct').innerHTML = "0.0";
+            document.getElementById('p1_direct').innerHTML = "0.0";
+        }
+        else {
+            document.getElementById('p0_indirect').innerHTML = "0.0";
+            document.getElementById('p1_indirect').innerHTML = "0.0";
+        }
+    }
 
     /**
      * Called when user change the size of the plot
@@ -494,60 +608,6 @@ class cross_section_plot {
         }
     }
 
-    /**
-     * This function will apply phase correction to the experimental spectrum.
-     * this.data is an array of [x,y,z] pairs. X is ppm, Y is read part and Z is imaginary_data part of the spectrum
-     * @param {double} phase0 phase correction for the experimental spectrum at the left end of the spectrum (smaller ppm)
-     * @param {double} phase1 phase correction for the experimental spectrum at the right end of the spectrum (largest ppm)
-     * But in visualization, max ppm is drawn on the left and min ppm is drawn on the right.
-     * This is opposite to what we save the spectrum in this.data
-     */
-    apply_phase_correction(phase0, phase1) {
-
-        /**
-         * Throw error if phase0 or phase1 is not a number or imagine_exist is false
-         */
-        if (typeof phase0 != 'number' || typeof phase1 != 'number') {
-            throw new Error('colmar_1d_double_zoom function apply_phase_correction phase0 and phase1 must be numbers');
-        }
-        if (this.imagine_exist === false) {
-            throw new Error('colmar_1d_double_zoom function apply_phase_correction cannot apply phase correction because imaginary_data part is not provided');
-        }
-
-        /**
-         * prevent re-interpretation of this inside some functions. we need to use self sometimes
-         */
-        var self = this;
-
-        /**
-         * var phase_correction is an array of phase correction for each data point. Same length as this.data
-         */
-        let phase_correction = new Array(this.data.length);
-        /**
-         * we can calculate the phase correction for each data point using linear interpolation, using index 
-         * ppm is linearly spaced. So, we can use index to calculate the phase correction for each data point
-         */
-        for (var i = 0; i < this.data.length; i++) {
-            phase_correction[i] = phase0 + (phase1 - phase0) * i / this.data.length;
-        }
-
-        /**
-         * Now apply phase correction to the experimental spectrum at each data point
-         * y ==> ori_y*cos(phase_correction) + ori_z * sin(phase_correction)
-         * z ==> ori_z*cos(phase_correction) - ori_y * sin(phase_correction)
-         * Infor: Angle is in radians in JS Math library
-         */
-        for (var i = 0; i < this.data.length; i++) {
-            this.data[i][1] = this.original_data[i][1] * Math.cos(phase_correction[i]) + this.original_data[i][2] * Math.sin(phase_correction[i]);
-            this.data[i][2] = this.original_data[i][2] * Math.cos(phase_correction[i]) - this.original_data[i][1] * Math.sin(phase_correction[i]);
-        }
-
-        /**
-         * Now draw the experimental spectrum with phase correction.
-         * this.data_strided is a shallow copy of this.data (share the same data!!)
-         */
-        this.line_exp.attr("d", self.line(self.data_strided));
-    }
 
     /**
      * This function will set the experimental spectrum to phase corrected spectrum

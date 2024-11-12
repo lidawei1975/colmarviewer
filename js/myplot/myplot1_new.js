@@ -604,7 +604,8 @@ plotit.prototype.draw = function () {
                      * Draw cross section line plot on the cross_section_svg_x
                      */
                     self.x_cross_section_plot.zoom(self.xscale,[data_min, data_max]);
-                    self.x_cross_section_plot.update_data([data_ppm,data_height,data_height_i]);
+                    self.x_cross_section_plot.update_data([hsqc_spectra[spe_index].x_ppm_start + hsqc_spectra[spe_index].x_ppm_ref,hsqc_spectra[spe_index].x_ppm_step,hsqc_spectra[spe_index].n_direct],
+                        [data_ppm,data_height,data_height_i]);
                 }
            
                 /**
@@ -682,7 +683,8 @@ plotit.prototype.draw = function () {
                      * Draw cross section line plot on the cross_section_svg_y
                      */
                     self.y_cross_section_plot.zoom([data_min, data_max],self.yscale);
-                    self.y_cross_section_plot.update_data([data_ppm,data_height,data_height_i]);
+                    self.y_cross_section_plot.update_data([hsqc_spectra[spe_index].y_ppm_start + hsqc_spectra[spe_index].y_ppm_ref,hsqc_spectra[spe_index].y_ppm_step,hsqc_spectra[spe_index].n_indirect],
+                        [data_ppm,data_height,data_height_i]);
                 }
 
             } //end of vertical
@@ -706,6 +708,15 @@ plotit.prototype.draw = function () {
     }
 };
 
+plotit.prototype.get_phase_correction = function () {
+    let self = this;
+    let phase_direct = self.x_cross_section_plot.get_phase_correction();
+    let phase_indirect = self.y_cross_section_plot.get_phase_correction();
+    self.x_cross_section_plot.clear_phase_correction();
+    self.y_cross_section_plot.clear_phase_correction();
+    return [phase_direct, phase_indirect];
+}
+
 plotit.prototype.show_projection = function () {
 
     let self = this;
@@ -725,7 +736,8 @@ plotit.prototype.show_projection = function () {
         ppm.push(hsqc_spectra[spe_index].x_ppm_start + hsqc_spectra[spe_index].x_ppm_ref + i * hsqc_spectra[spe_index].x_ppm_step);
     }
     self.x_cross_section_plot.zoom(self.xscale,[hsqc_spectra[spe_index].projection_direct_min, hsqc_spectra[spe_index].projection_direct_max]);
-    self.x_cross_section_plot.update_data([ppm,hsqc_spectra[spe_index].projection_direct,[]]);
+    self.x_cross_section_plot.update_data([hsqc_spectra[spe_index].x_ppm_start + hsqc_spectra[spe_index].x_ppm_ref,hsqc_spectra[spe_index].x_ppm_step,hsqc_spectra[spe_index].n_direct],
+        [ppm,hsqc_spectra[spe_index].projection_direct,[]]);
     /**
      * data2 is an array of 2 numbers, [y_height,y_ppm]
      */
@@ -735,7 +747,8 @@ plotit.prototype.show_projection = function () {
         ppm2.push(hsqc_spectra[spe_index].y_ppm_start + hsqc_spectra[spe_index].y_ppm_ref + i * hsqc_spectra[spe_index].y_ppm_step);
     }
     self.y_cross_section_plot.zoom([hsqc_spectra[spe_index].projection_indirect_min, hsqc_spectra[spe_index].projection_indirect_max],self.yscale);
-    self.y_cross_section_plot.update_data([ppm2,hsqc_spectra[spe_index].projection_indirect,[]]);
+    self.y_cross_section_plot.update_data([hsqc_spectra[spe_index].y_ppm_start + hsqc_spectra[spe_index].y_ppm_ref,hsqc_spectra[spe_index].y_ppm_step,hsqc_spectra[spe_index].n_indirect],
+        [ppm2,hsqc_spectra[spe_index].projection_indirect,[]]);
 }
 
 plotit.prototype.redraw_contour = function ()

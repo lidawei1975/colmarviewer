@@ -547,9 +547,9 @@ onmessage = function (e) {
     }
 
     /**
-     * If the message contains spectrum_data without picked_peaks call deep function
+     * If the message contains spectrum_data, scale, scale2 without picked_peaks call deep function
      */
-    else if (e.data.spectrum_data )
+    else if (e.data.spectrum_data && e.data.scale && e.data.scale2)
     {
         console.log('Spectrum data received');
         /**
@@ -606,6 +606,55 @@ onmessage = function (e) {
             scale2: e.data.scale2
         });
     }
+
+    /**
+     * With spectrum_data and phase_correction, run fid function to apply phase correction only
+     */
+    else if (e.data.spectrum_data && e.data.phase_correction) {
+        console.log('Spectrum data and phase correction received');
+        /**
+         * Save the spectrum data to the virtual file system
+         */
+        Module['FS_createDataFile']('/', 'input.ft2', e.data.spectrum_data, true, true, true);
+        console.log('Spectrum data saved to virtual file system, size is:', e.data.spectrum_data.length);
+        /**
+         * Save phase correction to the virtual file system as phase-correction.txt
+         * e.data.phase_correction is array of 2 arrays, each array has 2 numbers; convert to string with 4 numbers, separated by space
+         */
+        let phase_correction_string = e.data.phase_correction.map(x => x.join(' ')).join(' ');
+        Module['FS_createDataFile']('/', 'phase-correction.txt', phase_correction_string, true, true, true);
+
+        /**
+         * Write a file named "arguments_fid_2d.txt" to the virtual file system
+         */
+        let content = ' -in input.ft2 -out test.ft2 -phase-in phase-correction.txt -di no -di-indirect no -process other -nus none';
+        Module['FS_createDataFile']('/', 'arguments_fid_2d.txt', content, true, true, true);
+        console.log(content);
+
+        /**
+         * Call fid function
+         */
+        postMessage({ stdout: "Running fid function to apply phase correction" });
+        api.fid();
+        console.log('Finished running fid for phase correction');
+
+        /**
+         * Remove the input files from the virtual file system
+         */
+        FS.unlink('input.ft2');
+        FS.unlink('phase-correction.txt');
+        FS.unlink('arguments_fid_2d.txt');
+        const file_data = FS.readFile('test.ft2', { encoding: 'binary' });
+        console.log('File data read from virtual file system length:', file_data.length);
+        FS.unlink('test.ft2');
+        FS.unlink('fid-information.json');
+        postMessage({
+            file_data: file_data,
+            spectrum_name: e.data.spectrum_name, //pass through the spectrum name
+            spectrum_index: e.data.spectrum_index //pass through the spectrum index
+        });
+    }
+
 
     /**
      * initial_peaks and all_files are received, run pseudo-3D fitting using api.voigt_fit

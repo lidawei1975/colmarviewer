@@ -32,9 +32,11 @@ var pseudo3d_fitted_peaks = []; //pseudo 3D fitted peaks, JSON array
 var total_number_of_experimental_spectra = 0; //total number of experimental spectra
 
 /**
- * For FID processing. Saved file data
+ * For FID re-processing. Saved file data
+ * fid_files_spectral_index is the index in hsqc_spectra of these FID files.
  */
 var current_fid_files;
+var fid_files_spectral_index; 
 
 /**
  * Current processing parameters
@@ -504,7 +506,7 @@ $(document).ready(function () {
             }).then((file_data) => {
                 if(file_data !== null){
                     let result_spectrum = process_ft_file(file_data,this.querySelector('input[type="file"]').files[ii].name,-1);
-                    draw_spectrum(result_spectrum,false);
+                    draw_spectrum(result_spectrum,false/**from fid */,false/** re-process of fid or ft2 */);
                 }
                 /**
                  * If it is the last file, clear the file input
@@ -1019,7 +1021,7 @@ webassembly_worker.onmessage = function (e) {
          */
         result_spectrum.scale = e.data.scale;
         result_spectrum.scale2 = e.data.scale2;
-        draw_spectrum(result_spectrum,false);
+        draw_spectrum(result_spectrum,false/**from fid */,false/**re-process of fid or ft2 */);
 
         /**
          * Clear the processing message
@@ -1094,6 +1096,10 @@ webassembly_worker.onmessage = function (e) {
              */
             apodization_indirect = e.data.apodization_indirect;
             document.getElementById("apodization_indirect").value = apodization_indirect;
+            
+            /**
+             *  
+             */
         }
 
         let arrayBuffer = new Uint8Array(e.data.file_data).buffer;
@@ -1107,7 +1113,7 @@ webassembly_worker.onmessage = function (e) {
          */
         let b_reprocess = e.data.processing_flag == 1 ? true : false;
         result_spectrum.spectrum_index = e.data.spectrum_index; //only used when reprocess
-        draw_spectrum(result_spectrum,b_reprocess);
+        draw_spectrum(result_spectrum,true/**from fid */,b_reprocess);
         /**
          * Clear the processing message
          */
@@ -1117,6 +1123,19 @@ webassembly_worker.onmessage = function (e) {
          */
         document.getElementById("auto_direct").checked = false;
         document.getElementById("auto_indirect").checked = false;
+    }
+
+    /**
+     * Only file_data, it is a phase corrected spectrum
+     */
+    else if (e.data.file_data && e.data.spectrum_name)
+    {
+        console.log("Phase corrected spectrum received");
+        document.getElementById("webassembly_message").innerText = "";
+        let arrayBuffer = new Uint8Array(e.data.file_data).buffer;
+        let result_spectrum = process_ft_file(arrayBuffer,e.data.spectrum_name,-1);
+        result_spectrum.spectrum_index = e.data.spectrum_index;
+        draw_spectrum(result_spectrum,false/**from fid */,true/**re-process of fid or ft2 */);
     }
 
     /**
@@ -1538,16 +1557,15 @@ function add_to_list(index) {
 
 
     /**
-     * Add a download button to download the spectrum only if spectrum_origin is not -1
+     * Add a download button to download the spectrum 
      * Allow download of from fid and from reconstructed spectrum
      */
-    if (new_spectrum.spectrum_origin !== -1) {
-        let download_button = document.createElement("button");
-        download_button.innerText = "Download ft2";
-        download_button.onclick = function () { download_spectrum(index,'original'); };
-        new_spectrum_div.appendChild(download_button);
-    }
-
+    
+    let download_button = document.createElement("button");
+    download_button.innerText = "Download ft2";
+    download_button.onclick = function () { download_spectrum(index,'original'); };
+    new_spectrum_div.appendChild(download_button);
+    
     /**
      * Add a different spectrum download button for reconstructed spectrum only
      */
@@ -2826,6 +2844,8 @@ function process_ft_file(arrayBuffer,file_name, spectrum_type) {
         console.log("Complex data along both dimensions.");
         result.n_indirect /= 2; //complex data along both dimensions, per nmrPipe format, so we divide by 2
     }
+    console.log("n_direct: ", result.n_direct);
+    console.log("n_indirect: ", result.n_indirect);
 
     result.direct_ndx = result.header[24]; //must be 2
     result.indirect_ndx = result.header[25]; //must be 1 or 3
@@ -3159,6 +3179,7 @@ function process_ft_file(arrayBuffer,file_name, spectrum_type) {
          */
         header[55] = 1.0;
         header[56] = 1.0;
+        header[219] = hsqc_spectra[index].n_direct;
         data = Float32Concat(header, diff_data);
     }
 
@@ -3172,12 +3193,14 @@ function process_ft_file(arrayBuffer,file_name, spectrum_type) {
  }
 
 /**
- * Add a new spectrum to the list and update the contour plot
+ * Add a new spectrum to the list and update the contour plot. When contour is updated, add_to_list() is called to update the list of spectra
+ * in the uses interface
  * @param {*} result_spectrum: an object of hsqc_spectrum
+ * @param {*} b_from_fid: boolean, whether the spectrum is from a fid file
  * @param {*} b_reprocess: boolean, whether this is a new spectrum or a reprocessed spectrum
  * @returns 
  */
-function draw_spectrum(result_spectrum, b_reprocess)
+function draw_spectrum(result_spectrum, b_from_fid,b_reprocess)
 {
     if(typeof result_spectrum.error !== "undefined")
     {
@@ -3187,10 +3210,10 @@ function draw_spectrum(result_spectrum, b_reprocess)
 
     let spectrum_index;
 
-    if(b_reprocess === false)
+    if(b_from_fid ==false && b_reprocess === false)
     {
         /**
-         * New spectrum, set its index (current length of the spectral array) and color
+         * New spectrum from ft2, set its index (current length of the spectral array) and color
          */
         spectrum_index = hsqc_spectra.length;
         result_spectrum.spectrum_index = spectrum_index;
@@ -3198,13 +3221,37 @@ function draw_spectrum(result_spectrum, b_reprocess)
         result_spectrum.spectrum_color_negative = color_list[(spectrum_index*2+1) % color_list.length];
         hsqc_spectra.push(result_spectrum);
     }
-    else 
+    else if(b_from_fid === true && b_reprocess === false)
+    {
+        /**
+         * New spectrum from fid, set its index (current length of the spectral array) and color
+         */
+        spectrum_index = hsqc_spectra.length;
+        fid_files_spectral_index = spectrum_index; //update the fid_files_spectral_index
+        result_spectrum.spectrum_index = spectrum_index;
+        result_spectrum.spectrum_color = color_list[(spectrum_index*2) % color_list.length];
+        result_spectrum.spectrum_color_negative = color_list[(spectrum_index*2+1) % color_list.length];
+        hsqc_spectra.push(result_spectrum);
+    }
+    else if( b_reprocess === true)
     {
         /**
          * Reprocessed spectrum, get its index and update the spectrum
          */
         spectrum_index = result_spectrum.spectrum_index;
         hsqc_spectra[spectrum_index] = result_spectrum;
+
+        /**
+         * If the spectrum is the current spectrum of the main plot, clear its cross section plot because it becomes invalid
+         */
+        if(main_plot.current_spectral_index === spectrum_index)
+        {
+            /**
+             * clear main_plot.y_cross_section_plot and x_cross_section_plot
+             */
+            main_plot.y_cross_section_plot.clear();
+            main_plot.x_cross_section_plot.clear();
+        }
     }
     
 
@@ -3380,6 +3427,7 @@ function run_DEEP_Picker(spectrum_index,flag)
     let header = new Float32Array(hsqc_spectra[spectrum_index].header);
     header[55] = 1.0;
     header[56] = 1.0;
+    header[219] = hsqc_spectra[spectrum_index].n_indirect; //size of indirect dimension of the input spectrum
     let data = Float32Concat(header, hsqc_spectra[spectrum_index].raw_data);
     /**
      * Convert to Uint8Array to be transferred to the worker
@@ -3455,6 +3503,10 @@ function run_Voigt_fitter(spectrum_index,flag)
     let header = new Float32Array(hsqc_spectra[spectrum_index].header);
     header[55] = 1.0;
     header[56] = 1.0;
+    header[219] = hsqc_spectra[spectrum_index].n_indirect; //size of indirect dimension of the input spectrum
+    /**
+     * Also set 
+     */
     let data = Float32Concat(header, hsqc_spectra[spectrum_index].raw_data);
     /**
      * Convert to Uint8Array to be transferred to the worker
@@ -3754,6 +3806,86 @@ function remove_spectrum(index)
     main_plot.points_start_negative[index]=main_plot.points_start[index];
 
     main_plot.redraw_contour();
+}
+
+function apply_current_ps()
+{
+    /**
+     * Get the current PS from main_plot. array of 2 elements [p0,p1] in radian
+     */
+    let current_ps = main_plot.get_phase_correction();
+    /**
+     * Convert to degree from radian
+     */
+    current_ps[0][0] *= 180.0 / Math.PI;
+    current_ps[0][1] *= 180.0 / Math.PI;
+    current_ps[1][0] *= 180.0 / Math.PI;
+    current_ps[1][1] *= 180.0 / Math.PI;
+
+
+    /**
+     * If main_plot.current_spectrum_index == fid_files_spectral_index, we have fid data for the spectrum,
+     * we need to update the phase correction for the fid data processing as well
+     */
+    if(main_plot.current_spectral_index === fid_files_spectral_index)
+    {
+        let v;
+        v=parseFloat(document.getElementById("phase_correction_direct_p0").value) + current_ps[0][0];
+        document.getElementById("phase_correction_direct_p0").value = v.toFixed(1);
+        v=parseFloat(document.getElementById("phase_correction_direct_p1").value) + current_ps[0][1];
+        document.getElementById("phase_correction_direct_p1").value = v.toFixed(1);
+        v=parseFloat(document.getElementById("phase_correction_indirect_p0").value) + current_ps[1][0];
+        document.getElementById("phase_correction_indirect_p0").value = v.toFixed(1);
+        v=parseFloat(document.getElementById("phase_correction_indirect_p1").value) + current_ps[1][1];
+        document.getElementById("phase_correction_indirect_p1").value = v.toFixed(1);
+        /**
+         * To be safe, uncheck auto phase correction
+         */
+        document.getElementById("auto_direct").checked = false;
+        document.getElementById("auto_indirect").checked = false;
+    }
+
+    /**
+     * Run webass worker to apply phase correction.
+     * First, pass the spectrum as a file. 
+     */
+    let index  = main_plot.current_spectral_index;
+    let n_size = hsqc_spectra[index].n_direct * hsqc_spectra[index].n_indirect * 4;
+    let data = new Float32Array(512 + n_size);
+    let current_position = 0;
+    data.set(hsqc_spectra[index].header, current_position);
+    current_position += 512;
+    for (let i = 0; i < hsqc_spectra[index].n_indirect; i++) {
+        data.set(hsqc_spectra[index].raw_data.subarray(i * hsqc_spectra[index].n_direct, (i + 1) * hsqc_spectra[index].n_direct), current_position);
+        current_position += hsqc_spectra[index].n_direct;
+
+        if (hsqc_spectra[index].datatype_direct === 0) {
+            data.set(hsqc_spectra[index].raw_data_ri.subarray(i * hsqc_spectra[index].n_direct, (i + 1) * hsqc_spectra[index].n_direct), current_position);
+            current_position += hsqc_spectra[index].n_direct;
+        }
+        if (hsqc_spectra[index].datatype_indirect === 0) {
+            data.set(hsqc_spectra[index].raw_data_ir.subarray(i * hsqc_spectra[index].n_direct, (i + 1) * hsqc_spectra[index].n_direct), current_position);
+            current_position += hsqc_spectra[index].n_direct;
+        }
+        if (hsqc_spectra[index].datatype_direct === 0 && hsqc_spectra[index].datatype_indirect === 0) {
+            data.set(hsqc_spectra[index].raw_data_ii.subarray(i * hsqc_spectra[index].n_direct, (i + 1) * hsqc_spectra[index].n_direct), current_position);
+            current_position += hsqc_spectra[index].n_direct;
+        }
+    }
+    /**
+     * Convert to Uint8Array to be transferred to the worker
+     */
+    let data_uint8 = new Uint8Array(data.buffer);
+    webassembly_worker.postMessage({
+        spectrum_data: data_uint8,
+        phase_correction: current_ps,
+        spectrum_index: main_plot.current_spectral_index,
+        spectrum_name: hsqc_spectra[main_plot.current_spectral_index].filename,
+    });
+    /**
+     * Let user know the processing is started
+     */
+    document.getElementById("webassembly_message").innerText = "Apply phase correction, please wait...";
 }
 
 /**
