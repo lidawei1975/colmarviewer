@@ -2894,7 +2894,7 @@ function process_ft_file(arrayBuffer,file_name, spectrum_type) {
     result.x_ppm_ref = 0.0;
     result.y_ppm_ref = 0.0;
 
-    const spectral_data = new Float32Array(arrayBuffer, 512, arrayBuffer.byteLength / 4 - 512);
+    const spectral_data = new Float32Array(arrayBuffer);
 
     let data_size = arrayBuffer.byteLength / 4 - 512;
 
@@ -2934,7 +2934,7 @@ function process_ft_file(arrayBuffer,file_name, spectrum_type) {
      * raw_data row1, raw_data_ri row1, raw_data_ir row1, raw_data_ii row1, 
      * raw_data row2, raw_data_ri row2, raw_data_ir row2, raw_data_ii row2, ...
      */
-    let current_position = 0;
+    let current_position = 512;
 
     /**
      * Initialize result.raw_data, result.raw_data_ri, result.raw_data_ir, result.raw_data_ii
