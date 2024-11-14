@@ -2833,8 +2833,8 @@ function process_ft_file(arrayBuffer,file_name, spectrum_type) {
      * 0: complex
      * 1: real
      */
-    result.datatype_direct = result.header[55];
-    result.datatype_indirect = result.header[56];
+    result.datatype_direct = result.header[56];
+    result.datatype_indirect = result.header[55];
 
     /**
      * result.datatype_direct: 1 means real, 0 means complex
@@ -2843,6 +2843,15 @@ function process_ft_file(arrayBuffer,file_name, spectrum_type) {
     if ( result.datatype_direct == 0 && result.datatype_indirect == 0) {
         console.log("Complex data along both dimensions.");
         result.n_indirect /= 2; //complex data along both dimensions, per nmrPipe format, so we divide by 2
+    }
+    else if(result.datatype_direct == 0 && result.datatype_indirect == 1) {
+        console.log("Complex data along direct dimension, real data along indirect dimension.");
+    }
+    else if(result.datatype_direct == 1 && result.datatype_indirect == 0) {
+        console.log("Complex data along indirect dimension, real data along direct dimension.");
+    }
+    else if(result.datatype_direct == 1 && result.datatype_indirect == 1) {
+        console.log("Real data along both dimensions.");
     }
     console.log("n_direct: ", result.n_direct);
     console.log("n_indirect: ", result.n_indirect);

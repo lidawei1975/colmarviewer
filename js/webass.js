@@ -315,7 +315,7 @@ onmessage = function (e) {
             /**
              * Run fid_phase function
              */
-            postMessage({ stdout: "Running fid function" });
+            postMessage({ stdout: "Running automatic phase correction." });
             api.fid();
             console.log('Finished running fid');
        
@@ -341,7 +341,6 @@ onmessage = function (e) {
             }
             Module['FS_createDataFile']('/', 'arguments_phase_2d.txt', content, true, true, true);
             console.log(content);
-            postMessage({ stdout: "Running phasing function" });
             api.phasing();
             console.log('Finished running phasing');
             FS.unlink('arguments_phase_2d.txt');

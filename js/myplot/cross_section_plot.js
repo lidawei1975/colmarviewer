@@ -519,6 +519,10 @@ class cross_section_plot {
         /**
          * Need to get phase_correction at index 0
          */
+        if(typeof this.phase_correction_array === 'undefined' || this.phase_correction_array.length === 0)
+        {
+            return [0.0, 0.0];
+        }
         let phase_correction_at_0 = this.phase_correction_array[0];
         return [phase_correction_at_0, this.phase_correction_p1];
     }
