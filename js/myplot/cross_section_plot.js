@@ -46,15 +46,22 @@ class cross_section_plot {
             .attr("width", this.width)
             .attr("height", this.height);
 
-        this.x = d3.scaleLinear()
-            .domain(x_domain)
-            .range([this.margin.left, this.width - this.margin.right])
-            .nice();
+        if(this.orientation === "horizontal"){
+            this.x = d3.scaleLinear()
+                .domain(x_domain)
+                .range([this.margin.left, this.width - this.margin.right]);
+        }
+        else if(this.orientation === "vertical"){
+            this.x = d3.scaleLinear()
+                .domain(x_domain)
+                .range([this.width - this.margin.right, this.margin.left]);
+        }   
 
+        
+        
         this.y = d3.scaleLinear()
             .domain(y_domain)
-            .range([this.height - this.margin.bottom, this.margin.top])
-            .nice();
+            .range([this.height - this.margin.bottom, this.margin.top]);
 
         this.true_width = this.width - this.margin.left - this.margin.right;
         this.true_height = this.height - this.margin.top - this.margin.bottom;
@@ -364,11 +371,20 @@ class cross_section_plot {
 
     resize_x(width) {
         this.width = width;
-        this.x.range([this.margin.left, this.width - this.margin.right]);
-        /**
-         * Change width of the clip space according to the new width of the main_plot object
-         */
-        this.clip_space.attr("width", width - this.margin.left - this.margin.right);
+        if(this.orientation === "horizontal"){
+            this.x.range([this.margin.left, this.width - this.margin.right]);
+            /**
+             * Change width of the clip space according to the new width of the main_plot object
+             */
+            this.clip_space.attr("width", width - this.margin.left - this.margin.right);
+        }
+        else if(this.orientation === "vertical"){
+            this.x.range([this.width - this.margin.right, this.margin.left]);
+            /**
+             * Change width of the clip space according to the new width of the main_plot object
+             */
+            this.clip_space.attr("width", width - this.margin.left - this.margin.right);
+        }
         this.redraw();
     }
 
@@ -541,44 +557,6 @@ class cross_section_plot {
             document.getElementById('p0_indirect').innerHTML = "0.0";
             document.getElementById('p1_indirect').innerHTML = "0.0";
         }
-    }
-
-    /**
-     * Called when user change the size of the plot
-     * @param {*} width: new width of the plot
-     * @param {*} height: new height of the plot 
-     */
-    resize(width, height) {
-
-        /**
-         * Set DOM element width and height
-         */
-        document.getElementById(this.svg_id).setAttribute("width", width);
-        document.getElementById(this.svg_id).setAttribute("height", height);
-        /**
-         * Set width and height of the main_plot object. this.width and this.height will be used to calculate 
-         * the range of x and y axes to redraw the plot
-         */
-        this.width = width;
-        this.height = height;
-        this.true_width = this.width - this.margin.left - this.margin.right;
-        this.true_height = this.height - this.margin.top - this.margin.bottom;
-        this.x.range([this.width - this.margin.right, this.margin.left]);
-        this.y.range([this.height - this.margin.bottom, this.margin.top]);
-
-        /**
-         * Reset width and height of the clip space according to the new width and height of the main_plot object
-         */
-        this.clip_space
-            .attr("transform", "translate(" + this.margin.left + "," + this.margin.top + ")")
-            .attr("width", width - this.margin.left - this.margin.right)
-            .attr("height", height - this.margin.top - this.margin.bottom);
-
-
-        /**
-         * Redraw the plot
-         */
-        this.redraw();
     }
 
     /**
