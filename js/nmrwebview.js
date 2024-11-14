@@ -32,9 +32,11 @@ var pseudo3d_fitted_peaks = []; //pseudo 3D fitted peaks, JSON array
 var total_number_of_experimental_spectra = 0; //total number of experimental spectra
 
 /**
- * For FID processing. Saved file data
+ * For FID re-processing. Saved file data
+ * fid_files_spectral_index is the index in hsqc_spectra of these FID files.
  */
 var current_fid_files;
+var fid_files_spectral_index; 
 
 /**
  * Current processing parameters
@@ -97,7 +99,10 @@ var current_phase_correction = [0, 0, 0, 0];
 class spectrum {
     constructor() {
         this.header = new Float32Array(512); //header of the spectrum, 512 float32 numbers
-        this.raw_data = new Float32Array(); //raw data from the server
+        this.raw_data = new Float32Array(0); //raw data, real real
+        this.raw_data_ri = new Float32Array(0); //raw data for real (along indirect dimension) and imaginary (along indirect dimension) part
+        this.raw_data_ir = new Float32Array(0); //raw data for imaginary (along indirect dimension) and real (along indirect dimension) part
+        this.raw_data_ii = new Float32Array(0); //raw data for imaginary (along indirect dimension) and imaginary (along indirect dimension) part
         this.noise_level = 0.001; //noise level of the input spectrum
         this.levels = [0.001, 0.002, 0.003]; //levels of the contour plot
         this.spectral_max = Number.MAX_VALUE; //maximum value of the spectrum
@@ -501,7 +506,7 @@ $(document).ready(function () {
             }).then((file_data) => {
                 if(file_data !== null){
                     let result_spectrum = process_ft_file(file_data,this.querySelector('input[type="file"]').files[ii].name,-1);
-                    draw_spectrum(result_spectrum,false);
+                    draw_spectrum(result_spectrum,false/**from fid */,false/** re-process of fid or ft2 */);
                 }
                 /**
                  * If it is the last file, clear the file input
@@ -700,10 +705,12 @@ function call_webassembly_worker_for_fid_process(flag,spectrum_index) {
     /**
      * Get HTML number input phase_correction_direct_p0 and phase_correction_direct_p1
      * and checkbox auto_direct checked: true or false
+     * and checkbox delete_direct checked: true or false
      */
     phase_correction_direct_p0 = parseFloat(document.getElementById("phase_correction_direct_p0").value);
     phase_correction_direct_p1 = parseFloat(document.getElementById("phase_correction_direct_p1").value);
     auto_direct = document.getElementById("auto_direct").checked; //true or false
+    delete_direct = document.getElementById("delete_imaginary").checked; //true or false
 
     /**
      * Get HTML text input extract_direct_from and extract_direct_to. Input is in percentage
@@ -724,10 +731,13 @@ function call_webassembly_worker_for_fid_process(flag,spectrum_index) {
 
     /**
      * Get HTML number input phase_correction_indirect_p0 and phase_correction_indirect_p1
+     * and checkbox auto_indirect checked: true or false
+     * and checkbox delete_indirect checked: true or false
      */
     phase_correction_indirect_p0 = parseFloat(document.getElementById("phase_correction_indirect_p0").value);
     phase_correction_indirect_p1 = parseFloat(document.getElementById("phase_correction_indirect_p1").value);
     auto_indirect = document.getElementById("auto_indirect").checked; //true or false
+    delete_indirect = document.getElementById("delete_imaginary_indirect").checked; //true or false
     
 
     /**
@@ -747,6 +757,8 @@ function call_webassembly_worker_for_fid_process(flag,spectrum_index) {
         apodization_indirect: apodization_indirect,
         auto_direct: auto_direct,
         auto_indirect: auto_indirect,
+        delete_direct: delete_direct,
+        delete_indirect: delete_indirect,
         phase_correction_direct_p0: phase_correction_direct_p0,
         phase_correction_direct_p1: phase_correction_direct_p1,
         phase_correction_indirect_p0: phase_correction_indirect_p0,
@@ -1009,7 +1021,7 @@ webassembly_worker.onmessage = function (e) {
          */
         result_spectrum.scale = e.data.scale;
         result_spectrum.scale2 = e.data.scale2;
-        draw_spectrum(result_spectrum,false);
+        draw_spectrum(result_spectrum,false/**from fid */,false/**re-process of fid or ft2 */);
 
         /**
          * Clear the processing message
@@ -1084,6 +1096,10 @@ webassembly_worker.onmessage = function (e) {
              */
             apodization_indirect = e.data.apodization_indirect;
             document.getElementById("apodization_indirect").value = apodization_indirect;
+            
+            /**
+             *  
+             */
         }
 
         let arrayBuffer = new Uint8Array(e.data.file_data).buffer;
@@ -1097,7 +1113,7 @@ webassembly_worker.onmessage = function (e) {
          */
         let b_reprocess = e.data.processing_flag == 1 ? true : false;
         result_spectrum.spectrum_index = e.data.spectrum_index; //only used when reprocess
-        draw_spectrum(result_spectrum,b_reprocess);
+        draw_spectrum(result_spectrum,true/**from fid */,b_reprocess);
         /**
          * Clear the processing message
          */
@@ -1107,6 +1123,19 @@ webassembly_worker.onmessage = function (e) {
          */
         document.getElementById("auto_direct").checked = false;
         document.getElementById("auto_indirect").checked = false;
+    }
+
+    /**
+     * Only file_data, it is a phase corrected spectrum
+     */
+    else if (e.data.file_data && e.data.spectrum_name)
+    {
+        console.log("Phase corrected spectrum received");
+        document.getElementById("webassembly_message").innerText = "";
+        let arrayBuffer = new Uint8Array(e.data.file_data).buffer;
+        let result_spectrum = process_ft_file(arrayBuffer,e.data.spectrum_name,-1);
+        result_spectrum.spectrum_index = e.data.spectrum_index;
+        draw_spectrum(result_spectrum,false/**from fid */,true/**re-process of fid or ft2 */);
     }
 
     /**
@@ -1528,16 +1557,15 @@ function add_to_list(index) {
 
 
     /**
-     * Add a download button to download the spectrum only if spectrum_origin is not -1
+     * Add a download button to download the spectrum 
      * Allow download of from fid and from reconstructed spectrum
      */
-    if (new_spectrum.spectrum_origin !== -1) {
-        let download_button = document.createElement("button");
-        download_button.innerText = "Download ft2";
-        download_button.onclick = function () { download_spectrum(index,'original'); };
-        new_spectrum_div.appendChild(download_button);
-    }
-
+    
+    let download_button = document.createElement("button");
+    download_button.innerText = "Download ft2";
+    download_button.onclick = function () { download_spectrum(index,'original'); };
+    new_spectrum_div.appendChild(download_button);
+    
     /**
      * Add a different spectrum download button for reconstructed spectrum only
      */
@@ -2451,7 +2479,6 @@ function uncheck_all_1d_except(index) {
         if(i!==index && hsqc_spectra[i].spectrum_origin < 0) {
             document.getElementById("show_cross_section".concat("-").concat(i)).checked = false;
             document.getElementById("show_projection".concat("-").concat(i)).checked = false;
-            document.getElementById("show_none".concat("-").concat(i)).checked = false;
         }
     }
 }
@@ -2806,16 +2833,28 @@ function process_ft_file(arrayBuffer,file_name, spectrum_type) {
      * 0: complex
      * 1: real
      */
-    result.datatype_direct = result.header[55];
-    result.datatype_indirect = result.header[56];
+    result.datatype_direct = result.header[56];
+    result.datatype_indirect = result.header[55];
 
     /**
-     * We only read real at this moment
+     * result.datatype_direct: 1 means real, 0 means complex
+     * result.datatype_indirect: 1 means real, 0 means complex
      */
-    if (result.datatype_direct !== 1 || result.datatype_indirect !== 1) {
-        result.error = "Only real data is supported";
-        return result;
+    if ( result.datatype_direct == 0 && result.datatype_indirect == 0) {
+        console.log("Complex data along both dimensions.");
+        result.n_indirect /= 2; //complex data along both dimensions, per nmrPipe format, so we divide by 2
     }
+    else if(result.datatype_direct == 0 && result.datatype_indirect == 1) {
+        console.log("Complex data along direct dimension, real data along indirect dimension.");
+    }
+    else if(result.datatype_direct == 1 && result.datatype_indirect == 0) {
+        console.log("Complex data along indirect dimension, real data along direct dimension.");
+    }
+    else if(result.datatype_direct == 1 && result.datatype_indirect == 1) {
+        console.log("Real data along both dimensions.");
+    }
+    console.log("n_direct: ", result.n_direct);
+    console.log("n_indirect: ", result.n_indirect);
 
     result.direct_ndx = result.header[24]; //must be 2
     result.indirect_ndx = result.header[25]; //must be 1 or 3
@@ -2884,10 +2923,91 @@ function process_ft_file(arrayBuffer,file_name, spectrum_type) {
     result.x_ppm_ref = 0.0;
     result.y_ppm_ref = 0.0;
 
+    const spectral_data = new Float32Array(arrayBuffer);
 
     let data_size = arrayBuffer.byteLength / 4 - 512;
 
-    result.raw_data = new Float32Array(arrayBuffer, 512 * 4, data_size);
+    /**
+     * Let assess data_size, if it is not equal to n_direct * n_indirect * number_of_data_type, set error and return
+     * number_of_data_type =1, if both direct and indirect dimensions are real
+     * number_of_data_type =2, if either direct or indirect dimension is complex
+     * number_of_data_type =4, if both direct and indirect dimensions are complex
+     */
+    let data_size_per_point = 1;
+    if (result.datatype_direct === 1 && result.datatype_indirect === 1) {
+        data_size_per_point = 1;
+    }
+    else if (result.datatype_direct === 0 && result.datatype_indirect === 1) {
+        data_size_per_point = 2;
+    }
+    else if (result.datatype_direct === 1 && result.datatype_indirect === 0) {
+        data_size_per_point = 2;
+    }
+    else if (result.datatype_direct === 0 && result.datatype_indirect === 0) {
+        data_size_per_point = 4;
+    }
+
+    if (data_size !== result.n_direct * result.n_indirect * data_size_per_point) {
+        result.error = "Data size does not match the size of the spectrum";
+        return result;
+    }
+
+    /**
+     * result.raw_data is a Float32Array of the spectrum data, real (along indirect) real (along direct)
+     * result.raw_data_ri is a Float32Array of the spectrum data, real (along indirect) imaginary (along direct)
+     * result.raw_data_ir is a Float32Array of the spectrum data, imaginary (along indirect) real (along direct)
+     * result.raw_data_ii is a Float32Array of the spectrum data, imaginary (along indirect) imaginary (along direct)
+     * 
+     * They are all row major, size is  n_indirect (rows) * n_direct (columns).
+     * Order of data in arrayBuffer, after the 512 float (4 bytes) header
+     * raw_data row1, raw_data_ri row1, raw_data_ir row1, raw_data_ii row1, 
+     * raw_data row2, raw_data_ri row2, raw_data_ir row2, raw_data_ii row2, ...
+     */
+    let current_position = 512;
+
+    /**
+     * Initialize result.raw_data, result.raw_data_ri, result.raw_data_ir, result.raw_data_ii
+     * If no initialization here, it will have default size of 0 (empty array)
+     */
+    result.raw_data = new Float32Array(result.n_indirect*result.n_direct);
+    if(result.datatype_direct === 0){
+        result.raw_data_ri = new Float32Array(result.n_indirect*result.n_direct);
+    }
+    if(result.datatype_indirect === 0){
+        result.raw_data_ir = new Float32Array(result.n_indirect*result.n_direct);
+    }
+    if(result.datatype_direct === 0 && result.datatype_indirect === 0){
+        result.raw_data_ii = new Float32Array(result.n_indirect*result.n_direct);
+    }
+   
+
+    for(let i=0;i<result.n_indirect;i++)
+    {
+        /**
+         * Copy from spectral_data (from current_position, for a length of  result.n_direct)
+         * to result.raw_data (from i*result.n_direct, for a length of result.n_direct)
+         */
+        result.raw_data.set(spectral_data.subarray(current_position,current_position+result.n_direct),i*result.n_direct);
+        current_position += result.n_direct;
+
+        if(result.datatype_direct === 0)
+        {
+            result.raw_data_ri.set(spectral_data.subarray(current_position,current_position+result.n_direct),i*result.n_direct);
+            current_position += result.n_direct;
+        }
+        if(result.datatype_indirect === 0)
+        {
+            result.raw_data_ir.set(spectral_data.subarray(current_position,current_position+result.n_direct),i*result.n_direct);
+            current_position += result.n_direct;
+        }
+        if(result.datatype_direct === 0 && result.datatype_indirect === 0)
+        {
+            result.raw_data_ii.set(spectral_data.subarray(current_position,current_position+result.n_direct),i*result.n_direct);
+            current_position += result.n_direct;
+        }
+    }
+
+    
 
     /**
      * Keep original file name
@@ -2987,8 +3107,53 @@ function process_ft_file(arrayBuffer,file_name, spectrum_type) {
         filename = hsqc_spectra[index].filename;
         /**
          * generate a blob, which is hsqc_spectra[index].header + hsqc_spectra[index].raw_data
+         * case 1: both are real
          */
-        data = Float32Concat(hsqc_spectra[index].header, hsqc_spectra[index].raw_data);
+        if(hsqc_spectra[index].datatype_direct === 1 && hsqc_spectra[index].datatype_indirect === 1)
+        {
+            data = Float32Concat(hsqc_spectra[index].header, hsqc_spectra[index].raw_data);
+        }
+        /**
+         * One or two dimension(s) are complex
+         */
+        else
+        {   
+            let n_size = hsqc_spectra[index].n_direct * hsqc_spectra[index].n_indirect;
+            if(hsqc_spectra[index].datatype_direct === 0 && hsqc_spectra[index].datatype_indirect === 0)
+            {
+                n_size *= 4;
+            }
+            else if(hsqc_spectra[index].datatype_direct === 0 || hsqc_spectra[index].datatype_indirect === 0)
+            {
+                n_size *= 2;
+            }
+
+            data = new Float32Array(512 + n_size);
+            let current_position = 0;
+            data.set(hsqc_spectra[index].header, current_position);
+            current_position += 512;
+            for(let i=0;i<hsqc_spectra[index].n_indirect;i++)
+            {
+                data.set(hsqc_spectra[index].raw_data.subarray(i*hsqc_spectra[index].n_direct,(i+1)*hsqc_spectra[index].n_direct), current_position);
+                current_position += hsqc_spectra[index].n_direct;
+
+                if(hsqc_spectra[index].datatype_direct === 0)
+                {
+                    data.set(hsqc_spectra[index].raw_data_ri.subarray(i*hsqc_spectra[index].n_direct,(i+1)*hsqc_spectra[index].n_direct), current_position);
+                    current_position += hsqc_spectra[index].n_direct;
+                }
+                if(hsqc_spectra[index].datatype_indirect === 0)
+                {
+                    data.set(hsqc_spectra[index].raw_data_ir.subarray(i*hsqc_spectra[index].n_direct,(i+1)*hsqc_spectra[index].n_direct), current_position);
+                    current_position += hsqc_spectra[index].n_direct;
+                }
+                if(hsqc_spectra[index].datatype_direct === 0 && hsqc_spectra[index].datatype_indirect === 0)
+                {
+                    data.set(hsqc_spectra[index].raw_data_ii.subarray(i*hsqc_spectra[index].n_direct,(i+1)*hsqc_spectra[index].n_direct), current_position);
+                    current_position += hsqc_spectra[index].n_direct;
+                }
+            }
+        }
     }
     else if(flag==='diff')
     {   
@@ -3015,8 +3180,16 @@ function process_ft_file(arrayBuffer,file_name, spectrum_type) {
         }
         /**
          * generate a blob, which is hsqc_spectra[index].header + diff_data
+         * First, make a copy of the header and then concatenate with diff_data
          */
-        data = Float32Concat(hsqc_spectra[index].header, diff_data);
+        let header = new Float32Array(hsqc_spectra[index].header);
+        /**
+         * Set datatype to 1, since the difference spectrum is always real
+         */
+        header[55] = 1.0;
+        header[56] = 1.0;
+        header[219] = hsqc_spectra[index].n_direct;
+        data = Float32Concat(header, diff_data);
     }
 
 
@@ -3029,12 +3202,14 @@ function process_ft_file(arrayBuffer,file_name, spectrum_type) {
  }
 
 /**
- * Add a new spectrum to the list and update the contour plot
+ * Add a new spectrum to the list and update the contour plot. When contour is updated, add_to_list() is called to update the list of spectra
+ * in the uses interface
  * @param {*} result_spectrum: an object of hsqc_spectrum
+ * @param {*} b_from_fid: boolean, whether the spectrum is from a fid file
  * @param {*} b_reprocess: boolean, whether this is a new spectrum or a reprocessed spectrum
  * @returns 
  */
-function draw_spectrum(result_spectrum, b_reprocess)
+function draw_spectrum(result_spectrum, b_from_fid,b_reprocess)
 {
     if(typeof result_spectrum.error !== "undefined")
     {
@@ -3044,10 +3219,10 @@ function draw_spectrum(result_spectrum, b_reprocess)
 
     let spectrum_index;
 
-    if(b_reprocess === false)
+    if(b_from_fid ==false && b_reprocess === false)
     {
         /**
-         * New spectrum, set its index (current length of the spectral array) and color
+         * New spectrum from ft2, set its index (current length of the spectral array) and color
          */
         spectrum_index = hsqc_spectra.length;
         result_spectrum.spectrum_index = spectrum_index;
@@ -3055,13 +3230,37 @@ function draw_spectrum(result_spectrum, b_reprocess)
         result_spectrum.spectrum_color_negative = color_list[(spectrum_index*2+1) % color_list.length];
         hsqc_spectra.push(result_spectrum);
     }
-    else 
+    else if(b_from_fid === true && b_reprocess === false)
+    {
+        /**
+         * New spectrum from fid, set its index (current length of the spectral array) and color
+         */
+        spectrum_index = hsqc_spectra.length;
+        fid_files_spectral_index = spectrum_index; //update the fid_files_spectral_index
+        result_spectrum.spectrum_index = spectrum_index;
+        result_spectrum.spectrum_color = color_list[(spectrum_index*2) % color_list.length];
+        result_spectrum.spectrum_color_negative = color_list[(spectrum_index*2+1) % color_list.length];
+        hsqc_spectra.push(result_spectrum);
+    }
+    else if( b_reprocess === true)
     {
         /**
          * Reprocessed spectrum, get its index and update the spectrum
          */
         spectrum_index = result_spectrum.spectrum_index;
         hsqc_spectra[spectrum_index] = result_spectrum;
+
+        /**
+         * If the spectrum is the current spectrum of the main plot, clear its cross section plot because it becomes invalid
+         */
+        if(main_plot.current_spectral_index === spectrum_index)
+        {
+            /**
+             * clear main_plot.y_cross_section_plot and x_cross_section_plot
+             */
+            main_plot.y_cross_section_plot.clear();
+            main_plot.x_cross_section_plot.clear();
+        }
     }
     
 
@@ -3232,8 +3431,13 @@ function run_DEEP_Picker(spectrum_index,flag)
 
     /**
      * Combine hsqc_spectra[0].raw_data and hsqc_spectra[0].header into one Float32Array
+     * Need to copy the header first, modify complex flag (doesn't hurt even when not necessary), then concatenate with raw_data
      */
-    let data = Float32Concat(hsqc_spectra[spectrum_index].header, hsqc_spectra[spectrum_index].raw_data);
+    let header = new Float32Array(hsqc_spectra[spectrum_index].header);
+    header[55] = 1.0;
+    header[56] = 1.0;
+    header[219] = hsqc_spectra[spectrum_index].n_indirect; //size of indirect dimension of the input spectrum
+    let data = Float32Concat(header, hsqc_spectra[spectrum_index].raw_data);
     /**
      * Convert to Uint8Array to be transferred to the worker
      */
@@ -3302,9 +3506,17 @@ function run_Voigt_fitter(spectrum_index,flag)
 
 
     /**
-     * Combine hsqc_spectra[0].raw_data and hsqc_spectra[0].header into one Float32Array
+     * Combine hsqc_spectra[spectrum_index].raw_data and hsqc_spectra[spectrum_index].header into one Float32Array
+     * Need to copy the header first, modify complex flag (doesn't hurt even when not necessary), then concatenate with raw_data
      */
-    let data = Float32Concat(hsqc_spectra[spectrum_index].header, hsqc_spectra[spectrum_index].raw_data);
+    let header = new Float32Array(hsqc_spectra[spectrum_index].header);
+    header[55] = 1.0;
+    header[56] = 1.0;
+    header[219] = hsqc_spectra[spectrum_index].n_indirect; //size of indirect dimension of the input spectrum
+    /**
+     * Also set 
+     */
+    let data = Float32Concat(header, hsqc_spectra[spectrum_index].raw_data);
     /**
      * Convert to Uint8Array to be transferred to the worker
      */
@@ -3603,6 +3815,86 @@ function remove_spectrum(index)
     main_plot.points_start_negative[index]=main_plot.points_start[index];
 
     main_plot.redraw_contour();
+}
+
+function apply_current_ps()
+{
+    /**
+     * Get the current PS from main_plot. array of 2 elements [p0,p1] in radian
+     */
+    let current_ps = main_plot.get_phase_correction();
+    /**
+     * Convert to degree from radian
+     */
+    current_ps[0][0] *= 180.0 / Math.PI;
+    current_ps[0][1] *= 180.0 / Math.PI;
+    current_ps[1][0] *= 180.0 / Math.PI;
+    current_ps[1][1] *= 180.0 / Math.PI;
+
+
+    /**
+     * If main_plot.current_spectrum_index == fid_files_spectral_index, we have fid data for the spectrum,
+     * we need to update the phase correction for the fid data processing as well
+     */
+    if(main_plot.current_spectral_index === fid_files_spectral_index)
+    {
+        let v;
+        v=parseFloat(document.getElementById("phase_correction_direct_p0").value) + current_ps[0][0];
+        document.getElementById("phase_correction_direct_p0").value = v.toFixed(1);
+        v=parseFloat(document.getElementById("phase_correction_direct_p1").value) + current_ps[0][1];
+        document.getElementById("phase_correction_direct_p1").value = v.toFixed(1);
+        v=parseFloat(document.getElementById("phase_correction_indirect_p0").value) + current_ps[1][0];
+        document.getElementById("phase_correction_indirect_p0").value = v.toFixed(1);
+        v=parseFloat(document.getElementById("phase_correction_indirect_p1").value) + current_ps[1][1];
+        document.getElementById("phase_correction_indirect_p1").value = v.toFixed(1);
+        /**
+         * To be safe, uncheck auto phase correction
+         */
+        document.getElementById("auto_direct").checked = false;
+        document.getElementById("auto_indirect").checked = false;
+    }
+
+    /**
+     * Run webass worker to apply phase correction.
+     * First, pass the spectrum as a file. 
+     */
+    let index  = main_plot.current_spectral_index;
+    let n_size = hsqc_spectra[index].n_direct * hsqc_spectra[index].n_indirect * 4;
+    let data = new Float32Array(512 + n_size);
+    let current_position = 0;
+    data.set(hsqc_spectra[index].header, current_position);
+    current_position += 512;
+    for (let i = 0; i < hsqc_spectra[index].n_indirect; i++) {
+        data.set(hsqc_spectra[index].raw_data.subarray(i * hsqc_spectra[index].n_direct, (i + 1) * hsqc_spectra[index].n_direct), current_position);
+        current_position += hsqc_spectra[index].n_direct;
+
+        if (hsqc_spectra[index].datatype_direct === 0) {
+            data.set(hsqc_spectra[index].raw_data_ri.subarray(i * hsqc_spectra[index].n_direct, (i + 1) * hsqc_spectra[index].n_direct), current_position);
+            current_position += hsqc_spectra[index].n_direct;
+        }
+        if (hsqc_spectra[index].datatype_indirect === 0) {
+            data.set(hsqc_spectra[index].raw_data_ir.subarray(i * hsqc_spectra[index].n_direct, (i + 1) * hsqc_spectra[index].n_direct), current_position);
+            current_position += hsqc_spectra[index].n_direct;
+        }
+        if (hsqc_spectra[index].datatype_direct === 0 && hsqc_spectra[index].datatype_indirect === 0) {
+            data.set(hsqc_spectra[index].raw_data_ii.subarray(i * hsqc_spectra[index].n_direct, (i + 1) * hsqc_spectra[index].n_direct), current_position);
+            current_position += hsqc_spectra[index].n_direct;
+        }
+    }
+    /**
+     * Convert to Uint8Array to be transferred to the worker
+     */
+    let data_uint8 = new Uint8Array(data.buffer);
+    webassembly_worker.postMessage({
+        spectrum_data: data_uint8,
+        phase_correction: current_ps,
+        spectrum_index: main_plot.current_spectral_index,
+        spectrum_name: hsqc_spectra[main_plot.current_spectral_index].filename,
+    });
+    /**
+     * Let user know the processing is started
+     */
+    document.getElementById("webassembly_message").innerText = "Apply phase correction, please wait...";
 }
 
 /**
