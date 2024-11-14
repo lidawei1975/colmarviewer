@@ -1611,13 +1611,10 @@ function add_to_list(index) {
      * Add a download button to download the spectrum 
      * Allow download of from fid and from reconstructed spectrum
      */
-    
     let download_button = document.createElement("button");
     download_button.innerText = "Download ft2";
     download_button.onclick = function () { download_spectrum(index,'original'); };
     new_spectrum_div.appendChild(download_button);
-    new_spectrum_div.appendChild(document.createElement("br"));
-    
     /**
      * Add a different spectrum download button for reconstructed spectrum only
      */
@@ -1627,6 +1624,7 @@ function add_to_list(index) {
         download_button.onclick = function () { download_spectrum(index,'diff'); };
         new_spectrum_div.appendChild(download_button);
     }
+    new_spectrum_div.appendChild(document.createElement("br"));
 
 
     /**
@@ -2515,6 +2513,10 @@ function show_cross_section(index) {
     main_plot.current_spectral_index = index;
     main_plot.b_show_cross_section = true;
     main_plot.b_show_projection = false;
+    /**
+     * Set hsqc_spectra[index] as the current spectrum
+     */
+    document.getElementById("spectrum-" + index).style.backgroundColor = "lightblue";
 }
 
 function show_projection(index) {
@@ -2527,10 +2529,16 @@ function show_projection(index) {
 
 function uncheck_all_1d_except(index) {
     for(let i=0;i<hsqc_spectra.length;i++)
-    {
-        if(i!==index && hsqc_spectra[i].spectrum_origin < 0) {
+    {   
+        /**
+         * Only if this is not the current spectrum and
+         * this is NOT a reconstructed spectrum or removed spectrum
+         * we uncheck the checkbox
+         */
+        if(i!==index && (hsqc_spectra[i].spectrum_origin ==-2 || hsqc_spectra[i].spectrum_origin ==-1)) {
             document.getElementById("show_cross_section".concat("-").concat(i)).checked = false;
             document.getElementById("show_projection".concat("-").concat(i)).checked = false;
+            document.getElementById("spectrum-".concat(i)).style.backgroundColor = "white";
         }
     }
 }
