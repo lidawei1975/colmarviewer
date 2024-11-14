@@ -151,9 +151,8 @@
         <div id="section2">
             <div id="section21">
                 <div id="fid_file_area" class="drop-area" style="width: 1200px;">
+                    <span><p><button id="button_minimize_fid_area" onclick="minimize_fid_area(this)">-</button>Upload Bruker time domain data for processing:</p></span>
                     <form id="fid_file_form" action="" enctype="multipart/form-data">
-                        <h4>Upload Bruker time domain data for processing:</h4>
-
                         <div class="input-section" id="input_files">
                             <label for="fid_file">fid file (required, usually called fid or ser): </label><input type="file" name="fid_file"
                                 id="fid_file" multiple><br>
@@ -249,7 +248,7 @@
                 </div>
 
                 <div id="file_area" class="drop-area" style="width: 1200px;">
-                    <h4>Or upload frequency domain spectra:</h4>
+                    <p><button id="button_minimize_file_area" onclick="minimize_file_area(this)">-</button>Upload frequency domain spectra:</p>
                     <form id="ft2_file_form" action="" enctype="multipart/form-data">
                         <label for="userfile">Frequency domain spectral file (.ft2) </label><input type="file" multiple
                             id="userfile"><br>
@@ -260,7 +259,7 @@
                 </div>
 
                 <div id="spectra_list" style=" Padding: 10px; width: 1200px;" class="drop-area-neighbor">
-                    <h4>Uploaded Spectra:</h4>
+                    <h4>Your spectra list:</h4>
                     <ol id="spectra_list_ol" type="1">
                     </ol>
                     <div id="pseudo-3D-area">

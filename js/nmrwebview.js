@@ -1382,6 +1382,61 @@ const getDragAfterElement = (container, y) =>
     ).element;
 };
 
+function minimize_fid_area(self)
+{
+    /**
+     * Get button text
+     */
+    let button_text = self.innerText;
+    /**
+     * if button_text is "+", change it to "-"
+     * and set the height of the fid_file_area to 3rem, clip the overflow
+     */
+    if(button_text === "-")
+    {
+        self.innerText = "+";
+        document.getElementById("fid_file_area").style.height = "3rem";
+        document.getElementById("fid_file_area").style.overflow = "clip";
+    }
+    /**
+     * if button_text is "-", change it to "+". Set the height of the fid_file_area to auto, visible overflow
+     */
+    else
+    {
+        self.innerText = "-";
+        document.getElementById("fid_file_area").style.height = "auto";
+        document.getElementById("fid_file_area").style.overflow = "visible";
+    }
+}
+
+function minimize_file_area(self)
+{
+    /**
+     * Get button text
+     */
+    let button_text = self.innerText;
+    /**
+     * if button_text is "+", change it to "-"
+     * and set the height of the file_area to 3rem, clip the overflow
+     */
+    if(button_text === "-")
+    {
+        self.innerText = "+";
+        document.getElementById("file_area").style.height = "3rem";
+        document.getElementById("file_area").style.overflow = "clip";
+    }
+    /**
+     * if button_text is "-", change it to "+". Set the height of the file_area to auto, visible overflow
+    */
+    else
+    {
+        self.innerText = "-";
+        document.getElementById("file_area").style.height = "auto";
+        document.getElementById("file_area").style.overflow = "visible";
+    }
+}
+
+
 function minimize_spectrum(button,index)
 {
     let spectrum_div = document.getElementById("spectrum-".concat(index)).querySelector("div");
@@ -1479,16 +1534,17 @@ function add_to_list(index) {
         /**
          * The new DIV will have the following children:
          * A original index (which is different from the index in the list, because of the order change by drag and drop)
-         * A span element with the spectrum noise level
          */
         new_spectrum_div.appendChild(document.createTextNode("Original index: ".concat(index.toString(), ", ")));
-        new_spectrum_div.appendChild(document.createTextNode("Noise: " + new_spectrum.noise_level.toExponential(4) + ","));
         /**
          * Add filename as a text node
          */
         let fname_text = document.createTextNode(" File name: " + hsqc_spectra[index].filename + " ");
         new_spectrum_div.appendChild(fname_text);
+        new_spectrum_div.appendChild(document.createElement("br"));
 
+
+        new_spectrum_div.appendChild(document.createTextNode("Noise: " + new_spectrum.noise_level.toExponential(4) + ","));
         /**
          * Add two input text element with ID ref1 and ref2, default value is 0 and 0
          * They also have a label element with text "Ref direct: " and "Ref indirect: "
@@ -1517,10 +1573,7 @@ function add_to_list(index) {
         ref_indirect_input.onblur = function () { adjust_ref(index, 1); };
         new_spectrum_div.appendChild(ref_indirect_label);
         new_spectrum_div.appendChild(ref_indirect_input);
-        /**
-         * Add a line break
-         */
-        new_spectrum_div.appendChild(document.createElement("br"));
+
 
         /**
          * Add 3 radio buttons to select:
@@ -1551,8 +1604,6 @@ function add_to_list(index) {
         new_spectrum_div.appendChild(show_projection_radio);
         new_spectrum_div.appendChild(show_projection_label);
         show_projection(index);
-
-        new_spectrum_div.appendChild(document.createElement("br"));
     }
 
 
@@ -1565,6 +1616,7 @@ function add_to_list(index) {
     download_button.innerText = "Download ft2";
     download_button.onclick = function () { download_spectrum(index,'original'); };
     new_spectrum_div.appendChild(download_button);
+    new_spectrum_div.appendChild(document.createElement("br"));
     
     /**
      * Add a different spectrum download button for reconstructed spectrum only
