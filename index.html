@@ -114,7 +114,7 @@
 
                     <p>
                     <details>
-                        <summary>How to process spectrum from Bruker time domain data (Experimental features, still in development):</summary>
+                        <summary>How to process spectrum from Bruker time domain data:</summary>
                         <p>1. Currently only supports 2D or pseudo-3D. For NUS, only supports 2D.</p>
                         <p>2. Upload the fid file (usually called fid or ser) and acquisition file (usually called acqus) for the direct dimension.</p>
                         <p>3. Upload the acquisition file (usually called acqu2s, or acqu3s for pseudo-3D) for the indirect dimension.</p>
@@ -122,7 +122,20 @@
                         <p>5. You can also drag and drop the Bruker folder (which contains the required files) into the dashed area.</p>
                         <p>6. Set the apodization function, zero filling factor, phase correction for both dimensions. Default values work fine for most cases</p>
                         <p>7. Click "Upload experimental files and process" to process the spectrum.</p>
-                        <p>8. If you want to reprocess the same files, click "Reprocess same experimental files" after adjusting processing parameters.</p>
+                        <p>8. If you want to reprocess, click the "Reprocess" button in the spectra list.
+                            The selected spectrum will be highlighted. Do you reprocessing and click on Quit reprocessing after done. </p>
+                    </details>
+                    </p>
+
+                    <p>
+                    <details>
+                        <summary>How to run manual phase correction</summary>
+                        <p>1. After processing the spectrum, you can manually adjust the phase correction for both dimensions by first enable reprocess.</p>
+                        <p>2. Select "Cross section" (instead of "projection") to show the 1D cross section of the spectrum.</p>
+                        <p>3. Move your mouse to either direction or indirect dimension cross section plot. Hold shift key down then use your mouse wheel to change P0</p>
+                        <p>4. Click on the cross section plot to set anchor point. Right click to unset anchor point.</p>
+                        <p>5. When anchor is set, use mouse wheel to change P1.</p>
+                        <p>6. After you are satisfied with the phase correction, click "Apply PS" to apply the phase correction to the 2D spectrum and saved processing parameters.</p>
                     </details>
                     </p>
 
@@ -150,10 +163,9 @@
 
         <div id="section2">
             <div id="section21">
-                <div id="fid_file_area" class="drop-area" style="width: 1200px;">
+                <div id="fid_file_area" class="drop-area" style="width: 1200px; overflow: clip; height: 3rem;">
+                    <span><p><button id="button_minimize_fid_area" onclick="minimize_fid_area(this)">+</button>Bruker time domain data for processing:</p></span>
                     <form id="fid_file_form" action="" enctype="multipart/form-data">
-                        <h4>Upload Bruker time domain data for processing:</h4>
-
                         <div class="input-section" id="input_files">
                             <label for="fid_file">fid file (required, usually called fid or ser): </label><input type="file" name="fid_file"
                                 id="fid_file" multiple><br>
@@ -167,7 +179,7 @@
                             <label class="information"> You can also drag and drop Bruker folder (which contains required files here).</label><br>
                         </div>
 
-                        <div class="input-section" id="input_files" > 
+                        <div class="input-section" id="input_options" > 
                             <span> 
                                 <label for="apodization_direct">Direct dimension apodization function</label>
                                 <input type="text" name="apodization_direct" id="apodization_direct" value="SP begin 0.5 end 0.875 pow 2 elb 0 c 0.5" size="50">
@@ -229,8 +241,6 @@
                                 <input type="checkbox" name="neg_imaginary" id="neg_imaginary" value="yes">
                                 <label for="neg_imaginary">Negative imaginary data (indirect dimension)?</label>
                             </span>
-                            
-
                         </div>
 
                         <div class="input-section" id="Pseudo-3D-section">
@@ -242,14 +252,13 @@
                         </div>  
 
                         <input type="submit" id="button_fid_process" name="button_fid_process" value="Upload experimental files and process">
-                        <input type="submit" id="button_fid_reprocess" name="button_fid_reprocess" value="Reprocess same experimental files">
                         </br>
 
                     </form>
                 </div>
 
                 <div id="file_area" class="drop-area" style="width: 1200px;">
-                    <h4>Or upload frequency domain spectra:</h4>
+                    <p><button id="button_minimize_file_area" onclick="minimize_file_area(this)">-</button>Frequency domain spectra:</p>
                     <form id="ft2_file_form" action="" enctype="multipart/form-data">
                         <label for="userfile">Frequency domain spectral file (.ft2) </label><input type="file" multiple
                             id="userfile"><br>
@@ -260,7 +269,7 @@
                 </div>
 
                 <div id="spectra_list" style=" Padding: 10px; width: 1200px;" class="drop-area-neighbor">
-                    <h4>Uploaded Spectra:</h4>
+                    <h4>Your spectra list:</h4>
                     <ol id="spectra_list_ol" type="1">
                     </ol>
                     <div id="pseudo-3D-area">
@@ -299,7 +308,7 @@
                         <button onclick="popzoom()">Zoom Back</button>,
                         <button onclick="zoomout()">Zoom out 120%</button>
                         <button onclick="download_plot()">Download plot</button>
-                        <button onclick="apply_current_ps()">Apply PS</button>
+                        <button id="button_apply_ps" disabled onclick="apply_current_ps()">Apply PS</button>
                         <br>
 
                         <label for="peak_color">Peak color: </label>
@@ -375,9 +384,22 @@
         </div>
 
         <div id="footer" style="width: 1200px;">
-            <p>For questions or comments, please contact us at <a href="mailto:lidawei@gmail.com">lidawei@gmail.com</a>
-            </p>
+            <p>For questions or comments, please contact us at <a href="mailto:lidawei@gmail.com">lidawei@gmail.com</a></p>
             <p>  Try a new <a href="index2.html"> 3D spectrum viewer (experimental) </a> </p>
+
+            <div>
+            <p>References</p>
+                <ol>
+                    <li>Li, DW., Hansen, A.L., Yuan, C. et al. DEEP picker is a deep neural network for accurate deconvolution of complex two-dimensional NMR spectra.
+                        <a href="https://doi.org/10.1038/s41467-021-25496-5" target="_blank">Nat. Commun. 12, 5229 (2021).</a></li>
+                    <li>Kerem BK, Li,DW.,Zhang B., Brüschweiler, R.;
+                         Comprehensive Metabolite Identification Strategy Using Multiple Two-Dimensional NMR Spectra of a Complex Mixture Implemented in the COLMARm Web Server.
+                         <a href="https://pubs.acs.org/doi/10.1021/acs.analchem.6b03724" target="_blank">Anal. Chem. 2016, 88, 24, 12411–12418</a></li>
+                    <li>Ying J, Delaglio F, Torchia DA, Bax A. Sparse multidimensional iterative lineshape-enhanced (SMILE) reconstruction of both non-uniformly sampled and conventional NMR data.
+                        <a href="https://link.springer.com/article/10.1007/s10858-016-0072-7" target="_blank">J Biomol NMR. 2017 Jun;68(2):101-11</a></li>
+                </ol>
+            </div>
+
         </div>
 
         <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
