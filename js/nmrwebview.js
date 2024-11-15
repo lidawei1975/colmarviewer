@@ -2528,7 +2528,18 @@ function show_projection(index) {
 }
 
 function uncheck_all_1d_except(index) {
-    for(let i=0;i<hsqc_spectra.length;i++)
+
+    /**
+     * It is possible hsqc_spectra.length > main_plot.levels_length.length
+     * (main_plot.levels_length.length === total # of all "spectrum-".concat(i) HTML elements)
+     */
+    let total_number_of_spectra = hsqc_spectra.length;
+    if(main_plot.levels_length.length < total_number_of_spectra)
+    {
+        total_number_of_spectra = main_plot.levels_length.length;
+    }
+
+    for(let i=0;i<total_number_of_spectra;i++)
     {   
         /**
          * Only if this is not the current spectrum and
