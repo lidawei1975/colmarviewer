@@ -33,14 +33,9 @@ var total_number_of_experimental_spectra = 0; //total number of experimental spe
 
 /**
  * For FID re-processing. Saved file data
- * fid_files_spectral_index is the index in hsqc_spectra of these FID files.
  */
-var current_fid_files;
-var fid_files_spectral_index; 
-
-/**
- * Current processing parameters
- */
+var fid_process_parameters; 
+var current_reprocess_spectrum_index = -1;
     
 var acquisition_seq;
 var neg_imaginary;
@@ -132,6 +127,11 @@ class spectrum {
          * Control the display of the spectrum
          */
         this.visible = true; //visible or not
+
+        /**
+         * fid process parameters is only valid when spectrum_origin is -1 (from fid)
+         */
+        this.fid_process_parameters = null;
     }
 };
 
@@ -527,38 +527,138 @@ $(document).ready(function () {
      */
     document.getElementById('fid_file_form').addEventListener('submit', function (e) {
 
+        let current_fid_files;
+
+            
+        /**
+         * Function to process the file
+         */
+        function process_fid_files(processing_flag, spectrum_index) {
+            /**
+             * Get HTML select "hsqc_acquisition_seq" value: "321" or "312"
+            */
+            acquisition_seq = document.getElementById("hsqc_acquisition_seq").value;
+
+            /**
+             * Get HTML text input apodization_direct
+             */
+            apodization_direct = document.getElementById("apodization_direct").value;
+
+            /**
+             * Get HTML select zf_direct value: "2" or "4" or "8"
+             */
+            zf_direct = document.getElementById("zf_direct").value;
+
+            /**
+             * Get HTML number input phase_correction_direct_p0 and phase_correction_direct_p1
+             * and checkbox auto_direct checked: true or false
+             * and checkbox delete_direct checked: true or false
+             */
+            phase_correction_direct_p0 = parseFloat(document.getElementById("phase_correction_direct_p0").value);
+            phase_correction_direct_p1 = parseFloat(document.getElementById("phase_correction_direct_p1").value);
+            auto_direct = document.getElementById("auto_direct").checked; //true or false
+            delete_direct = document.getElementById("delete_imaginary").checked; //true or false
+
+            /**
+             * Get HTML text input extract_direct_from and extract_direct_to. Input is in percentage
+             */
+            extract_direct_from = parseFloat(document.getElementById("extract_direct_from").value) / 100.0;
+            extract_direct_to = parseFloat(document.getElementById("extract_direct_to").value) / 100.0;
+
+            /**
+             * Get HTML text input apodization_indirect
+             */
+            apodization_indirect = document.getElementById("apodization_indirect").value;
+
+            /**
+             * Get HTML select zf_indirect value: "2" or "4" or "8"
+             */
+            zf_indirect = document.getElementById("zf_indirect").value;
+
+
+            /**
+             * Get HTML number input phase_correction_indirect_p0 and phase_correction_indirect_p1
+             * and checkbox auto_indirect checked: true or false
+             * and checkbox delete_indirect checked: true or false
+             */
+            phase_correction_indirect_p0 = parseFloat(document.getElementById("phase_correction_indirect_p0").value);
+            phase_correction_indirect_p1 = parseFloat(document.getElementById("phase_correction_indirect_p1").value);
+            auto_indirect = document.getElementById("auto_indirect").checked; //true or false
+            delete_indirect = document.getElementById("delete_imaginary_indirect").checked; //true or false
+
+
+            /**
+             * Get HTML checkbox "neg_imaginary".checked: true or false. Convert to "yes" or "no" for the worker
+             */
+            neg_imaginary = document.getElementById("neg_imaginary").checked ? "yes" : "no";
+
+            fid_process_parameters = {
+                file_data: current_fid_files,
+                acquisition_seq: acquisition_seq,
+                neg_imaginary: neg_imaginary,
+                apodization_direct: apodization_direct,
+                apodization_indirect: apodization_indirect,
+                auto_direct: auto_direct,
+                auto_indirect: auto_indirect,
+                delete_direct: delete_direct,
+                delete_indirect: delete_indirect,
+                phase_correction_direct_p0: phase_correction_direct_p0,
+                phase_correction_direct_p1: phase_correction_direct_p1,
+                phase_correction_indirect_p0: phase_correction_indirect_p0,
+                phase_correction_indirect_p1: phase_correction_indirect_p1,
+                zf_direct: zf_direct,
+                zf_indirect: zf_indirect,
+                extract_direct_from: extract_direct_from,
+                extract_direct_to: extract_direct_to,
+                processing_flag: processing_flag, //0: process, 1: reprocess
+                spectrum_index: spectrum_index, //not used if not reprocessing
+            };
+
+            /**
+             * Note. Add below 2 for reprocessing
+             * spectrum_index: spectrum_index, 
+             * flag: 1 (reprocess)
+             */
+            webassembly_worker.postMessage(fid_process_parameters);
+            /**
+             * Let user know the processing is started
+             */
+            document.getElementById("webassembly_message").innerText = "Processing time domain spectra, please wait...";
+        }
+
         e.preventDefault();
         /**
-         * This form has two submit buttons, names are "button_fid_process" and "button_fid_reprocess"
-         * we need to know which button is clicked
+         * The default value of the button is "Upload experimental files and process"
+         * For reprocessing, the button value is set to "Reprocess" by JS code.
          */
-        let button_name = e.submitter.name;
+        let button_value = e.submitter.value;
 
 
-        /**
-         * Step 1: save th file to virtual file system. Use promise to wait for all the files to be saved
-         */
-        
-
-        let acquisition_file = document.getElementById('acquisition_file').files[0];
-        let acquisition_file2 = document.getElementById('acquisition_file2').files[0];
-        let fid_file = document.getElementById('fid_file').files[0];
-        /**
-         * Nuslist file is optional (for non-uniform sampling)
-         * If it is not selected, it will be null
-         */
-        let nuslist_file = document.getElementById('nuslist_file').files[0];
-        
-        
-        if (button_name === "button_fid_process")
+        if(button_value === "Reprocess")
         {
+            current_fid_files = hsqc_spectra[current_reprocess_spectrum_index].fid_process_parameters.file_data;
+
+            process_fid_files(1,current_reprocess_spectrum_index);   
+        }
+
+        else
+        {
+            let acquisition_file = document.getElementById('acquisition_file').files[0];
+            let acquisition_file2 = document.getElementById('acquisition_file2').files[0];
+            let fid_file = document.getElementById('fid_file').files[0];
+            /**
+             * Nuslist file is optional (for non-uniform sampling)
+             * If it is not selected, it will be null
+             */
+            let nuslist_file = document.getElementById('nuslist_file').files[0];
+
+
+
             let promises;
-            if(typeof nuslist_file === "undefined")
-            {
+            if (typeof nuslist_file === "undefined") {
                 promises = [read_file(acquisition_file), read_file(acquisition_file2), read_file(fid_file)];
             }
-            else
-            {
+            else {
                 promises = [read_file(acquisition_file), read_file(acquisition_file2), read_file(fid_file), read_file(nuslist_file)];
             }
 
@@ -569,12 +669,10 @@ $(document).ready(function () {
                      * For each element in result (raw data of the files), we will convert it to Uint8Array
                      * so that they can be transferred to the worker
                      */
-                    if(typeof nuslist_file === "undefined")
-                    {
+                    if (typeof nuslist_file === "undefined") {
                         current_fid_files = [new Uint8Array(result[0]), new Uint8Array(result[1]), new Uint8Array(result[2])];
                     }
-                    else
-                    {
+                    else {
                         current_fid_files = [new Uint8Array(result[0]), new Uint8Array(result[1]), new Uint8Array(result[2]), new Uint8Array(result[3])];
                         /**
                          * convert nuslist file content (arrayBuffer) to string
@@ -591,29 +689,14 @@ $(document).ready(function () {
                     document.getElementById('fid_file').value = "";
                     document.getElementById('nuslist_file').value = "";
 
-                    call_webassembly_worker_for_fid_process(0,0);
-                    /**
-                     * Let user know the processing is started
-                     */
-                    document.getElementById("webassembly_message").innerText = "Processing time domain spectra, please wait...";
+                    process_fid_files(0,0);
 
                 })
                 .catch((err) => {
                     console.log(err);
                 });
         }
-        else if (button_name === "button_fid_reprocess")
-        {
-            /**
-             * We call the worker to process the fid data directly, because the fid files are already saved
-             * For reprocessing, spectrum_index is the current last spectrum in hsqc_spectra
-             */
-            call_webassembly_worker_for_fid_process(1,hsqc_spectra.length-1);    
-            /**
-             * Let user know the processing is started
-             */
-            document.getElementById("webassembly_message").innerText = "Re-processing time domain spectra, please wait...";
-        }
+
     });
 
     /**
@@ -683,93 +766,6 @@ $(document).ready(function () {
 });
 
 
-/**
- * When user click button to process fid data or reprocess fid data
- */
-function call_webassembly_worker_for_fid_process(flag,spectrum_index) {
-    /**
-     * Get HTML select "hsqc_acquisition_seq" value: "321" or "312"
-    */
-    acquisition_seq = document.getElementById("hsqc_acquisition_seq").value;
-    
-    /**
-     * Get HTML text input apodization_direct
-     */
-    apodization_direct = document.getElementById("apodization_direct").value;
-
-    /**
-     * Get HTML select zf_direct value: "2" or "4" or "8"
-     */
-    zf_direct = document.getElementById("zf_direct").value;
-
-    /**
-     * Get HTML number input phase_correction_direct_p0 and phase_correction_direct_p1
-     * and checkbox auto_direct checked: true or false
-     * and checkbox delete_direct checked: true or false
-     */
-    phase_correction_direct_p0 = parseFloat(document.getElementById("phase_correction_direct_p0").value);
-    phase_correction_direct_p1 = parseFloat(document.getElementById("phase_correction_direct_p1").value);
-    auto_direct = document.getElementById("auto_direct").checked; //true or false
-    delete_direct = document.getElementById("delete_imaginary").checked; //true or false
-
-    /**
-     * Get HTML text input extract_direct_from and extract_direct_to. Input is in percentage
-     */
-    extract_direct_from = parseFloat(document.getElementById("extract_direct_from").value)/100.0;
-    extract_direct_to = parseFloat(document.getElementById("extract_direct_to").value)/100.0;
-    
-    /**
-     * Get HTML text input apodization_indirect
-     */
-    apodization_indirect = document.getElementById("apodization_indirect").value;
-
-    /**
-     * Get HTML select zf_indirect value: "2" or "4" or "8"
-     */
-    zf_indirect = document.getElementById("zf_indirect").value;
-
-
-    /**
-     * Get HTML number input phase_correction_indirect_p0 and phase_correction_indirect_p1
-     * and checkbox auto_indirect checked: true or false
-     * and checkbox delete_indirect checked: true or false
-     */
-    phase_correction_indirect_p0 = parseFloat(document.getElementById("phase_correction_indirect_p0").value);
-    phase_correction_indirect_p1 = parseFloat(document.getElementById("phase_correction_indirect_p1").value);
-    auto_indirect = document.getElementById("auto_indirect").checked; //true or false
-    delete_indirect = document.getElementById("delete_imaginary_indirect").checked; //true or false
-    
-
-    /**
-     * Get HTML checkbox "neg_imaginary".checked: true or false. Convert to "yes" or "no" for the worker
-     */
-    neg_imaginary = document.getElementById("neg_imaginary").checked ? "yes" : "no";
-
-    /**
-     * Result is an array of Uint8Array
-     */
-    webassembly_worker.postMessage({
-        spectrum_index: spectrum_index, //if not reprocess, this value is not used
-        file_data: current_fid_files,
-        acquisition_seq: acquisition_seq,
-        neg_imaginary: neg_imaginary,
-        apodization_direct: apodization_direct,
-        apodization_indirect: apodization_indirect,
-        auto_direct: auto_direct,
-        auto_indirect: auto_indirect,
-        delete_direct: delete_direct,
-        delete_indirect: delete_indirect,
-        phase_correction_direct_p0: phase_correction_direct_p0,
-        phase_correction_direct_p1: phase_correction_direct_p1,
-        phase_correction_indirect_p0: phase_correction_indirect_p0,
-        phase_correction_indirect_p1: phase_correction_indirect_p1,
-        zf_direct: zf_direct,
-        zf_indirect: zf_indirect,
-        extract_direct_from: extract_direct_from,
-        extract_direct_to: extract_direct_to,
-        processing_flag: flag, //0: process, 1: reprocess
-    });
-}
 
 
 /**
@@ -1079,14 +1075,16 @@ webassembly_worker.onmessage = function (e) {
          */
         let current_phase_correction = e.data.phasing_data.split(/\s+/).map(Number);
 
-        /**
+        let arrayBuffer = new Uint8Array(e.data.file_data).buffer;
+        let result_spectrum = process_ft_file(arrayBuffer,"from_fid.ft2",-2);
+
+         /**
          * Fill HTML filed with id "phase_correction_direct_p0" and "phase_correction_direct_p1" with the first two numbers
          * and "phase_correction_indirect_p0" and "phase_correction_indirect_p1" with the last two numbers
          * IF these numbers are already filled (then send to the worker), they will be returned without change,
          * that is, there is no need to fill them again, but won't hurt to fill them again (because they are the same)
          */
-        if(e.data.file_type === 'full')
-        {
+        if (e.data.file_type === 'full') {
             document.getElementById("phase_correction_direct_p0").value = current_phase_correction[0];
             document.getElementById("phase_correction_direct_p1").value = current_phase_correction[1];
             document.getElementById("phase_correction_indirect_p0").value = current_phase_correction[2];
@@ -1096,14 +1094,17 @@ webassembly_worker.onmessage = function (e) {
              */
             apodization_indirect = e.data.apodization_indirect;
             document.getElementById("apodization_indirect").value = apodization_indirect;
-            
-            /**
-             *  
-             */
-        }
 
-        let arrayBuffer = new Uint8Array(e.data.file_data).buffer;
-        let result_spectrum = process_ft_file(arrayBuffer,"from_fid.ft2",-2);
+            /**
+             * Save the phase correction values to fid_process_parameters
+             */
+            fid_process_parameters.phase_correction_direct_p0 = current_phase_correction[0];
+            fid_process_parameters.phase_correction_direct_p1 = current_phase_correction[1];
+            fid_process_parameters.phase_correction_indirect_p0 = current_phase_correction[2];
+            fid_process_parameters.phase_correction_indirect_p1 = current_phase_correction[3];
+            fid_process_parameters.apodization_indirect = apodization_indirect;
+
+        }
         
         /**
          * Determine whether this is a re-process or a new process
@@ -1517,6 +1518,19 @@ function add_to_list(index) {
         draggable_span.appendChild(document.createTextNode("\u2195 Drag me. "));
         draggable_span.style.cursor = "move";
         new_spectrum_div.appendChild(draggable_span);
+    }
+
+    /**
+     * Add a "Reprocess" button to the new spectrum div if
+     * 1. spectrum_origin == -2 (experimental spectrum from fid)
+     * TODO: 2. spectrum_origin == -1 (experimental spectrum from ft2) && raw_data_ri or raw_data_ir is not empty
+     */
+    if(new_spectrum.spectrum_origin === -2)
+    {
+        let reprocess_button = document.createElement("button");
+        reprocess_button.innerText = "Reprocess";
+        reprocess_button.onclick = function () { reprocess_spectrum(this,index); };
+        new_spectrum_div.appendChild(reprocess_button);
     }
 
     /**
@@ -2513,10 +2527,7 @@ function show_cross_section(index) {
     main_plot.current_spectral_index = index;
     main_plot.b_show_cross_section = true;
     main_plot.b_show_projection = false;
-    /**
-     * Set hsqc_spectra[index] as the current spectrum
-     */
-    document.getElementById("spectrum-" + index).style.backgroundColor = "lightblue";
+
 }
 
 function show_projection(index) {
@@ -2876,6 +2887,8 @@ function update_contour_color(e,index,flag) {
 /**
  * Process the raw file data of a 2D FT spectrum
  * @param {arrayBuffer} arrayBuffer: raw file data
+ * @param {string} file_name: name of the file
+ * @param {string} spectrum_type: index to origin of the spectrum for reconstructed spectra, -1 for ft2, -2 for FID and -3 for removed spectra
  * @returns hsqc_spectra object
  */
 function process_ft_file(arrayBuffer,file_name, spectrum_type) {
@@ -3307,18 +3320,25 @@ function draw_spectrum(result_spectrum, b_from_fid,b_reprocess)
          * New spectrum from fid, set its index (current length of the spectral array) and color
          */
         spectrum_index = hsqc_spectra.length;
-        fid_files_spectral_index = spectrum_index; //update the fid_files_spectral_index
         result_spectrum.spectrum_index = spectrum_index;
         result_spectrum.spectrum_color = color_list[(spectrum_index*2) % color_list.length];
         result_spectrum.spectrum_color_negative = color_list[(spectrum_index*2+1) % color_list.length];
+
+        /**
+         * For spectrum from fid, we need to include all FID files and processing parameters in the result_spectrum object
+         */
+        result_spectrum.fid_process_parameters = fid_process_parameters;
+
         hsqc_spectra.push(result_spectrum);
     }
     else if( b_reprocess === true)
     {
         /**
-         * Reprocessed spectrum, get its index and update the spectrum
+         * Reprocessed spectrum, get its index and update the spectrum. 
+         * Also, update the fid_process_parameters
          */
         spectrum_index = result_spectrum.spectrum_index;
+        result_spectrum.fid_process_parameters = fid_process_parameters;
         hsqc_spectra[spectrum_index] = result_spectrum;
 
         /**
@@ -4098,4 +4118,110 @@ let maximal_values = []; // maximal value of each segment
 
     return noise_level;
 
+}
+
+/**
+ * User click on the button to reprocess the spectrum
+ */
+function reprocess_spectrum(self,spectrum_index)
+{
+    function set_fid_parameters(fid_process_parameters)
+    {
+        document.getElementById("hsqc_acquisition_seq").value = fid_process_parameters.acquisition_seq;
+        document.getElementById("apodization_direct").value = fid_process_parameters.apodization_direct;
+        document.getElementById("zf_direct").value = fid_process_parameters.zf_direct;
+        document.getElementById("phase_correction_direct_p0").value = fid_process_parameters.phase_correction_direct_p0;
+        document.getElementById("phase_correction_direct_p1").value = fid_process_parameters.phase_correction_direct_p1;
+        document.getElementById("auto_direct").checked = fid_process_parameters.auto_direct;
+        document.getElementById("delete_imaginary").checked = fid_process_parameters.delete_direct;
+        document.getElementById("extract_direct_from").value = fid_process_parameters.extract_direct_from * 100;
+        document.getElementById("extract_direct_to").value = fid_process_parameters.extract_direct_to * 100;
+        document.getElementById("apodization_indirect").value = fid_process_parameters.apodization_indirect;
+        document.getElementById("zf_indirect").value = fid_process_parameters.zf_indirect;
+        document.getElementById("phase_correction_indirect_p0").value = fid_process_parameters.phase_correction_indirect_p0;
+        document.getElementById("phase_correction_indirect_p1").value = fid_process_parameters.phase_correction_indirect_p1;
+        document.getElementById("auto_indirect").checked = fid_process_parameters.auto_indirect;
+        document.getElementById("delete_imaginary_indirect").checked = fid_process_parameters.delete_indirect;
+        document.getElementById("neg_imaginary").checked = fid_process_parameters.neg_imaginary === "yes" ? true : false;
+    }
+
+    function set_default_fid_parameters()
+    {
+        document.getElementById("hsqc_acquisition_seq").value = "321"
+        document.getElementById("apodization_direct").value = "SP begin 0.5 end 0.875 pow 2 elb 0 c 0.5";
+        document.getElementById("zf_direct").value = "2";
+        document.getElementById("phase_correction_direct_p0").value = 0;
+        document.getElementById("phase_correction_direct_p1").value = 0;
+        document.getElementById("auto_direct").checked = true;
+        document.getElementById("delete_imaginary").checked = false
+        document.getElementById("extract_direct_from").value = 0;   
+        document.getElementById("extract_direct_to").value =    100;
+        document.getElementById("apodization_indirect").value = " SP begin 0.5 end 0.875 pow 2 elb 0 c 0.5";
+        document.getElementById("zf_indirect").value = "2";
+        document.getElementById("phase_correction_indirect_p0").value = 0;
+        document.getElementById("phase_correction_indirect_p1").value = 0;
+        document.getElementById("auto_indirect").checked = true;
+        document.getElementById("delete_imaginary_indirect").checked = false;
+        document.getElementById("neg_imaginary").checked = false
+    }
+    /**
+     * Get button text
+     */
+    let button_text = self.innerText;
+    /**
+     * If the button text is "Reprocess", we need to prepare for reprocess the spectrum
+     */
+    if(button_text === "Reprocess")
+    {
+        /**
+         * Set hsqc_spectra[spectrum_index] as the current spectrum
+         */
+        document.getElementById("spectrum-" + spectrum_index).style.backgroundColor = "lightblue";
+        /**
+         * Change button text to "Quit reprocessing"
+         */
+        self.innerText = "Quit reprocessing";
+        /**
+         * Hide div "file_area" and "input_files" (of fid_file_area). 
+         * Change the button "button_fid_process" text to "Reprocess"
+         */
+        document.getElementById("file_area").style.display = "none";
+        document.getElementById("input_files").style.display = "none";
+        document.getElementById("button_fid_process").value = "Reprocess";
+
+        /**
+         * Set html elements with the fid_process_parameters of the spectrum
+         */
+        set_fid_parameters(hsqc_spectra[spectrum_index].fid_process_parameters);
+        
+        /**
+         * Switch to cross section mode for current spectrum
+         */
+        show_cross_section(spectrum_index);
+        current_reprocess_spectrum_index = spectrum_index;
+    }
+    else
+    {
+        /**
+         * Reset the spectrum color
+         */
+        document.getElementById("spectrum-" + spectrum_index).style.backgroundColor = "white";
+        /**
+         * Change button text back to "Reprocess"
+         */
+        self.innerText = "Reprocess";
+        /**
+         * Show div "file_area" and "input_files" (of fid_file_area).
+         * Change the button "button_fid_process"text back to "Upload experimental files and process"
+         */
+        document.getElementById("file_area").style.display = "block";
+        document.getElementById("input_files").style.display = "flex";
+        document.getElementById("button_fid_process").value = "Upload experimental files and process";
+        current_reprocess_spectrum_index = -1;
+
+        /**
+         * Restore default values for html elements
+         */
+        set_default_fid_parameters();
+    }
 }

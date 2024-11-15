@@ -151,7 +151,7 @@
         <div id="section2">
             <div id="section21">
                 <div id="fid_file_area" class="drop-area" style="width: 1200px;">
-                    <span><p><button id="button_minimize_fid_area" onclick="minimize_fid_area(this)">-</button>Upload Bruker time domain data for processing:</p></span>
+                    <span><p><button id="button_minimize_fid_area" onclick="minimize_fid_area(this)">-</button>Bruker time domain data for processing:</p></span>
                     <form id="fid_file_form" action="" enctype="multipart/form-data">
                         <div class="input-section" id="input_files">
                             <label for="fid_file">fid file (required, usually called fid or ser): </label><input type="file" name="fid_file"
@@ -166,7 +166,7 @@
                             <label class="information"> You can also drag and drop Bruker folder (which contains required files here).</label><br>
                         </div>
 
-                        <div class="input-section" id="input_files" > 
+                        <div class="input-section" id="input_options" > 
                             <span> 
                                 <label for="apodization_direct">Direct dimension apodization function</label>
                                 <input type="text" name="apodization_direct" id="apodization_direct" value="SP begin 0.5 end 0.875 pow 2 elb 0 c 0.5" size="50">
@@ -228,8 +228,6 @@
                                 <input type="checkbox" name="neg_imaginary" id="neg_imaginary" value="yes">
                                 <label for="neg_imaginary">Negative imaginary data (indirect dimension)?</label>
                             </span>
-                            
-
                         </div>
 
                         <div class="input-section" id="Pseudo-3D-section">
@@ -241,14 +239,13 @@
                         </div>  
 
                         <input type="submit" id="button_fid_process" name="button_fid_process" value="Upload experimental files and process">
-                        <input type="submit" id="button_fid_reprocess" name="button_fid_reprocess" value="Reprocess same experimental files">
                         </br>
 
                     </form>
                 </div>
 
                 <div id="file_area" class="drop-area" style="width: 1200px;">
-                    <p><button id="button_minimize_file_area" onclick="minimize_file_area(this)">-</button>Upload frequency domain spectra:</p>
+                    <p><button id="button_minimize_file_area" onclick="minimize_file_area(this)">-</button>Frequency domain spectra:</p>
                     <form id="ft2_file_form" action="" enctype="multipart/form-data">
                         <label for="userfile">Frequency domain spectral file (.ft2) </label><input type="file" multiple
                             id="userfile"><br>
