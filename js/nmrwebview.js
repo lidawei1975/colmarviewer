@@ -3932,25 +3932,35 @@ function apply_current_ps()
 
 
     /**
-     * If main_plot.current_spectrum_index == fid_files_spectral_index, we have fid data for the spectrum,
+     * If main_plot.current_spectrum_index == current_reprocess_spectrum_index, we have fid data for the spectrum,
      * we need to update the phase correction for the fid data processing as well
      */
-    if(main_plot.current_spectral_index === fid_files_spectral_index)
+    if(main_plot.current_spectral_index === current_reprocess_spectrum_index)
     {
         let v;
         v=parseFloat(document.getElementById("phase_correction_direct_p0").value) + current_ps[0][0];
         document.getElementById("phase_correction_direct_p0").value = v.toFixed(1);
+        hsqc_spectra[current_reprocess_spectrum_index].fid_process_parameters.phase_correction_direct_p0 = v;
+
         v=parseFloat(document.getElementById("phase_correction_direct_p1").value) + current_ps[0][1];
         document.getElementById("phase_correction_direct_p1").value = v.toFixed(1);
+        hsqc_spectra[current_reprocess_spectrum_index].fid_process_parameters.phase_correction_direct_p1 = v;
+
         v=parseFloat(document.getElementById("phase_correction_indirect_p0").value) + current_ps[1][0];
         document.getElementById("phase_correction_indirect_p0").value = v.toFixed(1);
+        hsqc_spectra[current_reprocess_spectrum_index].fid_process_parameters.phase_correction_indirect_p0 = v;
+
         v=parseFloat(document.getElementById("phase_correction_indirect_p1").value) + current_ps[1][1];
         document.getElementById("phase_correction_indirect_p1").value = v.toFixed(1);
+        hsqc_spectra[current_reprocess_spectrum_index].fid_process_parameters.phase_correction_indirect_p1 = v;
         /**
          * To be safe, uncheck auto phase correction
          */
         document.getElementById("auto_direct").checked = false;
         document.getElementById("auto_indirect").checked = false;
+        hsqc_spectra[current_reprocess_spectrum_index].fid_process_parameters.auto_direct = false;
+        hsqc_spectra[current_reprocess_spectrum_index].fid_process_parameters.auto_indirect = false;
+        
     }
 
     /**
@@ -4207,6 +4217,11 @@ function reprocess_spectrum(self,spectrum_index)
          */
         show_cross_section(spectrum_index);
         current_reprocess_spectrum_index = spectrum_index;
+
+        /**
+         * Enable apply_phase_correction button
+         */
+        document.getElementById("button_apply_ps").disabled = false;
     }
     else
     {
@@ -4231,5 +4246,9 @@ function reprocess_spectrum(self,spectrum_index)
          * Restore default values for html elements
          */
         set_default_fid_parameters();
+        /**
+         * Disable apply_phase_correction button
+         */
+        document.getElementById("button_apply_ps").disabled = true;
     }
 }
