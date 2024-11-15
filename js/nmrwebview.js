@@ -307,6 +307,14 @@ class file_drop_processor {
         // Un-highlight the drop zone.
         this.elem.style.outline = '';
 
+
+        /**
+         * Get the 1st button element
+         */
+        document.getElementById(this.drop_area_id).querySelector('button').innerText='-';
+        document.getElementById(this.drop_area_id).style.height = "auto";
+        document.getElementById(this.drop_area_id).style.overflow = "visible";
+
         // Prepare an array of promises…
         const fileHandlesPromises = [...e.dataTransfer.items]
             // …by including only files (where file misleadingly means actual file _or_
