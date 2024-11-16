@@ -1,3 +1,12 @@
+/**
+ * Workflows:
+ * 1. Read ft2 or read fid files. If FID, run webassembly_worker to process the FID (webassembly_worker2 for NUS) 
+ * 2. Once ft2 files are read or generated from FID, call functions pair: process_ft_file and draw_spectrum
+ * 3. Draw_spectrum will push the new spectrum object to hsqc_spectra array. Order in the array depends on who is generated first (ft2 may jump before fid even if fid is read first)
+ * 4. Draw_spectrum will call contour_worker to generate contour plot from the spectrum object
+ * 5. When all contour (pos and neg) are generated, contour_worker will send the data back to the main thread to show call and add_to_list()
+ */
+
 
 /**
  * Make sure we can load WebWorker
