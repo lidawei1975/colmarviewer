@@ -3916,7 +3916,7 @@ function remove_spectrum(index)
     main_plot.redraw_contour();
 }
 
-function apply_current_ps()
+function apply_current_pc()
 {
     /**
      * Get the current PS from main_plot. array of 2 elements [p0,p1] in radian

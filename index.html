@@ -132,7 +132,9 @@
                         <summary>How to run manual phase correction</summary>
                         <p>1. After processing the spectrum, you can manually adjust the phase correction for both dimensions by first enable reprocess.</p>
                         <p>2. Select "Cross section" (instead of "projection") to show the 1D cross section of the spectrum.</p>
-                        <p>3. Move your mouse to either direction or indirect dimension cross section plot. Hold shift key down then use your mouse wheel to change P0</p>
+                        <p>3. Move your mouse to either direction or indirect dimension cross section plot. Hold shift key down then use your mouse wheel to change P0.
+                            Each wheel event will change P0 by 1.0 degree. You can also use the Ctrl key for fine tuning (0.2 degree per event).
+                        </p>
                         <p>4. Click on the cross section plot to set anchor point. Right click to unset anchor point.</p>
                         <p>5. When anchor is set, use mouse wheel to change P1.</p>
                         <p>6. After you are satisfied with the phase correction, click "Apply PS" to apply the phase correction to the 2D spectrum and saved processing parameters.</p>
@@ -308,7 +310,7 @@
                         <button onclick="popzoom()">Zoom Back</button>,
                         <button onclick="zoomout()">Zoom out 120%</button>
                         <button onclick="download_plot()">Download plot</button>
-                        <button id="button_apply_ps" disabled onclick="apply_current_ps()">Apply PS</button>
+                        <button id="button_apply_ps" disabled onclick="apply_current_ps()">Apply PC</button>
                         <br>
 
                         <label for="peak_color">Peak color: </label>
