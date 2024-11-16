@@ -4215,6 +4215,8 @@ function reprocess_spectrum(self,spectrum_index)
         /**
          * Switch to cross section mode for current spectrum
          */
+        document.getElementById("show_cross_section".concat("-").concat(spectrum_index)).checked = true;
+        document.getElementById("show_projection".concat("-").concat(spectrum_index)).checked = false;
         show_cross_section(spectrum_index);
         current_reprocess_spectrum_index = spectrum_index;
 

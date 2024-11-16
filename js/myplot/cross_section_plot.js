@@ -180,14 +180,14 @@ class cross_section_plot {
             if ((e.shiftKey || e.ctrlKey) && this.imagine_exist === true) {
                 /**
                  * Coarse phase correction with shift key, step is 1.0 degree per wheel event
-                 * Fine phase correction with ctrl key, step is 0.2 degree per wheel event
+                 * Fine phase correction with ctrl key, step is 0.1 degree per wheel event
                  */
                 let step = 1.0;
                 if (e.shiftKey) {
                     step = 1.0;
                 }
                 else if (e.ctrlKey) {
-                    step = 0.2;
+                    step = 0.1;
                 }
                 /**
                  * If anchor ppm is not set, we change this.phase_correction
