@@ -177,18 +177,29 @@ class cross_section_plot {
              * 1. If shift key is pressed, try phase correction
              * 2. If not, zoom in/out
              */
-            if (e.shiftKey && this.imagine_exist === true) {
-
+            if ((e.shiftKey || e.ctrlKey) && this.imagine_exist === true) {
+                /**
+                 * Coarse phase correction with shift key, step is 1.0 degree per wheel event
+                 * Fine phase correction with ctrl key, step is 0.1 degree per wheel event
+                 */
+                let step = 1.0;
+                if (e.shiftKey) {
+                    step = 1.0;
+                }
+                else if (e.ctrlKey) {
+                    step = 0.1;
+                }
                 /**
                  * If anchor ppm is not set, we change this.phase_correction
                  */
                 if(this.anchor_ppm < -99.0)
                 {
+                    
                     if(delta > 0) {
-                        this.phase_correction -=1/180*Math.PI;
+                        this.phase_correction -=step/180*Math.PI;
                     }
                     else {
-                        this.phase_correction +=1/180*Math.PI;
+                        this.phase_correction +=step/180*Math.PI;
                     }
                 }
                 /**
@@ -196,10 +207,10 @@ class cross_section_plot {
                  */
                 else {
                     if (delta > 0) {
-                        this.phase_correction_p1 -= 1 / 180 * Math.PI;
+                        this.phase_correction_p1 -= step / 180 * Math.PI;
                     }
                     else {
-                        this.phase_correction_p1 += 1 / 180 * Math.PI;
+                        this.phase_correction_p1 += step / 180 * Math.PI;
                     }
                 }
                 /**
