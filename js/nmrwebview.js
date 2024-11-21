@@ -1,3 +1,12 @@
+/**
+ * Workflows:
+ * 1. Read ft2 or read fid files. If FID, run webassembly_worker to process the FID (webassembly_worker2 for NUS) 
+ * 2. Once ft2 files are read or generated from FID, call functions pair: process_ft_file and draw_spectrum
+ * 3. Draw_spectrum will push the new spectrum object to hsqc_spectra array. Order in the array depends on who is generated first (ft2 may jump before fid even if fid is read first)
+ * 4. Draw_spectrum will call contour_worker to generate contour plot from the spectrum object
+ * 5. When all contour (pos and neg) are generated, contour_worker will send the data back to the main thread to show call and add_to_list()
+ */
+
 
 /**
  * Make sure we can load WebWorker
@@ -37,21 +46,21 @@ var total_number_of_experimental_spectra = 0; //total number of experimental spe
 var fid_process_parameters; 
 var current_reprocess_spectrum_index = -1;
     
-var acquisition_seq;
-var neg_imaginary;
-var apodization_direct;
-var apodization_indirect;
-var zf_direct;
-var zf_indirect;
-var phase_correction_direct_p0;
-var phase_correction_direct_p1;
-var auto_direct;
-var phase_correction_indirect_p0;
-var phase_correction_indirect_p1;
-var auto_indirect;
-var nuslist_as_string = '';
-var extract_direct_from = 0.0;
-var extract_direct_to = 1.0;
+// var acquisition_seq;
+// var neg_imaginary;
+// var apodization_direct;
+// var apodization_indirect;
+// var zf_direct;
+// var zf_indirect;
+// var phase_correction_direct_p0;
+// var phase_correction_direct_p1;
+// var auto_direct;
+// var phase_correction_indirect_p0;
+// var phase_correction_indirect_p1;
+// var auto_indirect;
+// var nuslist_as_string = '';
+// var extract_direct_from = 0.0;
+// var extract_direct_to = 1.0;
 
 
 
@@ -274,6 +283,28 @@ class file_drop_processor {
             {
                 document.getElementById(file_id).files = container.files;
             }
+
+            /**
+             * If this.drop_area_id === "input_files" and we have 
+             * at least 3 of all files_id filled, we will highlight the processing div
+             */
+            if(this.drop_area_id === "input_files")
+            {
+                let filled = 0;
+                let required_files = [0,2,3];
+                for(let i=0;i<required_files.length;i++)
+                {
+                    if(document.getElementById(this.files_id[required_files[i]]).files.length > 0)
+                    {
+                        filled++;
+                    }
+                }
+                if(filled >= 3)
+                {
+                    document.getElementById("input_options").style.backgroundColor = "lightgreen";
+                }
+            }
+
             /**
              * If we can match file, will not try to match extension
              */
@@ -306,14 +337,6 @@ class file_drop_processor {
         }
         // Un-highlight the drop zone.
         this.elem.style.outline = '';
-
-
-        /**
-         * Get the 1st button element
-         */
-        document.getElementById(this.drop_area_id).querySelector('button').innerText='-';
-        document.getElementById(this.drop_area_id).style.height = "auto";
-        document.getElementById(this.drop_area_id).style.overflow = "visible";
 
         // Prepare an array of promises…
         const fileHandlesPromises = [...e.dataTransfer.items]
@@ -416,7 +439,7 @@ $(document).ready(function () {
     * INitialize the file drop processor for the time domain spectra
     */
     fid_drop_process = new file_drop_processor()
-    .drop_area('fid_file_area') /** id of dropzone */
+    .drop_area('input_files') /** id of dropzone */
     .files_name(["acqu2s", "acqu3s", "acqus", "ser", "fid","nuslist"])  /** file names to be searched from upload */
     .files_id(["acquisition_file2","acquisition_file2", "acquisition_file", "fid_file", "fid_file","nuslist_file"]) /** Corresponding file element IDs */
     .file_extension([])  /** file extensions to be searched from upload */
@@ -542,46 +565,57 @@ $(document).ready(function () {
          * Function to process the file
          */
         function process_fid_files(processing_flag, spectrum_index) {
+
+            /**
+             * Get html checkbox water_suppression checked: true or false
+             */
+            let water_suppression = document.getElementById("water_suppression").checked;
+
+            /**
+             * Get html option "polynomial" value: -1,0,1,2,3
+             */
+            let polynomial = document.getElementById("polynomial").value;
+
             /**
              * Get HTML select "hsqc_acquisition_seq" value: "321" or "312"
             */
-            acquisition_seq = document.getElementById("hsqc_acquisition_seq").value;
+            let acquisition_seq = document.getElementById("hsqc_acquisition_seq").value;
 
             /**
              * Get HTML text input apodization_direct
              */
-            apodization_direct = document.getElementById("apodization_direct").value;
+            let apodization_direct = document.getElementById("apodization_direct").value;
 
             /**
              * Get HTML select zf_direct value: "2" or "4" or "8"
              */
-            zf_direct = document.getElementById("zf_direct").value;
+            let zf_direct = document.getElementById("zf_direct").value;
 
             /**
              * Get HTML number input phase_correction_direct_p0 and phase_correction_direct_p1
              * and checkbox auto_direct checked: true or false
              * and checkbox delete_direct checked: true or false
              */
-            phase_correction_direct_p0 = parseFloat(document.getElementById("phase_correction_direct_p0").value);
-            phase_correction_direct_p1 = parseFloat(document.getElementById("phase_correction_direct_p1").value);
-            auto_direct = document.getElementById("auto_direct").checked; //true or false
-            delete_direct = document.getElementById("delete_imaginary").checked; //true or false
+            let phase_correction_direct_p0 = parseFloat(document.getElementById("phase_correction_direct_p0").value);
+            let phase_correction_direct_p1 = parseFloat(document.getElementById("phase_correction_direct_p1").value);
+            let auto_direct = document.getElementById("auto_direct").checked; //true or false
+            let delete_direct = document.getElementById("delete_imaginary").checked; //true or false
 
             /**
              * Get HTML text input extract_direct_from and extract_direct_to. Input is in percentage
              */
-            extract_direct_from = parseFloat(document.getElementById("extract_direct_from").value) / 100.0;
-            extract_direct_to = parseFloat(document.getElementById("extract_direct_to").value) / 100.0;
+            let extract_direct_from = parseFloat(document.getElementById("extract_direct_from").value) / 100.0;
+            let extract_direct_to = parseFloat(document.getElementById("extract_direct_to").value) / 100.0;
 
             /**
              * Get HTML text input apodization_indirect
              */
-            apodization_indirect = document.getElementById("apodization_indirect").value;
+            let apodization_indirect = document.getElementById("apodization_indirect").value;
 
             /**
              * Get HTML select zf_indirect value: "2" or "4" or "8"
              */
-            zf_indirect = document.getElementById("zf_indirect").value;
+            let zf_indirect = document.getElementById("zf_indirect").value;
 
 
             /**
@@ -589,18 +623,20 @@ $(document).ready(function () {
              * and checkbox auto_indirect checked: true or false
              * and checkbox delete_indirect checked: true or false
              */
-            phase_correction_indirect_p0 = parseFloat(document.getElementById("phase_correction_indirect_p0").value);
-            phase_correction_indirect_p1 = parseFloat(document.getElementById("phase_correction_indirect_p1").value);
-            auto_indirect = document.getElementById("auto_indirect").checked; //true or false
-            delete_indirect = document.getElementById("delete_imaginary_indirect").checked; //true or false
+            let phase_correction_indirect_p0 = parseFloat(document.getElementById("phase_correction_indirect_p0").value);
+            let phase_correction_indirect_p1 = parseFloat(document.getElementById("phase_correction_indirect_p1").value);
+            let auto_indirect = document.getElementById("auto_indirect").checked; //true or false
+            let delete_indirect = document.getElementById("delete_imaginary_indirect").checked; //true or false
 
 
             /**
              * Get HTML checkbox "neg_imaginary".checked: true or false. Convert to "yes" or "no" for the worker
              */
-            neg_imaginary = document.getElementById("neg_imaginary").checked ? "yes" : "no";
+            let neg_imaginary = document.getElementById("neg_imaginary").checked ? "yes" : "no";
 
             fid_process_parameters = {
+                water_suppression: water_suppression,
+                polynomial: polynomial,
                 file_data: current_fid_files,
                 acquisition_seq: acquisition_seq,
                 neg_imaginary: neg_imaginary,
@@ -651,6 +687,11 @@ $(document).ready(function () {
 
         else
         {
+            /**
+             * UN-highlight the input_options div
+             */
+            document.getElementById("input_options").style.backgroundColor = "white";
+
             let acquisition_file = document.getElementById('acquisition_file').files[0];
             let acquisition_file2 = document.getElementById('acquisition_file2').files[0];
             let fid_file = document.getElementById('fid_file').files[0];
@@ -4145,6 +4186,8 @@ function reprocess_spectrum(self,spectrum_index)
 {
     function set_fid_parameters(fid_process_parameters)
     {
+        document.getElementById("water_suppression").checked = fid_process_parameters.water_suppression;
+        document.getElementById("polynomial").value = fid_process_parameters.polynomial;
         document.getElementById("hsqc_acquisition_seq").value = fid_process_parameters.acquisition_seq;
         document.getElementById("apodization_direct").value = fid_process_parameters.apodization_direct;
         document.getElementById("zf_direct").value = fid_process_parameters.zf_direct;
@@ -4165,8 +4208,10 @@ function reprocess_spectrum(self,spectrum_index)
 
     function set_default_fid_parameters()
     {
+        document.getElementById("water_suppression").checked = false;
+        document.getElementById("polynomial").value =-1;
         document.getElementById("hsqc_acquisition_seq").value = "321"
-        document.getElementById("apodization_direct").value = "SP begin 0.5 end 0.875 pow 2 elb 0 c 0.5";
+        document.getElementById("apodization_direct").value = "SP off 0.5 end 0.98 pow 2 elb 0 c 0.5";
         document.getElementById("zf_direct").value = "2";
         document.getElementById("phase_correction_direct_p0").value = 0;
         document.getElementById("phase_correction_direct_p1").value = 0;
@@ -4174,7 +4219,7 @@ function reprocess_spectrum(self,spectrum_index)
         document.getElementById("delete_imaginary").checked = false
         document.getElementById("extract_direct_from").value = 0;   
         document.getElementById("extract_direct_to").value =    100;
-        document.getElementById("apodization_indirect").value = " SP begin 0.5 end 0.875 pow 2 elb 0 c 0.5";
+        document.getElementById("apodization_indirect").value = " SP off 0.5 end 0.98 pow 2 elb 0 c 0.5";
         document.getElementById("zf_indirect").value = "2";
         document.getElementById("phase_correction_indirect_p0").value = 0;
         document.getElementById("phase_correction_indirect_p1").value = 0;
@@ -4192,9 +4237,15 @@ function reprocess_spectrum(self,spectrum_index)
     if(button_text === "Reprocess")
     {
         /**
+         * hide input fid files
+         */
+        document.getElementById("input_files").style.display = "none";
+
+        /**
          * Set hsqc_spectra[spectrum_index] as the current spectrum
          */
         document.getElementById("spectrum-" + spectrum_index).style.backgroundColor = "lightblue";
+        document.getElementById("input_options").style.backgroundColor = "lightblue";
         /**
          * Change button text to "Quit reprocessing"
          */
@@ -4228,9 +4279,15 @@ function reprocess_spectrum(self,spectrum_index)
     else
     {
         /**
+         * Undo hide of input fid files
+         */
+        document.getElementById("input_files").style.display = "flex";
+
+        /**
          * Reset the spectrum color
          */
         document.getElementById("spectrum-" + spectrum_index).style.backgroundColor = "white";
+        document.getElementById("input_options").style.backgroundColor = "white";
         /**
          * Change button text back to "Reprocess"
          */

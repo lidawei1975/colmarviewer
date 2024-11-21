@@ -165,10 +165,10 @@
 
         <div id="section2">
             <div id="section21">
-                <div id="fid_file_area" class="drop-area" style="width: 1200px; overflow: clip; height: 3rem;">
+                <div id="fid_file_area" class="drop-area-neighbor" style="width: 1200px; overflow: clip; height: 3rem;">
                     <span><p><button id="button_minimize_fid_area" onclick="minimize_fid_area(this)">+</button>Bruker time domain data for processing:</p></span>
                     <form id="fid_file_form" action="" enctype="multipart/form-data">
-                        <div class="input-section" id="input_files">
+                        <div class="drop-area input-section" id="input_files">
                             <label for="fid_file">fid file (required, usually called fid or ser): </label><input type="file" name="fid_file"
                                 id="fid_file" multiple><br>
                             <label for="acquisition_file">Direct dimension acquisition file (required, usually called acqus):</label>
@@ -182,9 +182,13 @@
                         </div>
 
                         <div class="input-section" id="input_options" > 
+                            <span>
+                                <input type="checkbox" name="water_suppression" id="water_suppression" value="yes">
+                                <label for="water_suppression">Water suppression?</label>
+                            </span>
                             <span> 
                                 <label for="apodization_direct">Direct dimension apodization function</label>
-                                <input type="text" name="apodization_direct" id="apodization_direct" value="SP begin 0.5 end 0.875 pow 2 elb 0 c 0.5" size="50">
+                                <input type="text" name="apodization_direct" id="apodization_direct" value="SP off 0.5 end 0.98 pow 2 elb 0 c 0.5" size="50">
                             </span>
 
                             <span>
@@ -216,7 +220,7 @@
 
                             <span>
                                 <label for="apodization_indirect">Indirect dimension apodization function</label>
-                                <input type="text" name="apodization_indirect" id="apodization_indirect" value="SP begin 0.5 end 0.875 pow 2 elb 0 c 0.5" size="50">
+                                <input type="text" name="apodization_indirect" id="apodization_indirect" value="SP off 0.5 end 0.98 pow 2 elb 0 c 0.5" size="50">
                             </span>
 
                             <span>
@@ -238,19 +242,29 @@
                                 <input type="checkbox" name="delete_imaginary_indirect" id="delete_imaginary_indirect" value="yes">
                                 <label for="delete_imaginary_indirect">Delete imaginary data
                             </span>
+
+                            <span>
+                                <label for="poly">polynomial baseline correction at order </label>
+                                <select name="polynomial" id="polynomial">
+                                    <option value="-1">none</option>
+                                    <option value="0">0</option>
+                                    <option value="1">1</option>
+                                    <option value="2">2</option>
+                                </select> 
+                            </span>
                             
                             <span> 
                                 <input type="checkbox" name="neg_imaginary" id="neg_imaginary" value="yes">
                                 <label for="neg_imaginary">Negative imaginary data (indirect dimension)?</label>
                             </span>
-                        </div>
-
-                        <div class="input-section" id="Pseudo-3D-section">
-                            <label for="hsqc_acquisition_seq">pseudo-3D acquisition sequence </label>
-                            <select name="hsqc_acquisition_seq" id="hsqc_acquisition_seq">
-                                <option value="321">321</option>
-                                <option value="312">312</option>
-                            </select>
+                            
+                            <span>
+                                <label for="hsqc_acquisition_seq">pseudo-3D acquisition sequence </label>
+                                <select name="hsqc_acquisition_seq" id="hsqc_acquisition_seq">
+                                    <option value="321">321</option>
+                                    <option value="312">312</option>
+                                </select>
+                            </span>
                         </div>  
 
                         <input type="submit" id="button_fid_process" name="button_fid_process" value="Upload experimental files and process">
