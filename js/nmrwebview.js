@@ -4175,7 +4175,7 @@ function reprocess_spectrum(self,spectrum_index)
     function set_default_fid_parameters()
     {
         document.getElementById("hsqc_acquisition_seq").value = "321"
-        document.getElementById("apodization_direct").value = "SP begin 0.5 end 0.875 pow 2 elb 0 c 0.5";
+        document.getElementById("apodization_direct").value = "SP off 0.5 end 0.98 pow 2 elb 0 c 0.5";
         document.getElementById("zf_direct").value = "2";
         document.getElementById("phase_correction_direct_p0").value = 0;
         document.getElementById("phase_correction_direct_p1").value = 0;
@@ -4183,7 +4183,7 @@ function reprocess_spectrum(self,spectrum_index)
         document.getElementById("delete_imaginary").checked = false
         document.getElementById("extract_direct_from").value = 0;   
         document.getElementById("extract_direct_to").value =    100;
-        document.getElementById("apodization_indirect").value = " SP begin 0.5 end 0.875 pow 2 elb 0 c 0.5";
+        document.getElementById("apodization_indirect").value = " SP off 0.5 end 0.98 pow 2 elb 0 c 0.5";
         document.getElementById("zf_indirect").value = "2";
         document.getElementById("phase_correction_indirect_p0").value = 0;
         document.getElementById("phase_correction_indirect_p1").value = 0;
