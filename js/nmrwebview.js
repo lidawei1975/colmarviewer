@@ -283,6 +283,28 @@ class file_drop_processor {
             {
                 document.getElementById(file_id).files = container.files;
             }
+
+            /**
+             * If this.drop_area_id === "input_files" and we have 
+             * at least 3 of all files_id filled, we will highlight the processing div
+             */
+            if(this.drop_area_id === "input_files")
+            {
+                let filled = 0;
+                let required_files = [0,2,3];
+                for(let i=0;i<required_files.length;i++)
+                {
+                    if(document.getElementById(this.files_id[required_files[i]]).files.length > 0)
+                    {
+                        filled++;
+                    }
+                }
+                if(filled >= 3)
+                {
+                    document.getElementById("input_options").style.backgroundColor = "lightgreen";
+                }
+            }
+
             /**
              * If we can match file, will not try to match extension
              */
@@ -315,14 +337,6 @@ class file_drop_processor {
         }
         // Un-highlight the drop zone.
         this.elem.style.outline = '';
-
-
-        /**
-         * Get the 1st button element
-         */
-        document.getElementById(this.drop_area_id).querySelector('button').innerText='-';
-        document.getElementById(this.drop_area_id).style.height = "auto";
-        document.getElementById(this.drop_area_id).style.overflow = "visible";
 
         // Prepare an array of promises…
         const fileHandlesPromises = [...e.dataTransfer.items]
@@ -425,7 +439,7 @@ $(document).ready(function () {
     * INitialize the file drop processor for the time domain spectra
     */
     fid_drop_process = new file_drop_processor()
-    .drop_area('fid_file_area') /** id of dropzone */
+    .drop_area('input_files') /** id of dropzone */
     .files_name(["acqu2s", "acqu3s", "acqus", "ser", "fid","nuslist"])  /** file names to be searched from upload */
     .files_id(["acquisition_file2","acquisition_file2", "acquisition_file", "fid_file", "fid_file","nuslist_file"]) /** Corresponding file element IDs */
     .file_extension([])  /** file extensions to be searched from upload */
@@ -673,6 +687,11 @@ $(document).ready(function () {
 
         else
         {
+            /**
+             * UN-highlight the input_options div
+             */
+            document.getElementById("input_options").style.backgroundColor = "white";
+
             let acquisition_file = document.getElementById('acquisition_file').files[0];
             let acquisition_file2 = document.getElementById('acquisition_file2').files[0];
             let fid_file = document.getElementById('fid_file').files[0];
@@ -4218,6 +4237,11 @@ function reprocess_spectrum(self,spectrum_index)
     if(button_text === "Reprocess")
     {
         /**
+         * hide input fid files
+         */
+        document.getElementById("input_files").style.display = "none";
+
+        /**
          * Set hsqc_spectra[spectrum_index] as the current spectrum
          */
         document.getElementById("spectrum-" + spectrum_index).style.backgroundColor = "lightblue";
@@ -4254,6 +4278,11 @@ function reprocess_spectrum(self,spectrum_index)
     }
     else
     {
+        /**
+         * Undo hide of input fid files
+         */
+        document.getElementById("input_files").style.display = "flex";
+
         /**
          * Reset the spectrum color
          */
