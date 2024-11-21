@@ -244,7 +244,20 @@ onmessage = function (e) {
         content = content.concat(' -zf '.concat(e.data.zf_direct,' -zf-indirect ',e.data.zf_indirect));
         content = content.concat(' -apod '.concat(e.data.apodization_direct));
         content = content.concat(' -apod-indirect '.concat(apodization_indirect));
+        content = content.concat(' -poly '.concat(e.data.polynomial));
         content = content.concat(' -in fid_file acquisition_file acquisition_file2 none');
+
+        /**
+         * Water suppression ?
+         */
+        if(e.data.water_suppression === true)
+        {
+            content = content.concat(' -water yes ');
+        }
+        else
+        {
+            content = content.concat(' -water no ');
+        }
 
         /**
          * If both auto_direct and auto_indirect are false, add -phase-in phase-correction.txt to the content
