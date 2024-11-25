@@ -122,7 +122,17 @@ class spectrum {
         this.y_ppm_ref = 0.0; //reference ppm of indirect dimension
         this.picked_peaks = []; //picked peaks
         this.fitted_peaks = []; //fitted peaks
-        this.spectrum_origin = -1; //spectrum origin: -2: experimental spectrum from fid, -1: experimental spectrum uploaded,  n(n>=0): reconstructed from experimental spectrum n
+        /**
+         * spectrum origin: 
+         * -4: unknown,
+         * -2: experimental spectrum from fid, 
+         * -1: experimental spectrum uploaded,  
+         * n(n>=0 and n<10000): reconstructed from experimental spectrum n
+         * n(n>=10000): pseudo 3D spectrum, whose first plane spectrum is n-1000
+         */
+        this.spectrum_origin = -4; 
+
+        this.spectrum_index = -1; //index of the spectrum in the hsqc_spectra array. integer and >=0
         
         /**
          * Default median sigmax, sigmay, gammax, gammay
@@ -138,9 +148,15 @@ class spectrum {
         this.visible = true; //visible or not
 
         /**
-         * fid process parameters is only valid when spectrum_origin is -1 (from fid)
+         * fid process parameters is only valid when spectrum_origin is -2 (from fid)
+         * and it is the first plane (of a pseudo 3D spectrum if it is a pseudo 3D fid)
          */
         this.fid_process_parameters = null;
+        /**
+         * If the spectrum is 1st plane of a pseudo 3D spectrum, 
+         * pseudo3d_children will hold the indices of children spectra (other planes)
+         */
+        this.pseudo3d_children = [];
     }
 };
 
@@ -537,7 +553,7 @@ $(document).ready(function () {
             }).then((file_data) => {
                 if(file_data !== null){
                     let result_spectrum = process_ft_file(file_data,this.querySelector('input[type="file"]').files[ii].name,-1);
-                    draw_spectrum(result_spectrum,false/**from fid */,false/** re-process of fid or ft2 */);
+                    draw_spectrum([result_spectrum],false/**from fid */,false/** re-process of fid or ft2 */);
                 }
                 /**
                  * If it is the last file, clear the file input
@@ -634,11 +650,17 @@ $(document).ready(function () {
              */
             let neg_imaginary = document.getElementById("neg_imaginary").checked ? "yes" : "no";
 
+            /**
+             * Get radio group "Pseudo-3D-process" value: first_only or all_planes
+             */
+            let pseudo3d_process = document.querySelector('input[name="Pseudo-3D-process"]:checked').value;
+
             fid_process_parameters = {
                 water_suppression: water_suppression,
                 polynomial: polynomial,
                 file_data: current_fid_files,
                 acquisition_seq: acquisition_seq,
+                pseudo3d_process: pseudo3d_process,
                 neg_imaginary: neg_imaginary,
                 apodization_direct: apodization_direct,
                 apodization_indirect: apodization_indirect,
@@ -657,6 +679,15 @@ $(document).ready(function () {
                 processing_flag: processing_flag, //0: process, 1: reprocess
                 spectrum_index: spectrum_index, //not used if not reprocessing
             };
+
+            if(processing_flag==1)
+            {
+                fid_process_parameters.pseudo3d_children = hsqc_spectra[spectrum_index].pseudo3d_children;
+            }
+            else
+            {
+                fid_process_parameters.pseudo3d_children = [];
+            }
 
             /**
              * Note. Add below 2 for reprocessing
@@ -1011,26 +1042,26 @@ webassembly_worker.onmessage = function (e) {
      */
     else if (e.data.fitted_peaks && e.data.recon_spectrum) {
         console.log("Fitted peaks and recon_spectrum received");
-        hsqc_spectra[e.data.spectrum_index].fitted_peaks = e.data.fitted_peaks.fitted_peaks; //The double fitted_peaks is correct
-        hsqc_spectra[e.data.spectrum_index].fitted_peaks_tab = e.data.fitted_peaks_tab; //a string of fitted peaks in nmrPipe format
+        hsqc_spectra[e.data.spectrum_origin].fitted_peaks = e.data.fitted_peaks.fitted_peaks; //The double fitted_peaks is correct
+        hsqc_spectra[e.data.spectrum_origin].fitted_peaks_tab = e.data.fitted_peaks_tab; //a string of fitted peaks in nmrPipe format
 
         /**
          * Enable run deep picker and run voigt fitter buttons
          */
-        document.getElementById("run_deep_picker-".concat(e.data.spectrum_index)).disabled = false;
-        document.getElementById("run_voigt_fitter-".concat(e.data.spectrum_index)).disabled = false;
+        document.getElementById("run_deep_picker-".concat(e.data.spectrum_origin)).disabled = false;
+        document.getElementById("run_voigt_fitter-".concat(e.data.spectrum_origin)).disabled = false;
 
         /**
          * Enable the download fitted peaks button and show the fitted peaks button
          */
-        document.getElementById("download_fitted_peaks-".concat(e.data.spectrum_index)).disabled = false;
-        document.getElementById("show_fitted_peaks-".concat(e.data.spectrum_index)).disabled = false;
+        document.getElementById("download_fitted_peaks-".concat(e.data.spectrum_origin)).disabled = false;
+        document.getElementById("show_fitted_peaks-".concat(e.data.spectrum_origin)).disabled = false;
 
         /**
          * Uncheck the show_peaks checkbox then simulate a click event to show the peaks (with updated peaks from fitted_peaks)
          */
-        document.getElementById("show_fitted_peaks-".concat(e.data.spectrum_index)).checked = false;
-        document.getElementById("show_fitted_peaks-".concat(e.data.spectrum_index)).click();
+        document.getElementById("show_fitted_peaks-".concat(e.data.spectrum_origin)).checked = false;
+        document.getElementById("show_fitted_peaks-".concat(e.data.spectrum_origin)).click();
 
         /**
          * Treat the received recon_spectrum as a frequency domain spectrum
@@ -1040,33 +1071,33 @@ webassembly_worker.onmessage = function (e) {
         /**
          * Process the frequency domain spectrum, spectrum name is "recon-".spectrum_origin.".ft2"
          */
-        let result_spectrum_name = "recon-".concat(e.data.spectrum_index.toString(), ".ft2");
-        let result_spectrum = process_ft_file(arrayBuffer,result_spectrum_name,e.data.spectrum_index);
+        let result_spectrum_name = "recon-".concat(e.data.spectrum_origin.toString(), ".ft2");
+        let result_spectrum = process_ft_file(arrayBuffer,result_spectrum_name,e.data.spectrum_origin);
 
         /**
          * Replace its header with the header of the original spectrum
          * and noise_level, levels, negative_levels, spectral_max and spectral_min with the original spectrum
          */
-        result_spectrum.header = hsqc_spectra[e.data.spectrum_index].header;
-        result_spectrum.noise_level = hsqc_spectra[e.data.spectrum_index].noise_level;
-        result_spectrum.levels = hsqc_spectra[e.data.spectrum_index].levels;
-        result_spectrum.negative_levels = hsqc_spectra[e.data.spectrum_index].negative_levels;
-        result_spectrum.spectral_max = hsqc_spectra[e.data.spectrum_index].spectral_max;
-        result_spectrum.spectral_min = hsqc_spectra[e.data.spectrum_index].spectral_min;
+        result_spectrum.header = hsqc_spectra[e.data.spectrum_origin].header;
+        result_spectrum.noise_level = hsqc_spectra[e.data.spectrum_origin].noise_level;
+        result_spectrum.levels = hsqc_spectra[e.data.spectrum_origin].levels;
+        result_spectrum.negative_levels = hsqc_spectra[e.data.spectrum_origin].negative_levels;
+        result_spectrum.spectral_max = hsqc_spectra[e.data.spectrum_origin].spectral_max;
+        result_spectrum.spectral_min = hsqc_spectra[e.data.spectrum_origin].spectral_min;
 
         /**
          * Copy picked_peaks and fitted_peaks from the original spectrum
          */
-        result_spectrum.picked_peaks = hsqc_spectra[e.data.spectrum_index].picked_peaks;
-        result_spectrum.fitted_peaks = hsqc_spectra[e.data.spectrum_index].fitted_peaks;
-        result_spectrum.fitted_peaks_tab = hsqc_spectra[e.data.spectrum_index].fitted_peaks_tab;
+        result_spectrum.picked_peaks = hsqc_spectra[e.data.spectrum_origin].picked_peaks;
+        result_spectrum.fitted_peaks = hsqc_spectra[e.data.spectrum_origin].fitted_peaks;
+        result_spectrum.fitted_peaks_tab = hsqc_spectra[e.data.spectrum_origin].fitted_peaks_tab;
 
         /**
          * Also copy scale and scale2 from the original spectrum, which are used to run deep picker and peak fitting
          */
         result_spectrum.scale = e.data.scale;
         result_spectrum.scale2 = e.data.scale2;
-        draw_spectrum(result_spectrum,false/**from fid */,false/**re-process of fid or ft2 */);
+        draw_spectrum([result_spectrum],false/**from fid */,false/**re-process of fid or ft2 */);
 
         /**
          * Clear the processing message
@@ -1124,9 +1155,6 @@ webassembly_worker.onmessage = function (e) {
          */
         let current_phase_correction = e.data.phasing_data.split(/\s+/).map(Number);
 
-        let arrayBuffer = new Uint8Array(e.data.file_data).buffer;
-        let result_spectrum = process_ft_file(arrayBuffer,"from_fid.ft2",-2);
-
          /**
          * Fill HTML filed with id "phase_correction_direct_p0" and "phase_correction_direct_p1" with the first two numbers
          * and "phase_correction_indirect_p0" and "phase_correction_indirect_p1" with the last two numbers
@@ -1152,7 +1180,6 @@ webassembly_worker.onmessage = function (e) {
             fid_process_parameters.phase_correction_indirect_p0 = current_phase_correction[2];
             fid_process_parameters.phase_correction_indirect_p1 = current_phase_correction[3];
             fid_process_parameters.apodization_indirect = apodization_indirect;
-
         }
         
         /**
@@ -1161,9 +1188,25 @@ webassembly_worker.onmessage = function (e) {
          * if b_reprocess is false, we will add the spectrum to the hsqc_spectra array
          * Both are done in draw_spectrum function
          */
+        let arrayBuffer = new Uint8Array(e.data.file_data).buffer;
+        let result_spectrum = process_ft_file(arrayBuffer,"from_fid.ft2",-2);
         let b_reprocess = e.data.processing_flag == 1 ? true : false;
+        
         result_spectrum.spectrum_index = e.data.spectrum_index; //only used when reprocess
-        draw_spectrum(result_spectrum,true/**from fid */,b_reprocess);
+        let result_spectra = [result_spectrum];
+        
+
+        /**
+         * Process additional ft2 files (send back from webass worker) in case of pseudo 3D processing
+         */
+        for(let i=0;i<e.data.pseudo3d_files.length;i++)
+        {
+            let arrayBuffer = new Uint8Array(e.data.pseudo3d_files[i]).buffer;
+            let result_spectrum = process_ft_file(arrayBuffer,"pseudo3d-".concat((i+1).toString(),".ft2"),-4);
+            result_spectra.push(result_spectrum);
+        }
+        draw_spectrum(result_spectra,true/**from fid */,b_reprocess);
+
         /**
          * Clear the processing message
          */
@@ -1185,7 +1228,7 @@ webassembly_worker.onmessage = function (e) {
         let arrayBuffer = new Uint8Array(e.data.file_data).buffer;
         let result_spectrum = process_ft_file(arrayBuffer,e.data.spectrum_name,-1);
         result_spectrum.spectrum_index = e.data.spectrum_index;
-        draw_spectrum(result_spectrum,false/**from fid */,true/**re-process of fid or ft2 */);
+        draw_spectrum([result_spectrum],false/**from fid */,true/**re-process of fid or ft2 */);
     }
 
     /**
@@ -3337,18 +3380,13 @@ function process_ft_file(arrayBuffer,file_name, spectrum_type) {
 /**
  * Add a new spectrum to the list and update the contour plot. When contour is updated, add_to_list() is called to update the list of spectra
  * in the uses interface
- * @param {*} result_spectrum: an object of hsqc_spectrum
+ * @param {*} result_spectra: an array of object of hsqc_spectrum
  * @param {*} b_from_fid: boolean, whether the spectrum is from a fid file
  * @param {*} b_reprocess: boolean, whether this is a new spectrum or a reprocessed spectrum
  * @returns 
  */
-function draw_spectrum(result_spectrum, b_from_fid,b_reprocess)
+function draw_spectrum(result_spectra, b_from_fid,b_reprocess)
 {
-    if(typeof result_spectrum.error !== "undefined")
-    {
-        alert(result_spectrum.error);
-        return;
-    }
 
     let spectrum_index;
 
@@ -3358,27 +3396,41 @@ function draw_spectrum(result_spectrum, b_from_fid,b_reprocess)
          * New spectrum from ft2, set its index (current length of the spectral array) and color
          */
         spectrum_index = hsqc_spectra.length;
-        result_spectrum.spectrum_index = spectrum_index;
-        result_spectrum.spectrum_color = color_list[(spectrum_index*2) % color_list.length];
-        result_spectrum.spectrum_color_negative = color_list[(spectrum_index*2+1) % color_list.length];
-        hsqc_spectra.push(result_spectrum);
+        result_spectra[0].spectrum_index = spectrum_index;
+        result_spectra[0].spectrum_color = color_list[(spectrum_index*2) % color_list.length];
+        result_spectra[0].spectrum_color_negative = color_list[(spectrum_index*2+1) % color_list.length];
+        hsqc_spectra.push(result_spectra[0]);
     }
     else if(b_from_fid === true && b_reprocess === false)
     {
         /**
-         * New spectrum from fid, set its index (current length of the spectral array) and color
+         * New spectra from fid, set its index (current length of the spectral array) and color
+         * It is possible that there are multiple spectra from a single fid file (pseudo 3D)
          */
-        spectrum_index = hsqc_spectra.length;
-        result_spectrum.spectrum_index = spectrum_index;
-        result_spectrum.spectrum_color = color_list[(spectrum_index*2) % color_list.length];
-        result_spectrum.spectrum_color_negative = color_list[(spectrum_index*2+1) % color_list.length];
+        let first_spectrum_index = -1;
+        for(let i=0;i<result_spectra.length;i++)
+        {
+            result_spectra[i].spectrum_index = hsqc_spectra.length;
+            result_spectra[i].spectrum_color = color_list[(spectrum_index*2) % color_list.length];
+            result_spectra[i].spectrum_color_negative = color_list[(spectrum_index*2+1) % color_list.length];
 
-        /**
-         * For spectrum from fid, we need to include all FID files and processing parameters in the result_spectrum object
-         */
-        result_spectrum.fid_process_parameters = fid_process_parameters;
+            /**
+             * For spectrum from fid, we need to include all FID files and processing parameters in the result_spectra object
+             */
+            if(i==0)
+            {
+                result_spectra[i].fid_process_parameters = fid_process_parameters;
+                first_spectrum_index = result_spectra[i].spectrum_index;
+                result_spectra[i].spectrum_origin = -2; //from fid
+            }
+            else
+            {
+                result_spectra[i].spectrum_origin = 10000 + first_spectrum_index;
+                hsqc_spectra[first_spectrum_index].pseudo3d_children.push(result_spectra[i].spectrum_index);
+            }
 
-        hsqc_spectra.push(result_spectrum);
+            hsqc_spectra.push(result_spectra[i]);
+        }
     }
     else if( b_reprocess === true)
     {
@@ -3386,9 +3438,9 @@ function draw_spectrum(result_spectrum, b_from_fid,b_reprocess)
          * Reprocessed spectrum, get its index and update the spectrum. 
          * Also, update the fid_process_parameters
          */
-        spectrum_index = result_spectrum.spectrum_index;
-        result_spectrum.fid_process_parameters = fid_process_parameters;
-        hsqc_spectra[spectrum_index] = result_spectrum;
+        spectrum_index = result_spectra[0].spectrum_index;
+        result_spectra[0].fid_process_parameters = fid_process_parameters;
+        hsqc_spectra[spectrum_index] = result_spectra[0];
 
         /**
          * If the spectrum is the current spectrum of the main plot, clear its cross section plot because it becomes invalid
@@ -3401,6 +3453,51 @@ function draw_spectrum(result_spectrum, b_from_fid,b_reprocess)
             main_plot.y_cross_section_plot.clear();
             main_plot.x_cross_section_plot.clear();
         }
+
+        /**
+         * For pseudo-3D, there several cases:
+         * 1. Reprocessed all spectra, and previously also processed all spectra,
+         *    so e.data.pseudo3d_children.length === result_spectra.length-1
+         */
+        if(result_spectra.length -1 == e.data.pseudo3d_children.length)
+        {
+            for(let i=1;i<result_spectra.length;i++)
+            {
+                let new_spectrum_index = e.data.pseudo3d_children[i-1];
+                result_spectra[i].spectrum_index = new_spectrum_index;
+                result_spectra[i].spectrum_origin = 10000 + spectrum_index;
+                /**
+                 * Copy previous colors
+                 */
+                result_spectra[i].spectrum_color = hsqc_spectra[new_spectrum_index].spectrum_color;
+                result_spectra[i].spectrum_color_negative = hsqc_spectra[new_spectrum_index].spectrum_color_negative;
+                hsqc_spectra[new_spectrum_index] = result_spectra[i];
+            }
+        }
+        else if(e.data.pseudo3d_children.length === 0 && result_spectra.length > 1)
+        {
+            /**
+             * Reprocessed all spectra, and previously only processed the first spectrum
+             */
+            for(let i=1;i<result_spectra.length;i++)
+            {
+                const new_spectrum_index = hsqc_spectra.length;
+                result_spectra[i].spectrum_index = new_spectrum_index;
+                result_spectra[i].spectrum_color = color_list[(new_spectrum_index*2) % color_list.length];
+                result_spectra[i].spectrum_color_negative = color_list[(new_spectrum_index*2+1) % color_list.length];
+                result_spectra[i].spectrum_origin = 10000 + spectrum_index;
+                hsqc_spectra[spectrum_index].pseudo3d_children.push(new_spectrum_index);
+                hsqc_spectra.push(result_spectra[i]);
+            }
+        }
+        else 
+        {
+            /**
+             * Do nothing. Error or unexpected case
+             * Or reprocessed only first spectrum and previously processed all spectra or first spectrum
+             */
+        }
+
     }
     
 
@@ -3416,9 +3513,9 @@ function draw_spectrum(result_spectrum, b_from_fid,b_reprocess)
         /**
          * n_direct,n_indirect, and levels are required for contour calculation
          */
-        n_direct: result_spectrum.n_direct,
-        n_indirect: result_spectrum.n_indirect,
-        levels: result_spectrum.levels,
+        n_direct: result_spectra.n_direct,
+        n_indirect: result_spectra.n_indirect,
+        levels: result_spectra.levels,
 
         /**
          * These are flags to be send back to the main thread
@@ -3429,17 +3526,17 @@ function draw_spectrum(result_spectrum, b_from_fid,b_reprocess)
          */
         spectrum_type: "full",
         spectrum_index: spectrum_index,
-        spectrum_origin: result_spectrum.spectrum_origin,
+        spectrum_origin: result_spectra.spectrum_origin,
         contour_sign: 0
     };
-    my_contour_worker.postMessage({ response_value: result_spectrum.raw_data, spectrum: spectrum_information });
+    my_contour_worker.postMessage({ response_value: result_spectra.raw_data, spectrum: spectrum_information });
 
     /**
      * Negative contour calculation for the spectrum
      */
     spectrum_information.contour_sign = 1;
-    spectrum_information.levels = result_spectrum.negative_levels;
-    my_contour_worker.postMessage({ response_value: result_spectrum.raw_data, spectrum: spectrum_information });
+    spectrum_information.levels = result_spectra.negative_levels;
+    my_contour_worker.postMessage({ response_value: result_spectra.raw_data, spectrum: spectrum_information });
 }
 
 /**

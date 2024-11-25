@@ -240,7 +240,7 @@ onmessage = function (e) {
          * Write a file named "arguments_fid_phasing.txt" to the virtual file system
          * C++ program will read it to get "command line arguments"
          */
-        let content = ' -first-only yes -aqseq '.concat(e.data.acquisition_seq,' -negative ',e.data.neg_imaginary);
+        let content = ' -aqseq '.concat(e.data.acquisition_seq,' -negative ',e.data.neg_imaginary);
         content = content.concat(' -zf '.concat(e.data.zf_direct,' -zf-indirect ',e.data.zf_indirect));
         content = content.concat(' -apod '.concat(e.data.apodization_direct));
         content = content.concat(' -apod-indirect '.concat(apodization_indirect));
@@ -293,10 +293,16 @@ onmessage = function (e) {
                 content = content.concat(' -di-indirect no ');
             }
 
+            if(e.data.pseudo3d_process === 'first_only')
+            {   
+                content = content.concat(' -first-only yes ');
+            }
+            else
+            {
+                content = content.concat(' -first-only no ');
+            }
+
             content = content.concat(' -phase-in phase-correction.txt ');
-            /**
-             * Do not apply ext if we need to run phasing program
-             */
             content = content.concat(' -ext '.concat(e.data.extract_direct_from, ' ', e.data.extract_direct_to));
             content = content.concat(' -out test.ft2');
             let phase_correction = e.data.phase_correction_direct_p0.toString();
@@ -317,7 +323,7 @@ onmessage = function (e) {
         }
         else
         {
-            content = content.concat(' -out test0.ft2');
+            content = content.concat(' -first-only yes -out test0.ft2');
             /**
              * To run automatic phase correction, we need to set -phase-in none and keep -di no and -di-indirect no
              */
@@ -393,8 +399,17 @@ onmessage = function (e) {
 
             /**
              * Step 2, run "fid" function again, with the new phase correction and write the new data to test.ft2
+             * For pseudo-3D, include -first-only yes or no according to the user input in e.data.pseudo3d_process
              */
-            content = ' -first-only yes -aqseq '.concat(e.data.acquisition_seq,' -negative ',e.data.neg_imaginary);
+            if(e.data.pseudo3d_process === 'first_only')
+            {   
+                content = ' -first-only yes ';
+            }
+            else
+            {
+                content = ' -first-only no ';
+            }
+            content = content.concat('  -aqseq '.concat(e.data.acquisition_seq,' -negative ',e.data.neg_imaginary));
             content = content.concat(' -zf '.concat(e.data.zf_direct,' -zf-indirect ',e.data.zf_indirect));
             content = content.concat(' -apod '.concat(e.data.apodization_direct));
             content = content.concat(' -apod-indirect '.concat(apodization_indirect));
@@ -453,13 +468,36 @@ onmessage = function (e) {
         console.log('File data read from virtual file system, type of file_data:', typeof file_data, ' and length:', file_data.length);
         FS.unlink('test.ft2');
         FS.unlink('phase-correction.txt');
+
+        let pseudo3d_files = [];
+        if(e.data.pseudo3d_process === 'all_planes')
+        {
+            /**
+             * Read a file "pseudo3d.json" from the virtual file system and convert to a JSON object
+             */
+            let pseudo3d_information = JSON.parse(FS.readFile('pseudo3d.json', { encoding: 'utf8' }));
+            /**
+             * Read additional files from the virtual file system, and send them back to the main script
+             * File names are test1.ft2, test2.ft2, test3.ft2, ... upto test{N-1}.ft2
+             * where N === pseudo3d_information.n_spectra  
+             */
+            
+            for (let i = 0; i < pseudo3d_information.n_spectra - 1; i++) {
+                pseudo3d_files.push(FS.readFile('test'.concat(i + 1, '.ft2'), { encoding: 'binary' }));
+                FS.unlink('test'.concat(i + 1, '.ft2'));
+            }
+            FS.unlink('pseudo3d.json');
+        }
+
         postMessage({
             file_data: file_data,
             file_type: 'full', //direct,indirect,full
+            pseudo3d_files: pseudo3d_files,
             phasing_data: phasing_data,
             apodization_indirect: apodization_indirect, //auto phasing may change the c value in apodization_indirect
             processing_flag: e.data.processing_flag, //passthrough the processing flag
-            spectrum_index: e.data.spectrum_index //for reprocessing only
+            spectrum_index: e.data.spectrum_index, //for reprocessing only pass through the spectrum index
+            pseudo3d_children: e.data.pseudo3d_children, //for reprocessing only pass through the pseudo3d_children
         });
     }
 
@@ -551,7 +589,7 @@ onmessage = function (e) {
         postMessage({
             fitted_peaks: peaks,
             fitted_peaks_tab: peaks_tab, //peaks_tab is a very long string with multiple lines (in nmrPipe tab format)
-            spectrum_index: e.data.spectrum_index,
+            spectrum_origin: e.data.spectrum_index, //pass through the spectrum index of the original spectrum (run peak fitting and recon on)
             recon_spectrum: file_data,
             scale: e.data.scale,
             scale2: e.data.scale2
