@@ -102,6 +102,7 @@ var current_phase_correction = [0, 0, 0, 0];
  */
 class spectrum {
     constructor() {
+        this.spectrum_format = "ft2"; //ft2 is the default format
         this.header = new Float32Array(512); //header of the spectrum, 512 float32 numbers
         this.raw_data = new Float32Array(0); //raw data, real real
         this.raw_data_ri = new Float32Array(0); //raw data for real (along indirect dimension) and imaginary (along indirect dimension) part
@@ -396,6 +397,11 @@ class file_drop_processor {
     }
 };
 
+/**
+ * Read a file as array buffer
+ * @param {*} file: file object
+ * @returns 
+ */
 const read_file = (file) => {
     return new Promise((resolve, reject) => {
 
@@ -409,6 +415,24 @@ const read_file = (file) => {
         reader.readAsArrayBuffer(file);
     });
 }
+
+/**
+ * Read a file as text
+ */
+const read_file_text = (file) => {
+    return new Promise((resolve, reject) => {
+
+        var reader = new FileReader();
+        reader.onload = function () {
+            return resolve(reader.result);
+        };
+        reader.onerror = function (e) {
+            reject("Error reading file");
+        };
+        reader.readAsText(file);
+    });
+}
+
 
 
 $(document).ready(function () {
@@ -546,14 +570,33 @@ $(document).ready(function () {
                     {
                         return read_file(this.querySelector('input[type="file"]').files[ii]);
                     }
+                    else if(this.querySelector('input[type="file"]').files[ii].name.endsWith(".txt"))
+                    {
+                        return read_file_text(this.querySelector('input[type="file"]').files[ii]);
+                    }
                     else
                     {
                         return Promise.resolve(null);
                     }
             }).then((file_data) => {
-                if(file_data !== null){
-                    let result_spectrum = process_ft_file(file_data,this.querySelector('input[type="file"]').files[ii].name,-1);
-                    draw_spectrum([result_spectrum],false/**from fid */,false/** re-process of fid or ft2 */);
+                /**
+                 * If the file is a ft2 file (file_data is a array buffer), process it
+                 */
+                if(file_data !== null && file_data !== undefined )
+                {   
+                    /**
+                     * If read as text file, 
+                     */
+                    if(typeof file_data === "string")
+                    {
+                        let result_spectrum = process_topspin_file(file_data,this.querySelector('input[type="file"]').files[ii].name);
+                        draw_spectrum([result_spectrum],false/**from fid */,false/** re-process of fid or ft2 */);
+                    }
+                    else
+                    {
+                        let result_spectrum = process_ft_file(file_data,this.querySelector('input[type="file"]').files[ii].name,-1);
+                        draw_spectrum([result_spectrum],false/**from fid */,false/** re-process of fid or ft2 */);
+                    }
                 }
                 /**
                  * If it is the last file, clear the file input
@@ -2983,18 +3026,201 @@ function update_contour_color(e,index,flag) {
     main_plot.redraw_contour();
 }
 
+
 /**
- * Process the raw file data of a 2D FT spectrum
+ * Process the raw file data of a 2D FT spectrum (.txt from Topspin totxt command)
+ * @param {*} file_text: raw file data as a string
+ * @param {*} file_name: name of the file
+ * Note: for topspin file, spectrum_origin is always -1 (user uploaded frequency file)
+ *  
+ */
+function process_topspin_file(file_text, file_name) {
+    let result = new spectrum();
+
+    result.spectrum_format = "Topspin"
+    result.spectrum_origin = -1;
+    result.filename = file_name;
+
+    
+    let lines = file_text.split(/\r\n|\n/);
+    
+    /**
+     * Loop all lines
+     * 1. find line contained both "F1LEFT" and "F1RIGHT" to get the x_ppm_start and x_ppm_width
+     * 2. find line contained both "F2LEFT" and "F2RIGHT" to get the y_ppm_start and y_ppm_width
+     * 3. find line contained NROWS to get the n_indirect
+     * 4. find line contained NCOLS to get the n_direct
+     * Quit the loop if all 4 values are found. 
+     */
+    let number_of_info_retrieved = 0;
+    let data_start = 0;
+    result.n_direct = undefined;
+    result.n_indirect = undefined;
+    result.x_ppm_start = undefined;
+    result.y_ppm_start = undefined;
+    result.x_ppm_width = undefined;
+    result.y_ppm_width = undefined;
+    for (let i = 0; i < lines.length; i++) {
+        if (lines[i].includes("F1LEFT") && lines[i].includes("F1RIGHT")) {
+            /**
+             * Separate the line by any number of space(s) and get the location of F1LEFT and F1RIGHT
+             */
+            let temp = lines[i].split(/\s+/); //split by any number of space(s)
+            let left = temp.indexOf("F1LEFT");
+            let right = temp.indexOf("F1RIGHT");
+            result.y_ppm_start = parseFloat(temp[left + 2]);
+            result.y_ppm_width = parseFloat(temp[right + 2]) - parseFloat(temp[left + 2]);
+            number_of_info_retrieved++;
+        }
+        if (lines[i].includes("F2LEFT") && lines[i].includes("F2RIGHT")) {
+            let temp = lines[i].split(/\s+/);
+            let left = temp.indexOf("F2LEFT");
+            let right = temp.indexOf("F2RIGHT");
+            result.x_ppm_start = parseFloat(temp[left + 2]);
+            result.x_ppm_width = parseFloat(temp[right + 2]) - parseFloat(temp[left + 2]);
+            number_of_info_retrieved++;
+        }
+        if (lines[i].includes("NROWS")) {
+            let temp = lines[i].split(/\s+/);
+            let location = temp.indexOf("NROWS");
+            result.n_indirect = parseInt(temp[location + 2]);
+            number_of_info_retrieved++;
+        }
+        if (lines[i].includes("NCOLS")) {
+            let temp = lines[i].split(/\s+/);
+            let location = temp.indexOf("NCOLS");
+            result.n_direct = parseInt(temp[location + 2]);
+            number_of_info_retrieved++;
+        }
+        if (number_of_info_retrieved >=4 && result.n_direct !== undefined && result.n_indirect !== undefined && result.x_ppm_start !== undefined && result.y_ppm_start !== undefined) {
+            number_of_info_retrieved = -1; //this is a flag to show that we have found all 4 values
+            data_start = i + 1;
+            break;
+        }
+    }
+
+    if(number_of_info_retrieved !== -1)
+    {
+        result.error = "Cannot find all necessary information in the file";
+        return result;
+    }
+
+    /**
+     * Loop remaining lines to get the data
+     */
+    result.raw_data = new Float32Array(result.n_direct * result.n_indirect);
+    let col_counter = 0;
+    let row_counter = 0;
+    for(let i=data_start;i<lines.length;i++)
+    {
+        /**
+         * If line start with "# row = ", this is a start of a new row, we reset column counter to 0
+         * and get row counter from the line immediately after "# row = "
+         */
+        if(lines[i].startsWith("# row = "))
+        {
+            col_counter = 0;
+            row_counter = parseInt(lines[i].substring(8));
+            continue;
+        }
+        /**
+         * Other lines start with # are comments, we skip them
+         * and also skip empty lines
+         */
+        else if(lines[i].startsWith("#") || lines[i] === "")
+        {
+            continue;
+        }
+        /**
+         * Others are data line, only one number per line in Topspin totxt format
+         */
+        else
+        {
+            result.raw_data [row_counter * result.n_direct + col_counter] = parseFloat(lines[i]);
+            col_counter++;
+        }
+    }
+
+    /**
+     * At the end, we should have col_counter = result.n_direct and row_counter = result.n_indirect-1
+     */
+    if(col_counter !== result.n_direct || row_counter !== result.n_indirect-1)
+    {
+        result.error = "Cannot find all data in the file";
+        return result;
+    }
+
+    /**
+     * Make x_ppm_width and y_ppm_width positive.
+     * Set result.x_ppm_step and result.y_ppm_step. Note that the ppm_step is negative
+     */
+    result.x_ppm_width = Math.abs(result.x_ppm_width);
+    result.y_ppm_width = Math.abs(result.y_ppm_width);
+    result.x_ppm_step = -result.x_ppm_width / result.n_direct;
+    result.y_ppm_step = -result.y_ppm_width / result.n_indirect;
+
+    /**
+     * Set default ref to 0
+     */
+    result.x_ppm_ref = 0;
+    result.y_ppm_ref = 0;
+
+    /**
+     * Noise level, spectral_max and min, projection, levels, negative_levels code.
+     */
+    result = process_spectrum(result);
+
+    /**
+     * Setup a fake nmrPipe header, so that we can use the same code to 
+     * run DEEP_Picker, VoigtFit, etc.
+     */
+    result.header = new Float32Array(512); //empty array
+
+    result.header[99] = result.n_direct; //size of direct dimension of the input spectrum
+    result.header[219] = result.n_indirect; //size of indirect dimension of the input spectrum
+    result.header[221] = 0; // not transposed
+    result.header[56] = 1; //real data along both dimensions
+    result.header[55] = 1; //real data along both dimensions
+
+    result.header[24] = 2; //direct dimension is the second dimension
+    result.header[25] = 1; //indirect dimension is the first dimension
+
+    /**
+     * Suppose filed strength is 850 along direct dimension
+     * and indirection dimension obs is 85.0
+     */
+    result.header[119] = 850.0; //observed frequency of direct dimension
+    result.header[218] = 85.0; //observed frequency of indirect dimension
+
+    result.header[100] = result.x_ppm_width*850.0; //spectral width of direct dimension
+    result.header[229] = result.y_ppm_width*85.0; //spectral width of indirect dimension
+
+
+    result.header[101] = (result.x_ppm_start-result.x_ppm_width)*850.0; //origin of direct dimension (last point frq in Hz)
+    result.header[249] = (result.y_ppm_start-result.y_ppm_width)*85.0; //origin of indirect dimension (last point frq in Hz)
+
+    /**
+     * We did not fill carrier frequency, because we do not need it for DEEP_Picker, VoigtFit, etc.
+     * They are needed in fid processing, not in spectrum processing.
+     */
+
+    return result;
+}
+
+/**
+ * Process the raw file data of a 2D FT spectrum (nmrPipe .ft2 format)
  * @param {arrayBuffer} arrayBuffer: raw file data
  * @param {string} file_name: name of the file
- * @param {string} spectrum_type: index to origin of the spectrum for reconstructed spectra, -1 for ft2, -2 for FID and -3 for removed spectra
+ * @param {string} spectrum_origin: index to origin of the spectrum for reconstructed spectra, -1 for ft2, -2 for FID and -3 for removed spectra
  * @returns hsqc_spectra object
  */
-function process_ft_file(arrayBuffer,file_name, spectrum_type) {
+function process_ft_file(arrayBuffer,file_name, spectrum_origin) {
 
     let result = new spectrum();
 
-    result.spectrum_origin = spectrum_type;
+    result.spectrum_format = "ft2";
+
+    result.spectrum_origin = spectrum_origin;
 
     result.header = new Float32Array(arrayBuffer, 0, 512);
 
@@ -3190,16 +3416,27 @@ function process_ft_file(arrayBuffer,file_name, spectrum_type) {
         }
     }
 
-    
-
     /**
      * Keep original file name
      */
     result.filename = file_name;
 
+    result = process_spectrum(result);
+
+    return result;
+}
+
+/**
+ * Shared code to process the spectrum data to get
+ * noise_level, spectral_max, spectral_min, projection_direct, projection_indirect, projection_direct_max, projection_direct_min,
+ * projection_indirect_max, projection_indirect_min, levels, negative_levels
+ * @param {*} result 
+ * @returns 
+ */
+function process_spectrum(result) {
     /**
-     * Get median of abs(z). If data_size is > 1024*1024, we will sample 1024*1024 points by stride
-     */
+ * Get median of abs(z). If data_size is > 1024*1024, we will sample 1024*1024 points by stride
+ */
     result.noise_level = estimate_noise_level(result.n_direct, result.n_indirect, result.raw_data);
 
     /**
@@ -3222,12 +3459,10 @@ function process_ft_file(arrayBuffer,file_name, spectrum_type) {
         result.projection_direct[i] = sum;
     }
 
-    for(let i=0;i<result.n_indirect;i++)
-    {
+    for (let i = 0; i < result.n_indirect; i++) {
         let sum = 0.0;
-        for(let j=0;j<result.n_direct;j++)
-        {
-            sum += result.raw_data[i*result.n_direct+j];
+        for (let j = 0; j < result.n_direct; j++) {
+            sum += result.raw_data[i * result.n_direct + j];
         }
         result.projection_indirect[i] = sum;
     }
@@ -3242,9 +3477,8 @@ function process_ft_file(arrayBuffer,file_name, spectrum_type) {
      * In case of reconstructed spectrum from fitting or from NUS, noise_level is usually 0.
      * In that case, we define noise_level as spectral_max/power(1.5,40)
      */
-    if(result.noise_level <= Number.MIN_VALUE)
-    {
-        result.noise_level = result.spectral_max/Math.pow(1.5,40);
+    if (result.noise_level <= Number.MIN_VALUE) {
+        result.noise_level = result.spectral_max / Math.pow(1.5, 40);
     }
 
     /**
@@ -3255,7 +3489,7 @@ function process_ft_file(arrayBuffer,file_name, spectrum_type) {
     for (let i = 1; i < result.levels.length; i++) {
         result.levels[i] = 1.5 * result.levels[i - 1];
         if (result.levels[i] > result.spectral_max) {
-            result.levels = result.levels.slice(0, i+1);
+            result.levels = result.levels.slice(0, i + 1);
             break;
         }
     }
@@ -3268,7 +3502,7 @@ function process_ft_file(arrayBuffer,file_name, spectrum_type) {
     for (let i = 1; i < result.negative_levels.length; i++) {
         result.negative_levels[i] = 1.5 * result.negative_levels[i - 1];
         if (result.negative_levels[i] < result.spectral_min) {
-            result.negative_levels = result.negative_levels.slice(0, i+1);
+            result.negative_levels = result.negative_levels.slice(0, i + 1);
             break;
         }
     }
