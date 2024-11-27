@@ -414,6 +414,7 @@ onmessage = function (e) {
             content = content.concat(' -apod '.concat(e.data.apodization_direct));
             content = content.concat(' -apod-indirect '.concat(apodization_indirect));
             content = content.concat(' -ext '.concat(e.data.extract_direct_from, ' ', e.data.extract_direct_to));
+            content = content.concat(' -poly '.concat(e.data.polynomial));
             content = content.concat(' -out test.ft2');
             content = content.concat(' -in fid_file acquisition_file acquisition_file2 none');
             content = content.concat(' -phase-in phase-correction.txt ');
@@ -440,6 +441,17 @@ onmessage = function (e) {
             {
                 content = content.concat(' -di-indirect no ');
             }
+
+            if(e.data.water_suppression === true)
+            {
+                content = content.concat(' -water yes ');
+            }
+            else
+            {
+                content = content.concat(' -water no ');
+            }
+
+
 
             FS.unlink('test0.ft2');
             FS.unlink('arguments_fid_2d.txt');
@@ -479,12 +491,12 @@ onmessage = function (e) {
             /**
              * Read additional files from the virtual file system, and send them back to the main script
              * File names are test1.ft2, test2.ft2, test3.ft2, ... upto test{N-1}.ft2
-             * where N === pseudo3d_information.n_spectra  
+             * where N === pseudo3d_information.spectra  
              */
             
-            for (let i = 0; i < pseudo3d_information.n_spectra - 1; i++) {
-                pseudo3d_files.push(FS.readFile('test'.concat(i + 1, '.ft2'), { encoding: 'binary' }));
-                FS.unlink('test'.concat(i + 1, '.ft2'));
+            for (let i = 1; i < pseudo3d_information.spectra; i++) {
+                pseudo3d_files.push(FS.readFile('test_'.concat(i, '.ft2'), { encoding: 'binary' }));
+                FS.unlink('test_'.concat(i, '.ft2'));
             }
             FS.unlink('pseudo3d.json');
         }
