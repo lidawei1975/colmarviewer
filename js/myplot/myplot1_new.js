@@ -74,6 +74,8 @@ function plotit(input) {
 
     this.lastCallTime_zoom_x = Date.now();
     this.lastCallTime_zoom_y = Date.now();
+
+    this.predicted_peaks = [];
 };
 
 /**
@@ -174,6 +176,19 @@ plotit.prototype.reset_axis = function () {
         .attr('cy', function (d) {
             return self.yRange(d.cs_y);
         });
+
+    /**
+     * Reset position of predicted peaks, if any
+     */
+    for(let i=0;i<this.predicted_peaks.length;i++) {
+        this.vis.selectAll('.predicted_peak_'+i)
+            .attr('cx', function (d) {
+                return self.xRange(d.cs_x);
+            })
+            .attr('cy', function (d) {
+                return self.yRange(d.cs_y);
+            });
+    }
 
     /**
      * Reset vline and hline
@@ -966,4 +981,48 @@ plotit.prototype.remove_picked_peaks = function () {
  */
 plotit.prototype.get_visible_region = function () {
     return [this.xscale[1], this.xscale[0], this.yscale[1], this.yscale[0]];
+}
+
+
+/**
+ * Modify predicted peaks (from spin simulation) to the plot
+ * @param {Array} peaks: array of peaks, each peak object has the following properties
+ * cs_x: chemical shift in x-axis
+ * cs_y: chemical shift in y-axis
+ * degeneracy: degeneracy of the peak (1,2,3,4,5. etc from spin simulation)
+ * @param {Number} index: index of the predicted peaks to be modified in the array
+ */
+plotit.prototype.add_predicted_peaks = function (peaks, index) {
+    let self = this;
+
+    if(index >= self.predicted_peaks.length) {
+        /**
+         * Add empty array to self.predicted_peaks to reach length of index+1
+         */
+        for(let i = self.predicted_peaks.length; i <= index; i++) {
+            self.predicted_peaks.push([]);
+        }
+    }
+
+    self.vis.selectAll('.predicted_peak_'+index).remove();
+
+    self.vis.selectAll('.predicted_peak_'+index)
+        .data(peaks)
+        .enter()
+        .append('circle')
+        .attr('class', 'predicted_peak_'+index)
+        .attr('cx', function (d) {
+            return self.xRange(d.cs_x);
+        })
+        .attr('cy', function (d) {
+            return self.yRange(d.cs_y);
+        })
+        .attr('r', function (d) {
+            return 2*d.degeneracy;
+        })
+        .attr('fill', 'none')
+        .attr('stroke', 'green')
+        .attr('stroke-width', 1);
+
+    self.predicted_peaks[index] = peaks;
 }

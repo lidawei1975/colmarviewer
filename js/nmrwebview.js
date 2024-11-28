@@ -891,11 +891,15 @@ $(document).ready(function () {
      */
     let input1=document.getElementById("spin_system_table").tBodies[0].rows[0].cells[1].querySelector("input");
     let input2=document.getElementById("spin_system_table").tBodies[0].rows[0].cells[2].querySelector("input");
+    let input3=document.getElementById("spin_system_table").tBodies[0].rows[0].cells[3].querySelector("input");
     input1.addEventListener('change', function () {
-        process_ppm_j_change(this.parentElement.parentElement.rowIndex,input1.value,input2.value);
+        process_ppm_j_change(this.parentElement.parentElement.rowIndex,input1.value,input2.value,input3.value);
     });
     input2.addEventListener('change', function () {
-        process_ppm_j_change(this.parentElement.parentElement.rowIndex,input1.value,input2.value);
+        process_ppm_j_change(this.parentElement.parentElement.rowIndex,input1.value,input2.value,input3.value);
+    });
+    input3.addEventListener('change', function () {
+        process_ppm_j_change(this.parentElement.parentElement.rowIndex,input1.value,input2.value,input3.value);
     });
 
 });
@@ -4679,14 +4683,26 @@ function add_one_peak()
     let row = table_body.insertRow(-1);
 
     /**
-     * The row has 3 cells. 1st is index, 2nd is ppm, 3rd is j coupling
+     * The row has 4 cells. 1st is index, 2nd is ppm_c, 3nd is ppm, 4rd is j coupling
      */
     let cell1 = row.insertCell(0);
     let cell2 = row.insertCell(1);
     let cell3 = row.insertCell(2);
+    let cell4 = row.insertCell(3);
 
 
     cell1.innerHTML = row.rowIndex;
+
+    /**
+     * Create am input element for ppm_c, and set its type to number and step to any
+     */
+    let input_ppm_c = document.createElement('input');
+    input_ppm_c.type = "number";
+    input_ppm_c.step = "any";
+    input_ppm_c.addEventListener('change', function () {
+        process_ppm_j_change(this.parentElement.parentElement.rowIndex, input_ppm_c.value,input_ppm.value, input_j.value);
+    });
+    cell2.appendChild(input_ppm_c);
     
     /**
      * Create a input element for ppm, and set its type to number and step to any
@@ -4698,9 +4714,9 @@ function add_one_peak()
      * Attach an event listener to input_ppm, so that when the value is changed, the corresponding peak on the plot will be updated
      */
     input_ppm.addEventListener('change', function () {
-        process_ppm_j_change(this.parentElement.parentElement.rowIndex, input_ppm.value, input_j.value);
+        process_ppm_j_change(this.parentElement.parentElement.rowIndex, input_ppm_c.value, input_ppm.value, input_j.value);
     });
-    cell2.appendChild(input_ppm);
+    cell3.appendChild(input_ppm);
 
     /**
      * Create a input element for j coupling, and set its type to text and value to ""
@@ -4712,13 +4728,14 @@ function add_one_peak()
      * Attach an event listener to input_j, so that when the value is changed, the corresponding peak on the plot will be updated
      */
     input_j.addEventListener('change', function () {
-        process_ppm_j_change(this.parentElement.parentElement.rowIndex, input_ppm.value, input_j.value);
+        process_ppm_j_change(this.parentElement.parentElement.rowIndex, input_ppm_c.value, input_ppm.value, input_j.value);
     });
-    cell3.appendChild(input_j);
+    cell4.appendChild(input_j);
 }
 
-function process_ppm_j_change(row_index,ppm,j)
+function process_ppm_j_change(row_index,ppm_c,ppm,j)
 {
+    ppm_c=parseFloat(ppm_c);
     ppm = parseFloat(ppm);
     console.log("Row index is " + row_index + ", ppm is " + ppm + ", j is " + j);
     /**
@@ -4737,7 +4754,7 @@ function process_ppm_j_change(row_index,ppm,j)
     /**
      * Ignore if ppm is not a number
      */
-    if(isNaN(ppm))
+    if(isNaN(ppm) || isNaN(ppm_c) || j_couplings.length === 0)
     {
         return;
     }
@@ -4785,16 +4802,19 @@ function process_ppm_j_change(row_index,ppm,j)
     /**
      * Remove the peaks with n_peaks_combined[i] == 0
      */
-    let new_peak_ppm = [];
-    let new_peak_weight = [];
+    let new_peak_group = [];
     for(let i=0;i<current_peaks.length;i++)
     {
         if(n_peaks_combined[i] > 0)
         {
-            new_peak_ppm.push(current_peaks[i]);
-            new_peak_weight.push(n_peaks_combined[i]);
+            new_peak_group.push({cs_x:current_peaks[i],cs_y:ppm_c,degeneracy:n_peaks_combined[i]});
         }
     }
 
-    console.log("New peaks are " + new_peak_ppm + ", new peak weights are " + new_peak_weight);
+    console.log(new_peak_group);
+
+    /**
+     * Update the peaks on the plot
+     */
+    main_plot.add_predicted_peaks(new_peak_group,row_index-1);
 }
