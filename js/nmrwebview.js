@@ -886,6 +886,18 @@ $(document).ready(function () {
         }
     });
 
+    /**
+     * Event listener for spin_system_table table tbody first row 2nd td input and 3rd td input
+     */
+    let input1=document.getElementById("spin_system_table").tBodies[0].rows[0].cells[1].querySelector("input");
+    let input2=document.getElementById("spin_system_table").tBodies[0].rows[0].cells[2].querySelector("input");
+    input1.addEventListener('change', function () {
+        process_ppm_j_change(this.parentElement.parentElement.rowIndex,input1.value,input2.value);
+    });
+    input2.addEventListener('change', function () {
+        process_ppm_j_change(this.parentElement.parentElement.rowIndex,input1.value,input2.value);
+    });
+
 });
 
 
@@ -4654,4 +4666,135 @@ function reprocess_spectrum(self,spectrum_index)
          */
         document.getElementById("button_apply_ps").disabled = true;
     }
+}
+
+
+/**
+ * Click to add a row at the end to the tbody of table with id "spin_system_table"
+ */
+function add_one_peak()
+{
+    let table = document.getElementById("spin_system_table");
+    let table_body = table.getElementsByTagName('tbody')[0];
+    let row = table_body.insertRow(-1);
+
+    /**
+     * The row has 3 cells. 1st is index, 2nd is ppm, 3rd is j coupling
+     */
+    let cell1 = row.insertCell(0);
+    let cell2 = row.insertCell(1);
+    let cell3 = row.insertCell(2);
+
+
+    cell1.innerHTML = row.rowIndex;
+    
+    /**
+     * Create a input element for ppm, and set its type to number and step to any
+     */
+    let input_ppm = document.createElement('input');
+    input_ppm.type = "number";
+    input_ppm.step = "any";
+    /**
+     * Attach an event listener to input_ppm, so that when the value is changed, the corresponding peak on the plot will be updated
+     */
+    input_ppm.addEventListener('change', function () {
+        process_ppm_j_change(this.parentElement.parentElement.rowIndex, input_ppm.value, input_j.value);
+    });
+    cell2.appendChild(input_ppm);
+
+    /**
+     * Create a input element for j coupling, and set its type to text and value to ""
+     */
+    let input_j = document.createElement('input');
+    input_j.type = "text";
+    input_j.value = "";
+    /**
+     * Attach an event listener to input_j, so that when the value is changed, the corresponding peak on the plot will be updated
+     */
+    input_j.addEventListener('change', function () {
+        process_ppm_j_change(this.parentElement.parentElement.rowIndex, input_ppm.value, input_j.value);
+    });
+    cell3.appendChild(input_j);
+}
+
+function process_ppm_j_change(row_index,ppm,j)
+{
+    ppm = parseFloat(ppm);
+    console.log("Row index is " + row_index + ", ppm is " + ppm + ", j is " + j);
+    /**
+     * Simulate peaks from ppm and j coupling
+     * Step 1. Separate j coupling into an array of numbers (any number of spaces or commas)
+     */
+    let j_couplings = j.split(/[\s,]+/).map(Number);
+
+    /**
+     * For non-number or spaces, the map function will return NaN or 0, we need to remove them
+     */
+    j_couplings = j_couplings.filter(function (value) {
+        return !isNaN(value) && value !== 0;
+    });
+
+    /**
+     * Ignore if ppm is not a number
+     */
+    if(isNaN(ppm))
+    {
+        return;
+    }
+
+    /**
+     * Step 2, apply the j couplings to the ppm, one by one
+     */
+    let current_peaks = [ppm];
+    let new_peaks = [];
+    for(let i=0;i<j_couplings.length;i++)
+    {
+        /**
+         * For any peak in current_peaks, apply j_couplings[i] to it
+         * to make two new peaks, at ppm + j_couplings[i]/2 and ppm - j_couplings[i]/2
+         */
+        for(let j=0;j<current_peaks.length;j++)
+        {
+            new_peaks.push(current_peaks[j] + j_couplings[i] / 2);
+            new_peaks.push(current_peaks[j] - j_couplings[i] / 2);
+        }
+        current_peaks = new_peaks;
+        new_peaks = [];
+    }
+
+    /**
+     * Sort the peaks from high ppm to low ppm
+     */
+    current_peaks.sort(function(a,b){return b-a;});
+
+    /**
+     * Combine the peaks that are close to each other (within 0.01 ppm). Meanwhile, keep track # of peaks combined
+     */
+    let n_peaks_combined = new Array(current_peaks.length).fill(1);
+
+    for(let i=0;i<current_peaks.length-1;i++)
+    {
+        if(current_peaks[i] - current_peaks[i+1] < 0.01)
+        {
+            current_peaks[i] = (current_peaks[i] * n_peaks_combined[i] + current_peaks[i+1]) / (n_peaks_combined[i] + 1);
+            n_peaks_combined[i]++;
+            n_peaks_combined[i+1] = 0; //this peak is removed
+        }
+    }
+
+    /**
+     * Remove the peaks with n_peaks_combined[i] == 0
+     */
+    let new_peak_ppm = [];
+    let new_peak_weight = [];
+    for(let i=0;i<current_peaks.length;i++)
+    {
+        if(n_peaks_combined[i] > 0)
+        {
+            new_peak_ppm.push(current_peaks[i]);
+            new_peak_weight.push(n_peaks_combined[i]);
+        }
+    }
+
+    console.log("New peaks are " + new_peak_ppm + ", new peak weights are " + new_peak_weight);
 }
