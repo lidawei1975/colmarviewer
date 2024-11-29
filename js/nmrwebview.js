@@ -4789,12 +4789,12 @@ function process_ppm_j_change(row_index,ppm_c,ppm,j)
      */
     let n_peaks_combined = new Array(current_peaks.length).fill(1);
 
-    for(let i=0;i<current_peaks.length-1;i++)
+    for(let i=current_peaks.length-2;i>=0;i--)
     {
         if(current_peaks[i] - current_peaks[i+1] < 0.01)
         {
-            current_peaks[i] = (current_peaks[i] * n_peaks_combined[i] + current_peaks[i+1]) / (n_peaks_combined[i] + 1);
-            n_peaks_combined[i]++;
+            current_peaks[i] = (current_peaks[i] * n_peaks_combined[i] + current_peaks[i+1] * n_peaks_combined[i+1]) / (n_peaks_combined[i] + n_peaks_combined[i+1]);
+            n_peaks_combined[i] += n_peaks_combined[i+1];
             n_peaks_combined[i+1] = 0; //this peak is removed
         }
     }

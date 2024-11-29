@@ -1018,11 +1018,11 @@ plotit.prototype.add_predicted_peaks = function (peaks, index) {
             return self.yRange(d.cs_y);
         })
         .attr('r', function (d) {
-            return 2*d.degeneracy;
+            return 3*d.degeneracy;
         })
         .attr('fill', 'none')
         .attr('stroke', 'green')
-        .attr('stroke-width', 1);
+        .attr('stroke-width', 3);
 
     self.predicted_peaks[index] = peaks;
 }
