@@ -10,14 +10,15 @@ clf;
 hold on;
 plot(y_good);
 
-for m=1:3
+for m=1:4
     
     min_error=1e100;
     n=length(y_good);
-    for j=8:1:40
+    for j=6:1:40
         x=make_x_matrix(n,j);
         y=pinv(x)*y_good;
         y=abs(y);
+        % y(y<0)=0;
         peaks_pre=x*y;
         e=y_good-peaks_pre;
         error=sqrt(mean(e.*e));
@@ -34,7 +35,7 @@ for m=1:3
 
     y_good=y_good_new;
     if m>=1
-        plot(best_pre,'x');
+        % plot(best_pre,'x');
         plot(y_good,'-');
     end
     

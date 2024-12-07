@@ -180,15 +180,20 @@ plotit.prototype.reset_axis = function () {
     /**
      * Reset position of predicted peaks, if any
      */
+    self.x = d3.scaleLinear().range([self.MARGINS.left, self.WIDTH - self.MARGINS.right])
+    .domain(self.xscale);
+    self.y = d3.scaleLinear().range([self.HEIGHT - self.MARGINS.bottom, self.MARGINS.top])
+        .domain(self.yscale);
+
+    self.line = d3.line()
+    .x((d) => self.x(d[0]))
+    .y((d) => self.y(d[1]));
+
     for(let i=0;i<this.predicted_peaks.length;i++) {
         this.vis.selectAll('.predicted_peak_'+i)
-            .attr('cx', function (d) {
-                return self.xRange(d.cs_x);
-            })
-            .attr('cy', function (d) {
-                return self.yRange(d.cs_y);
-            });
+        .attr("d", self.line(this.predicted_peaks[i]));
     }
+
 
     /**
      * Reset vline and hline
@@ -986,9 +991,9 @@ plotit.prototype.get_visible_region = function () {
 
 /**
  * Modify predicted peaks (from spin simulation) to the plot
- * @param {Array} peaks: array of peaks, each peak object has the following properties
- * cs_x: chemical shift in x-axis
- * cs_y: chemical shift in y-axis
+ * @param {Array} peaks: array of peaks, each peak object has the following properties:
+ * [0]: ppm coordinate in x-axis
+ * [1]: profile 
  * degeneracy: degeneracy of the peak (1,2,3,4,5. etc from spin simulation)
  * @param {Number} index: index of the predicted peaks to be modified in the array
  */
@@ -1003,26 +1008,23 @@ plotit.prototype.add_predicted_peaks = function (peaks, index) {
             self.predicted_peaks.push([]);
         }
     }
+    self.predicted_peaks[index] = peaks;
+
+    self.x = d3.scaleLinear().range([self.MARGINS.left, self.WIDTH - self.MARGINS.right])
+        .domain(self.xscale);
+    self.y = d3.scaleLinear().range([self.HEIGHT - self.MARGINS.bottom, self.MARGINS.top])
+        .domain(self.yscale);
 
     self.vis.selectAll('.predicted_peak_'+index).remove();
 
-    self.vis.selectAll('.predicted_peak_'+index)
-        .data(peaks)
-        .enter()
-        .append('circle')
+    self.line = d3.line()
+        .x((d) => self.x(d[0]))
+        .y((d) => self.y(d[1]));
+
+    self.vis.append('path')
         .attr('class', 'predicted_peak_'+index)
-        .attr('cx', function (d) {
-            return self.xRange(d.cs_x);
-        })
-        .attr('cy', function (d) {
-            return self.yRange(d.cs_y);
-        })
-        .attr('r', function (d) {
-            return 3*d.degeneracy;
-        })
+        .attr("d", self.line(peaks))
         .attr('fill', 'none')
         .attr('stroke', 'green')
         .attr('stroke-width', 3);
-
-    self.predicted_peaks[index] = peaks;
 }

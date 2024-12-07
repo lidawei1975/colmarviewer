@@ -103,7 +103,7 @@ var current_phase_correction = [0, 0, 0, 0];
 class spectrum {
     constructor() {
         this.spectrum_format = "ft2"; //ft2 is the default format
-        this.header = new Float32Array(512); //header of the spectrum, 512 float32 numbers
+        this.process_ppm_j_change = new Float32Array(512); //header of the spectrum, 512 float32 numbers
         this.raw_data = new Float32Array(0); //raw data, real real
         this.raw_data_ri = new Float32Array(0); //raw data for real (along indirect dimension) and imaginary (along indirect dimension) part
         this.raw_data_ir = new Float32Array(0); //raw data for imaginary (along indirect dimension) and real (along indirect dimension) part
@@ -121,6 +121,8 @@ class spectrum {
         this.y_ppm_step = -120.0 / 1024; //step of indirect dimension
         this.x_ppm_ref = 0.0; //reference ppm of direct dimension
         this.y_ppm_ref = 0.0; //reference ppm of indirect dimension
+        this.frq1 = 850.0; //spectrometer frequency of direct dimension
+        this.frq2 = 80.0; //spectrometer frequency of indirect dimension
         this.picked_peaks = []; //picked peaks
         this.fitted_peaks = []; //fitted peaks
         /**
@@ -892,14 +894,18 @@ $(document).ready(function () {
     let input1=document.getElementById("spin_system_table").tBodies[0].rows[0].cells[1].querySelector("input");
     let input2=document.getElementById("spin_system_table").tBodies[0].rows[0].cells[2].querySelector("input");
     let input3=document.getElementById("spin_system_table").tBodies[0].rows[0].cells[3].querySelector("input");
+    let input4=document.getElementById("spin_system_table").tBodies[0].rows[0].cells[4].querySelector("input");
     input1.addEventListener('change', function () {
-        process_ppm_j_change(this.parentElement.parentElement.rowIndex,input1.value,input2.value,input3.value);
+        process_ppm_j_change(this.parentElement.parentElement.rowIndex,input1.value,input2.value,input3.value,input4.value);
     });
     input2.addEventListener('change', function () {
-        process_ppm_j_change(this.parentElement.parentElement.rowIndex,input1.value,input2.value,input3.value);
+        process_ppm_j_change(this.parentElement.parentElement.rowIndex,input1.value,input2.value,input3.value,input4.value);
     });
     input3.addEventListener('change', function () {
-        process_ppm_j_change(this.parentElement.parentElement.rowIndex,input1.value,input2.value,input3.value);
+        process_ppm_j_change(this.parentElement.parentElement.rowIndex,input1.value,input2.value,input3.value,input4.value);
+    });
+    input4.addEventListener('change', function () {
+        process_ppm_j_change(this.parentElement.parentElement.rowIndex,input1.value,input2.value,input3.value,input4.value);
     });
 
 });
@@ -4683,15 +4689,16 @@ function add_one_peak()
     let row = table_body.insertRow(-1);
 
     /**
-     * The row has 4 cells. 1st is index, 2nd is ppm_c, 3nd is ppm, 4rd is j coupling
+     * The row has 5 cells. 1st is index, 2nd is ppm_c, 3nd is ppm, 4rd is peak width, 5rd is j coupling
      */
-    let cell1 = row.insertCell(0);
-    let cell2 = row.insertCell(1);
-    let cell3 = row.insertCell(2);
-    let cell4 = row.insertCell(3);
+    let cell0 = row.insertCell(0);
+    let cell1 = row.insertCell(1);
+    let cell2 = row.insertCell(2);
+    let cell3 = row.insertCell(3);
+    let cell4 = row.insertCell(4);
 
 
-    cell1.innerHTML = row.rowIndex;
+    cell0.innerHTML = row.rowIndex;
 
     /**
      * Create am input element for ppm_c, and set its type to number and step to any
@@ -4700,9 +4707,9 @@ function add_one_peak()
     input_ppm_c.type = "number";
     input_ppm_c.step = "any";
     input_ppm_c.addEventListener('change', function () {
-        process_ppm_j_change(this.parentElement.parentElement.rowIndex, input_ppm_c.value,input_ppm.value, input_j.value);
+        process_ppm_j_change(this.parentElement.parentElement.rowIndex, input_ppm_c.value,input_ppm.value, input_width.value, input_j.value);
     });
-    cell2.appendChild(input_ppm_c);
+    cell1.appendChild(input_ppm_c);
     
     /**
      * Create a input element for ppm, and set its type to number and step to any
@@ -4714,9 +4721,23 @@ function add_one_peak()
      * Attach an event listener to input_ppm, so that when the value is changed, the corresponding peak on the plot will be updated
      */
     input_ppm.addEventListener('change', function () {
-        process_ppm_j_change(this.parentElement.parentElement.rowIndex, input_ppm_c.value, input_ppm.value, input_j.value);
+        process_ppm_j_change(this.parentElement.parentElement.rowIndex, input_ppm_c.value,input_ppm.value, input_width.value, input_j.value);
     });
-    cell3.appendChild(input_ppm);
+    cell2.appendChild(input_ppm);
+
+    /**
+     * Create input element for peak width, and set its type to number and step to any
+     */
+    let input_width = document.createElement('input');
+    input_width.type = "number";
+    input_width.step = "any";
+    cell3.appendChild(input_width);
+    /**
+     * Attach an event listener to input_width, so that when the value is changed, the corresponding peak on the plot will be updated
+     */
+    input_width.addEventListener('change', function () {
+        process_ppm_j_change(this.parentElement.parentElement.rowIndex, input_ppm_c.value,input_ppm.value, input_width.value, input_j.value);
+    });
 
     /**
      * Create a input element for j coupling, and set its type to text and value to ""
@@ -4728,16 +4749,16 @@ function add_one_peak()
      * Attach an event listener to input_j, so that when the value is changed, the corresponding peak on the plot will be updated
      */
     input_j.addEventListener('change', function () {
-        process_ppm_j_change(this.parentElement.parentElement.rowIndex, input_ppm_c.value, input_ppm.value, input_j.value);
+        process_ppm_j_change(this.parentElement.parentElement.rowIndex, input_ppm_c.value,input_ppm.value, input_width.value, input_j.value);
     });
     cell4.appendChild(input_j);
 }
 
-function process_ppm_j_change(row_index,ppm_c,ppm,j)
+function process_ppm_j_change(row_index,ppm,ppm_c,width,j)
 {
     ppm_c=parseFloat(ppm_c);
     ppm = parseFloat(ppm);
-    console.log("Row index is " + row_index + ", ppm is " + ppm + ", j is " + j);
+    console.log("Row index is " + row_index + ", ppm is " + ppm + "width is " + width + ", j is " + j);
     /**
      * Simulate peaks from ppm and j coupling
      * Step 1. Separate j coupling into an array of numbers (any number of spaces or commas)
@@ -4760,6 +4781,15 @@ function process_ppm_j_change(row_index,ppm_c,ppm,j)
     }
 
     /**
+     * @var hz_2_ppm: 1 Hz is how many ppm (direct dimension)
+     */
+    let hz_2_ppm = 1/hsqc_spectra[0].frq1;
+    /**
+     * @var ppm_per_step: how many ppm per data point (direct dimension)
+     */
+    let ppm_per_step = hsqc_spectra[0].x_ppm_width / hsqc_spectra[0].n_direct;
+
+    /**
      * Step 2, apply the j couplings to the ppm, one by one
      */
     let current_peaks = [ppm];
@@ -4772,49 +4802,62 @@ function process_ppm_j_change(row_index,ppm_c,ppm,j)
          */
         for(let j=0;j<current_peaks.length;j++)
         {
-            new_peaks.push(current_peaks[j] + j_couplings[i] / 2);
-            new_peaks.push(current_peaks[j] - j_couplings[i] / 2);
+            new_peaks.push(current_peaks[j] + j_couplings[i] * hz_2_ppm / 2);
+            new_peaks.push(current_peaks[j] - j_couplings[i] * hz_2_ppm / 2);
         }
         current_peaks = new_peaks;
         new_peaks = [];
     }
 
     /**
-     * Sort the peaks from high ppm to low ppm
+     * Sum of all j_couplings is the total span of the multiplet
      */
-    current_peaks.sort(function(a,b){return b-a;});
+    let total_span = j_couplings.reduce((a,b) => a + b, 0);
+    total_span *= hz_2_ppm; // convert to ppm
+    total_span += ppm_per_step*10; // add 10 points to the total span
 
     /**
-     * Combine the peaks that are close to each other (within 0.01 ppm). Meanwhile, keep track # of peaks combined
-     */
-    let n_peaks_combined = new Array(current_peaks.length).fill(1);
-
-    for(let i=current_peaks.length-2;i>=0;i--)
+     * Make a 1D profile from all these peaks, which have same peak width and peak height.
+     * Let generate the profile from -total_span/2 to total_span/2 around ppm, at step of ppm_per_step
+    */
+    let n_data = Math.floor(total_span / ppm_per_step) + 1;
+    let x = new Float32Array(n_data);
+    let y = new Float32Array(n_data);
+    let x_start = ppm - total_span / 2;
+    for(let i=0;i<n_data;i++)
     {
-        if(current_peaks[i] - current_peaks[i+1] < 0.01)
-        {
-            current_peaks[i] = (current_peaks[i] * n_peaks_combined[i] + current_peaks[i+1] * n_peaks_combined[i+1]) / (n_peaks_combined[i] + n_peaks_combined[i+1]);
-            n_peaks_combined[i] += n_peaks_combined[i+1];
-            n_peaks_combined[i+1] = 0; //this peak is removed
-        }
+        x[i] = x_start + i * ppm_per_step;
+        y[i] = 0.0;
     }
 
     /**
-     * Remove the peaks with n_peaks_combined[i] == 0
+     * Generate the peak profile
+     * Note: width is actually sigma, not FWHH
      */
-    let new_peak_group = [];
+    width *= ppm_per_step; // convert to ppm from points
     for(let i=0;i<current_peaks.length;i++)
     {
-        if(n_peaks_combined[i] > 0)
+        for(let j=0;j<n_data;j++)
         {
-            new_peak_group.push({cs_x:current_peaks[i],cs_y:ppm_c,degeneracy:n_peaks_combined[i]});
+            y[j] += Math.exp(-Math.pow(x[j] - current_peaks[i],2) / (2 * Math.pow(width,2)));
         }
     }
 
-    console.log(new_peak_group);
+    /**
+     * Convert x and y to array of [x,y] 
+     * Remember y is the intensity of the peak, not the ppm_c value.
+     * To plot it correct, we need to convert to ppm_c value
+     * [0,1] will be projected to [ppm_c,ppm_c - profile]
+     */
+    let data = [];
+    for(let i=0;i<n_data;i++)
+    {
+        data.push([x[i],ppm_c - y[i]]);
+    }
+
 
     /**
-     * Update the peaks on the plot
+     * Update the profile on the plot
      */
-    main_plot.add_predicted_peaks(new_peak_group,row_index-1);
+    main_plot.add_predicted_peaks(data,row_index-1);
 }
