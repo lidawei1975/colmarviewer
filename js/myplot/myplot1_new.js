@@ -997,7 +997,7 @@ plotit.prototype.get_visible_region = function () {
  * degeneracy: degeneracy of the peak (1,2,3,4,5. etc from spin simulation)
  * @param {Number} index: index of the predicted peaks to be modified in the array
  */
-plotit.prototype.add_predicted_peaks = function (peaks, index) {
+plotit.prototype.add_predicted_peaks = function (peaks,flag_valid, index) {
     let self = this;
 
     if(index >= self.predicted_peaks.length) {
@@ -1025,6 +1025,6 @@ plotit.prototype.add_predicted_peaks = function (peaks, index) {
         .attr('class', 'predicted_peak_'+index)
         .attr("d", self.line(peaks))
         .attr('fill', 'none')
-        .attr('stroke', 'green')
+        .attr('stroke', (flag_valid === true) ? 'green' : 'purple')
         .attr('stroke-width', 3);
 }

@@ -419,10 +419,10 @@
                     </thead>
                     <tbody>
                       <tr>
-                        <td scope="row">0</td>
+                        <td scope="row">1</td>
                         <td><input type="number" step="any" value="0.0"></td>
                         <td><input type="number" step="any" value="0.0"></td>
-                        <td><input type="number" step="any" value="2.0"></td>
+                        <td><input type="number" step="any" value="1.0"></td>
                         <td><input type="text"  value=""></td>
                       </tr>
                       <tfoot>
@@ -432,6 +432,13 @@
                       </tfoot>
                     </tbody>
                   </table>
+                  <span>
+                    <button onclick="save_spin_system()">Save current spin system to a file.</button>
+                    <lablel for="spin_system_file">Load spin system from a file:</lablel>
+                    <input type="file" id="spin_system_file" name="spin_system_file" onchange="load_spin_system(this)">
+                    <button onclick="run_spin_system()">Run automatic spin system optimization</button>
+                   
+                  </span>
             </div>
 
         </div>
