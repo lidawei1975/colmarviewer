@@ -2258,6 +2258,11 @@ function add_to_list(index) {
             document.getElementById("button_run_pseudo3d_gaussian").disabled = false;
             document.getElementById("button_run_pseudo3d_voigt").disabled = false;
         }
+
+        /**
+         * For experimental spectrum, switch default to show projection
+         */
+        show_projection(index);
     }
 
 }
