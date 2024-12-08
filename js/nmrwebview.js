@@ -511,6 +511,7 @@ $(document).ready(function () {
             reader.onload = function () {
                 var data = reader.result;
                 webassembly_worker.postMessage({
+                    webassembly_job: "assignment",
                     assignment: data,
                     fitted_peaks_tab: pseudo3d_fitted_peaks_tab,
                 });
@@ -704,7 +705,17 @@ $(document).ready(function () {
              */
             let pseudo3d_process = document.querySelector('input[name="Pseudo-3D-process"]:checked').value;
 
+            /**
+             * Normal or NUS processing 
+             */
+            let webassembly_job = "process_fid";
+            if(file_data.length === 4)
+            {
+                webassembly_job = "nus_step1";
+            }
+
             fid_process_parameters = {
+                webassembly_job: webassembly_job,
                 water_suppression: water_suppression,
                 polynomial: polynomial,
                 file_data: current_fid_files,
@@ -954,6 +965,7 @@ function run_pseudo3d(flag) {
      * Send the initial peaks, all_files to the worker
      */
     webassembly_worker.postMessage({
+        webassembly_job: "pseudo3d_fitting",
         initial_peaks: initial_peaks,
         all_files: all_files,
         noise_level: hsqc_spectra[current_spectrum_index_of_peaks].noise_level,
@@ -988,6 +1000,7 @@ webassembly_worker2.onmessage = function (e) {
          * Send e.data.spectrum_data to webassembly_worker to process it
          */
         webassembly_worker.postMessage({
+            webassembly_job: "nus_step2",
             file_data: [spectrum_data],
             spectrum_index: e.data.spectrum_index,
             phase_correction_indirect_p0: phase_correction_indirect_p0,
@@ -1337,6 +1350,11 @@ webassembly_worker.onmessage = function (e) {
          * Enable download peaks with assignment and assignment_file file input 
          */
         document.getElementById("button_download_fitted_peaks_ass").disabled = false;
+    }
+
+    else if(e.data.webassembly_job === "spin_optimization")
+    {
+        process_spin_optimization_result(e.data.spin_system);
     }
 
     else{
@@ -3957,6 +3975,7 @@ function run_DEEP_Picker(spectrum_index,flag)
      * Add title to textarea "log"
      */
     webassembly_worker.postMessage({
+        webassembly_job: "peak_picker",
         spectrum_data: data_uint8,
         spectrum_index: spectrum_index,
         scale: scale,
@@ -4022,6 +4041,7 @@ function run_Voigt_fitter(spectrum_index,flag)
     let data_uint8 = new Uint8Array(data.buffer);
 
     webassembly_worker.postMessage({
+        webassembly_job: "peak_fitter",
         spectrum_data: data_uint8,
         picked_peaks: picked_peaks,
         spectrum_index: spectrum_index,
@@ -4395,6 +4415,7 @@ function apply_current_pc()
      */
     let data_uint8 = new Uint8Array(data.buffer);
     webassembly_worker.postMessage({
+        webassembly_job: "apply_phase_correction",
         spectrum_data: data_uint8,
         phase_correction: current_ps,
         spectrum_index: main_plot.current_spectral_index,

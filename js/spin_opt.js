@@ -347,3 +347,77 @@ function load_spin_system(obj)
     }
     reader.readAsText(file);
 }
+
+
+function run_spin_system()
+{
+    /**
+     * Send the spectrum and fitted peaks to the webassembly_worker
+     * We suppose there in only one spectrum in array hsqc_spectra
+     * Combine spectrum.header and spectrum.data into one unit8array
+     * to be sent to the webassembly_worker as a file
+     */
+    let data = Float32Concat(hsqc_spectra[0].header, hsqc_spectra[0].raw_data);
+    let data_uint8 = new Uint8Array(data.buffer);
+
+    let fitted_peaks = hsqc_spectra[0].fitted_peaks_tab;
+
+    webassembly_worker.postMessage({
+        webassembly_job: "spin_optimization",
+        spectrum_file: data_uint8,
+        fitted_peaks_file: fitted_peaks,
+        b0: hsqc_spectra[0].frq1,
+    });
+}
+
+function process_spin_optimization_result(data)
+{
+    console.log(data);
+    /**
+     * Example line
+     * 0.0309074 0.920157 49.8763 1.75854 12.779 6.35695 14.2737
+     * Failed optimization line:
+     * 1.0 0.807704 18.8488 1.0 1000.0
+     */
+    let lines = data.split("\n");
+    let table = document.getElementById("spin_system_table");
+    let table_body = table.getElementsByTagName('tbody')[0];
+    let n_rows = table_body.rows.length;
+    for(let i=0;i<lines.length;i++)
+    {
+        let line = lines[i].trim();
+        let fields = line.split(" ");
+        /**
+         * Skip if there are less than 4 fields. This is an invalid line
+         */
+        if(fields.length < 4)
+        {
+            continue;
+        }
+
+        let error = parseFloat(fields[0]);
+        /**
+         * Skip if error > 0.6
+         */
+        if(error > 0.6)
+        {
+            continue;
+        }
+        /**
+         * Remove the first field
+         */
+        fields.shift();
+
+
+        if(i >= n_rows)
+        {
+            add_one_peak();
+        }
+        let row = table_body.rows[i];
+        row.cells[1].children[0].value = fields[0];
+        row.cells[2].children[0].value = fields[1];
+        row.cells[3].children[0].value = fields[2];
+        row.cells[4].children[0].value = fields.slice(3).join(" ");
+        row.cells[1].children[0].dispatchEvent(new Event('change'));
+    }
+}
