@@ -403,6 +403,42 @@
                 <textarea id="log" rows="50" cols="80" readonly></textarea>
                 <button onclick="clear_log()">Clear log</button>
                 <button onclick="download_log()">Download log</button>
+                <h4>Peak:</h4>
+                <table id="spin_system_table">
+                    <caption>
+                      Peak Chemical Shifts and J couplings
+                    </caption>
+                    <thead>
+                      <tr>
+                        <th scope="col">Index</th>
+                        <th scope="col">Chemical shift</th>
+                        <th scope="col">Chemical shift</th>
+                        <th scope="col">Width</th>
+                        <th scope="col">J couplings</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td scope="row">1</td>
+                        <td><input type="number" step="any" value="0.0"></td>
+                        <td><input type="number" step="any" value="0.0"></td>
+                        <td><input type="number" step="any" value="1.0"></td>
+                        <td><input type="text"  value=""></td>
+                      </tr>
+                      <tfoot>
+                        <tr>
+                          <th scope="row" colspan="5"><button onclick="add_one_peak()">Add one peak</button></th>
+                        </tr>
+                      </tfoot>
+                    </tbody>
+                  </table>
+                  <span>
+                    <button onclick="save_spin_system()">Save current spin system to a file.</button>
+                    <lablel for="spin_system_file">Load spin system from a file:</lablel>
+                    <input type="file" id="spin_system_file" name="spin_system_file" onchange="load_spin_system(this)">
+                    <button onclick="run_spin_system()">Run automatic spin system optimization</button>
+                   
+                  </span>
             </div>
 
         </div>
@@ -410,7 +446,6 @@
         <div id="footer" style="width: 1200px;">
             <p>For questions or comments, please contact us at <a href="mailto:lidawei@gmail.com">lidawei@gmail.com</a></p>
             <p>  Try a new <a href="index2.html"> 3D spectrum viewer (experimental) </a> </p>
-            <p>  experimental <a href="index_spin.html"> Spin system optimization tool </a> </p>
 
             <div>
             <p>References</p>
@@ -435,6 +470,7 @@
         <script type="text/javascript" src="js/myplot/cross_section_plot.js"></script>
         <script type="text/javascript" src="js/myplot/myplot1_new.js"></script>
         <script type="text/javascript" src="js/nmrwebview.js"></script>
+        <script type="text/javascript" src="js/spin_opt.js"></script>
     </div>
 </body>
 
