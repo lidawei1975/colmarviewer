@@ -591,7 +591,11 @@ $(document).ready(function () {
                      */
                     if(typeof file_data === "string")
                     {
-                        let result_spectrum = process_topspin_file(file_data,this.querySelector('input[type="file"]').files[ii].name);
+                        /**
+                         * Get field strength from the html input field with id "field_strength"
+                         */
+                        let field_strength = parseFloat(document.getElementById("field_strength").value);
+                        let result_spectrum = process_topspin_file(file_data,this.querySelector('input[type="file"]').files[ii].name,field_strength);
                         draw_spectrum([result_spectrum],false/**from fid */,false/** re-process of fid or ft2 */);
                     }
                     else
@@ -3037,10 +3041,11 @@ function update_contour_color(e,index,flag) {
  * Process the raw file data of a 2D FT spectrum (.txt from Topspin totxt command)
  * @param {*} file_text: raw file data as a string
  * @param {*} file_name: name of the file
+ * @param {*} field_strength: field strength of the spectrometer
  * Note: for topspin file, spectrum_origin is always -1 (user uploaded frequency file)
  *  
  */
-function process_topspin_file(file_text, file_name) {
+function process_topspin_file(file_text, file_name, field_strength) {
     let result = new spectrum();
 
     result.spectrum_format = "Topspin"
@@ -3195,20 +3200,23 @@ function process_topspin_file(file_text, file_name) {
      * Suppose filed strength is 850 along direct dimension
      * and indirection dimension obs is 85.0
      */
-    result.header[119] = 850.0; //observed frequency of direct dimension
+    result.header[119] = field_strength; //observed frequency of direct dimension
     result.header[218] = 85.0; //observed frequency of indirect dimension
 
-    result.header[100] = result.x_ppm_width*850.0; //spectral width of direct dimension
+    result.header[100] = result.x_ppm_width*field_strength; //spectral width of direct dimension
     result.header[229] = result.y_ppm_width*85.0; //spectral width of indirect dimension
 
 
-    result.header[101] = (result.x_ppm_start-result.x_ppm_width)*850.0; //origin of direct dimension (last point frq in Hz)
+    result.header[101] = (result.x_ppm_start-result.x_ppm_width)*field_strength; //origin of direct dimension (last point frq in Hz)
     result.header[249] = (result.y_ppm_start-result.y_ppm_width)*85.0; //origin of indirect dimension (last point frq in Hz)
 
     /**
      * We did not fill carrier frequency, because we do not need it for DEEP_Picker, VoigtFit, etc.
      * They are needed in fid processing, not in spectrum processing.
      */
+
+    result.frq1 = result.header[119];
+    result.frq2 = result.header[218];
 
     return result;
 }
