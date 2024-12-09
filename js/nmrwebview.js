@@ -3224,9 +3224,12 @@ function process_topspin_file(file_text, file_name, field_strength) {
     result.header[100] = result.x_ppm_width*field_strength; //spectral width of direct dimension
     result.header[229] = result.y_ppm_width*85.0; //spectral width of indirect dimension
 
-
-    result.header[101] = (result.x_ppm_start-result.x_ppm_width)*field_strength; //origin of direct dimension (last point frq in Hz)
-    result.header[249] = (result.y_ppm_start-result.y_ppm_width)*85.0; //origin of indirect dimension (last point frq in Hz)
+    /**
+     * Per topspin convention, First point is inclusive, last point is exclusive in [ppm_start, ppm_start+ppm_width)]
+     * Notice x_ppm_step and y_ppm_step are negative
+     */
+    result.header[101] = (result.x_ppm_start-result.x_ppm_width - result.x_ppm_step)*field_strength; //origin of direct dimension (last point frq in Hz)
+    result.header[249] = (result.y_ppm_start-result.y_ppm_width - result.y_ppm_step)*85.0; //origin of indirect dimension (last point frq in Hz)
 
     /**
      * We did not fill carrier frequency, because we do not need it for DEEP_Picker, VoigtFit, etc.
