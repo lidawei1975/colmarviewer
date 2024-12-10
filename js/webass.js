@@ -13,7 +13,7 @@ const api = {
     phasing: Module.cwrap("phasing", "number", []),
     voigt_fit: Module.cwrap("voigt_fit", "number", []),
     peak_match: Module.cwrap("peak_match", "number", []),
-    cubic_spline: Module.cwrap("cubic_spline", "number",[]),
+    spin_optimization: Module.cwrap("spin_optimization", "number",[]),
 };
 
 /**
@@ -32,7 +32,7 @@ onmessage = function (e) {
      * If the message is file_data with only 1 file, this is the 2nd step of normal processing (indirect dimension)
      * after NUS reconstruction. Save the file to the virtual file system and run fid (-process indirect) function
      */
-    if (e.data.file_data && e.data.file_data.length === 1) {
+    if (e.data.webassembly_job === "nus_step2") {
         console.log('File data received for indirect processing');
 
         Module['FS_createDataFile']('/', 'test_smile.ft2', e.data.file_data[0], true, true, true);
@@ -72,6 +72,7 @@ onmessage = function (e) {
         FS.unlink('test.ft2');
         console.log('File data read from virtual file system, type of file_data:', typeof file_data, ' and length:', file_data.length);
         postMessage({
+            webassembly_job: e.data.webassembly_job,
             file_data: file_data,
             file_type: 'indirect', //direct,indirect,full
             phasing_data: phasing_data,
@@ -84,7 +85,7 @@ onmessage = function (e) {
      * If the message is file_data with 4 file, save them to the virtual file system and run direct dimension only processing.
      * (This is a NUS spectrum with 4 files: acquisition_file, acquisition_file2, fid_file and nuslist)
      */
-    if (e.data.file_data && e.data.file_data.length === 4) {
+    if (e.data.webassembly_job === "nus_step1") {
         console.log('File data received for NUS processing');
         /**
          * Save the file data to the virtual file system
@@ -212,6 +213,7 @@ onmessage = function (e) {
         console.log('File data read from virtual file system, type of file_data:', typeof file_data, ' and length:', file_data.length);
         FS.unlink('test_direct.ft2');
         postMessage({
+            webassembly_job: e.data.webassembly_job,
             file_data: file_data,
             file_type: 'direct', //direct,direct-smile,full
             phasing_data: phase_correction,
@@ -224,7 +226,7 @@ onmessage = function (e) {
      * If the message is file_data with 3 files, save them to the virtual file system and run fid and phasing functions
      * return the processed data to the main script as file_data
      */
-    if (e.data.file_data && e.data.file_data.length === 3) {
+    if (e.data.webassembly_job === "process_fid") {
         console.log('File data received');
         /**
          * Save the file data to the virtual file system
@@ -502,6 +504,7 @@ onmessage = function (e) {
         }
 
         postMessage({
+            webassembly_job: e.data.webassembly_job,
             file_data: file_data,
             file_type: 'full', //direct,indirect,full
             pseudo3d_files: pseudo3d_files,
@@ -516,7 +519,7 @@ onmessage = function (e) {
     /**
      * If the message contains both spectrum_data and picked_peaks, call voigt_fit function
      */
-    else if (e.data.spectrum_data && e.data.picked_peaks) {
+    else if (e.data.webassembly_job === "peak_fitter") {
         console.log('Spectrum data and picked peaks received');
         /**
          * Save the spectrum data and picked peaks to the virtual file system
@@ -599,6 +602,7 @@ onmessage = function (e) {
         console.log('File data read from virtual file system, type of file_data:', typeof file_data, ' and length:', file_data.length);
         FS.unlink(filename);
         postMessage({
+            webassembly_job: e.data.webassembly_job,
             fitted_peaks: peaks,
             fitted_peaks_tab: peaks_tab, //peaks_tab is a very long string with multiple lines (in nmrPipe tab format)
             spectrum_origin: e.data.spectrum_index, //pass through the spectrum index of the original spectrum (run peak fitting and recon on)
@@ -611,7 +615,7 @@ onmessage = function (e) {
     /**
      * If the message contains spectrum_data, scale, scale2 without picked_peaks call deep function
      */
-    else if (e.data.spectrum_data && e.data.scale && e.data.scale2)
+    else if (e.data.webassembly_job === "peak_picker" )
     {
         console.log('Spectrum data received');
         /**
@@ -662,6 +666,7 @@ onmessage = function (e) {
             FS.unlink('arguments_simple_picking.txt');
         }
         postMessage({
+            webassembly_job: e.data.webassembly_job,
             peaks: peaks,
             spectrum_index: e.data.spectrum_index,
             scale: e.data.scale,
@@ -672,7 +677,7 @@ onmessage = function (e) {
     /**
      * With spectrum_data and phase_correction, run fid function to apply phase correction only
      */
-    else if (e.data.spectrum_data && e.data.phase_correction) {
+    else if (e.data.webassembly_job === "apply_phase_correction") {
         console.log('Spectrum data and phase correction received');
         /**
          * Save the spectrum data to the virtual file system
@@ -711,6 +716,7 @@ onmessage = function (e) {
         FS.unlink('test.ft2');
         FS.unlink('fid-information.json');
         postMessage({
+            webassembly_job: e.data.webassembly_job,
             file_data: file_data,
             spectrum_name: e.data.spectrum_name, //pass through the spectrum name
             spectrum_index: e.data.spectrum_index //pass through the spectrum index
@@ -721,7 +727,7 @@ onmessage = function (e) {
     /**
      * initial_peaks and all_files are received, run pseudo-3D fitting using api.voigt_fit
      */
-    else if (e.data.initial_peaks && e.data.all_files) {
+    else if (e.data.webassembly_job === "pseudo3d_fitting") {
         console.log('Initial peaks and all files received');
         /**
          * Save the initial peaks to the virtual file system
@@ -794,6 +800,7 @@ onmessage = function (e) {
          * Read the file recon_voigt_hsqc.ft2 
          */
         postMessage({
+            webassembly_job: e.data.webassembly_job,
             pseudo3d_fitted_peaks: peaks, 
             pseudo3d_fitted_peaks_tab: peaks_tab, //peaks_tab is a very long string with multiple lines (in nmrPipe tab format)
         });
@@ -802,7 +809,7 @@ onmessage = function (e) {
     /**
      * assignment and fitted_peaks_tab are received. Run api.peak_match to transfer the assignment to the fitted peaks
      */
-    else if(e.data.assignment && e.data.fitted_peaks_tab) {
+    else if(e.data.webassembly_job === "assignment") {
         console.log('Assignment and fitted peaks tab received');
         /**
          * Save the assignment to the virtual file system
@@ -842,49 +849,53 @@ onmessage = function (e) {
         postMessage({
             matched_peaks_tab: matched_peaks_tab,
             assignment: assignment,
+            webassembly_job: e.data.webassembly_job,
         });
     }
+
     /**
-     * bin_data and bin_size are received. Run cubic_spline function to interpolate the data
+     * Run spin optimization
      */
-    else if(e.data.bin_data && e.data.bin_size) {
-        console.log('Bin data and bin size received');
+    else if(e.data.webassembly_job === "spin_optimization")
+    {
+        console.log('spin optimization data received');
+        /**
+         * Save the spectrum data to the virtual file system
+         */
+        Module['FS_createDataFile']('/', 'test.ft2', e.data.spectrum_file, true, true, true);
+
+       /**
+        * Save the peaks to the virtual file system
+        * fitted_peaks_tab is a very long string with multiple lines (in nmrPipe tab format)
+        */
+        Module['FS_createDataFile']('/', 'fitted.tab', e.data.fitted_peaks_file, true, true, true);
 
         /**
-         * Write a file named "cubic_spline_infor.txt" to the virtual file system
-         * which contain 4 numbers: xdim, ydim, xscale, yscale
+         * Write a file named "arguments_spin_optimization.txt" to the virtual file system
          */
-        let content = ' '.concat(e.data.bin_size[0],' ',e.data.bin_size[1],' ',e.data.bin_size[2],' ',e.data.bin_size[3]);
-        Module['FS_createDataFile']('/', 'cubic_spline_info.txt', content, true, true, true);
+        let content = ' -in test.ft2 -peak-in fitted.tab -out spin_system.txt -b0 '.concat(e.data.b0);
+        Module['FS_createDataFile']('/', 'arguments_spin_optimization.txt', content, true, true, true);
 
         /**
-         * Write a file named "cubic_spline_spect.bin" to the virtual file system, size is 4*xdim*ydim
+         * Run spin_optimization function
          */
-        Module['FS_createDataFile']('/', 'cubic_spline_spect.bin', e.data.bin_data, true, true, true);
-        console.log('Bin data and infor saved to virtual file system');
-        
-        
-        /**
-         * Run cubic_spline function
-         */
-        postMessage({ stdout: "Running cubic_spline function" });
-        api.cubic_spline();
-        console.log('Finished running web assembly code of cubic spline interpolation');
+        postMessage({ stdout: "Running spin optimization function" });
+        api.spin_optimization();
+        console.log('Finished running spin optimization');
+
         /**
          * Remove the input files from the virtual file system
-         * Read file cubic_spline.txt, parse it and send it back to the main script
+         * Read file spin_system.txt, parse it and send it back to the main script
          */
-        FS.unlink('cubic_spline_info.txt');
-        FS.unlink('cubic_spline_spect.bin');
-        let cubic_spline_data = FS.readFile('cubic_spline_new_spect.bin', { encoding: 'binary' });
-        FS.unlink('cubic_spline_new_spect.bin');
-
+        FS.unlink('test.ft2');
+        FS.unlink('fitted.tab');
+        FS.unlink('arguments_spin_optimization.txt');
+        let spin_system = FS.readFile('spin_system.txt', { encoding: 'utf8' });
+        FS.unlink('spin_system.txt');
         postMessage({
-            cubic_spline_data: cubic_spline_data,
-            ydim: e.data.bin_size[0]*e.data.bin_size[2],
-            xdim: e.data.bin_size[1]*e.data.bin_size[3],
+            webassembly_job: e.data.webassembly_job,
+            spin_system: spin_system,//long string with multiple lines
         });
-
     }
 }
 

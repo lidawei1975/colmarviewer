@@ -74,6 +74,8 @@ function plotit(input) {
 
     this.lastCallTime_zoom_x = Date.now();
     this.lastCallTime_zoom_y = Date.now();
+
+    this.predicted_peaks = [];
 };
 
 /**
@@ -174,6 +176,24 @@ plotit.prototype.reset_axis = function () {
         .attr('cy', function (d) {
             return self.yRange(d.cs_y);
         });
+
+    /**
+     * Reset position of predicted peaks, if any
+     */
+    self.x = d3.scaleLinear().range([self.MARGINS.left, self.WIDTH - self.MARGINS.right])
+    .domain(self.xscale);
+    self.y = d3.scaleLinear().range([self.HEIGHT - self.MARGINS.bottom, self.MARGINS.top])
+        .domain(self.yscale);
+
+    self.line = d3.line()
+    .x((d) => self.x(d[0]))
+    .y((d) => self.y(d[1]));
+
+    for(let i=0;i<this.predicted_peaks.length;i++) {
+        this.vis.selectAll('.predicted_peak_'+i)
+        .attr("d", self.line(this.predicted_peaks[i]));
+    }
+
 
     /**
      * Reset vline and hline
@@ -966,4 +986,45 @@ plotit.prototype.remove_picked_peaks = function () {
  */
 plotit.prototype.get_visible_region = function () {
     return [this.xscale[1], this.xscale[0], this.yscale[1], this.yscale[0]];
+}
+
+
+/**
+ * Modify predicted peaks (from spin simulation) to the plot
+ * @param {Array} peaks: array of peaks, each peak object has the following properties:
+ * [0]: ppm coordinate in x-axis
+ * [1]: profile 
+ * degeneracy: degeneracy of the peak (1,2,3,4,5. etc from spin simulation)
+ * @param {Number} index: index of the predicted peaks to be modified in the array
+ */
+plotit.prototype.add_predicted_peaks = function (peaks,flag_valid, index) {
+    let self = this;
+
+    if(index >= self.predicted_peaks.length) {
+        /**
+         * Add empty array to self.predicted_peaks to reach length of index+1
+         */
+        for(let i = self.predicted_peaks.length; i <= index; i++) {
+            self.predicted_peaks.push([]);
+        }
+    }
+    self.predicted_peaks[index] = peaks;
+
+    self.x = d3.scaleLinear().range([self.MARGINS.left, self.WIDTH - self.MARGINS.right])
+        .domain(self.xscale);
+    self.y = d3.scaleLinear().range([self.HEIGHT - self.MARGINS.bottom, self.MARGINS.top])
+        .domain(self.yscale);
+
+    self.vis.selectAll('.predicted_peak_'+index).remove();
+
+    self.line = d3.line()
+        .x((d) => self.x(d[0]))
+        .y((d) => self.y(d[1]));
+
+    self.vis.append('path')
+        .attr('class', 'predicted_peak_'+index)
+        .attr("d", self.line(peaks))
+        .attr('fill', 'none')
+        .attr('stroke', (flag_valid === true) ? 'green' : 'purple')
+        .attr('stroke-width', 3);
 }
