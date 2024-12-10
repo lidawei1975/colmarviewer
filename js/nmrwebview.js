@@ -902,6 +902,7 @@ $(document).ready(function () {
             show_hide_peaks(-2, 'picked', false);
         }
     });
+
 });
 
 

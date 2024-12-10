@@ -76,6 +76,21 @@ function plotit(input) {
     this.lastCallTime_zoom_y = Date.now();
 
     this.predicted_peaks = [];
+
+    this.zoom_on_call_function = null;
+};
+
+/**
+ * Set a on call function for zoom event
+ */
+plotit.prototype.set_zoom_on_call_function = function (func) {
+    if(zoom_on_call_function === null) {
+        this.zoom_on_call_function = func;
+    }
+    else {
+        console.log("zoom_on_call_function is already set. Can't set it again");
+    }
+    
 };
 
 /**
@@ -200,6 +215,10 @@ plotit.prototype.reset_axis = function () {
      */
     this.vis.selectAll(".hline").attr("d", self.lineFunc(self.hline_data));
     this.vis.selectAll(".vline").attr("d", self.lineFunc(self.vline_data));
+
+    if(this.zoom_on_call_function) {
+        this.zoom_on_call_function();
+    }
 };
 
 

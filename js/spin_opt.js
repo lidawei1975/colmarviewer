@@ -346,6 +346,14 @@ function load_spin_system(obj)
         }
     }
     reader.readAsText(file);
+
+    if(main_plot !== null)
+    {
+        if(main_plot.zoom_on_call_function === null)
+        {
+            main_plot.zoom_on_call_function = plot_zoom_on_call;
+        }
+    }
 }
 
 
@@ -419,5 +427,45 @@ function process_spin_optimization_result(data)
         row.cells[3].children[0].value = fields[2];
         row.cells[4].children[0].value = fields.slice(3).join(" ");
         row.cells[1].children[0].dispatchEvent(new Event('change'));
+    }
+    if(main_plot !== null)
+    {
+        if(main_plot.zoom_on_call_function === null)
+        {
+            main_plot.zoom_on_call_function = plot_zoom_on_call;
+        }
+    }
+}
+
+function plot_zoom_on_call()
+{
+    /**
+     * Get the current zoom level
+     * scale is [ppm_start ppm_end], notice ppm_start > ppm_end (inverse direction)
+     */
+    let xscale = main_plot.xscale;
+    let yscale = main_plot.yscale;
+
+    /**
+     * Loop all rows in the table, check 2nd column, if it is in the range of xscale
+     * and check 3rd column, if it is in the range of yscale
+     * then highlight the row
+     */
+    let table = document.getElementById("spin_system_table");
+    let table_body = table.getElementsByTagName('tbody')[0];
+    let n_rows = table_body.rows.length;
+    for(let i=0;i<n_rows;i++)
+    {
+        let row = table_body.rows[i];
+        let ppm = parseFloat(row.cells[1].children[0].value);
+        let ppm_c = parseFloat(row.cells[2].children[0].value);
+        if(ppm >= xscale[1] && ppm <= xscale[0] && ppm_c >= yscale[1] && ppm_c <= yscale[0])
+        {
+            row.style.backgroundColor = "yellow";
+        }
+        else
+        {
+            row.style.backgroundColor = "";
+        }
     }
 }
