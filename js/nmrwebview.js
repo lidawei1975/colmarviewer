@@ -709,7 +709,7 @@ $(document).ready(function () {
              * Normal or NUS processing 
              */
             let webassembly_job = "process_fid";
-            if(file_data.length === 4)
+            if(current_fid_files.length === 4)
             {
                 webassembly_job = "nus_step1";
             }
