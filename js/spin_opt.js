@@ -365,7 +365,24 @@ function run_spin_system()
      * Combine spectrum.header and spectrum.data into one unit8array
      * to be sent to the webassembly_worker as a file
      */
-    let data = Float32Concat(hsqc_spectra[0].header, hsqc_spectra[0].raw_data);
+    let new_header = new Float32Array(hsqc_spectra[0].header);
+
+    /**
+     * If both direct and indirect are complex (0.0), n_indirect need to be divide by 2
+     */
+    if(new_header[55] === 0.0 && new_header[56] === 0.0)
+    {
+        new_header[219] = new_header[219] / 2;
+    }
+
+    /**
+     *  Need to reset complex flags to 1.0 (real only) in header because we only send real real data
+     */
+    new_header[55] = 1.0;
+    new_header[56] = 1.0;
+    
+
+    let data = Float32Concat(new_header, hsqc_spectra[0].raw_data);
     let data_uint8 = new Uint8Array(data.buffer);
 
     let fitted_peaks = hsqc_spectra[0].fitted_peaks_tab;
