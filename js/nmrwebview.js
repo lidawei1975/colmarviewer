@@ -569,7 +569,9 @@ $(document).ready(function () {
                     /**
                      * If not a .ft2 file or .ft3 file, resolve the promise
                      */
-                    if(this.querySelector('input[type="file"]').files[ii].name.endsWith(".ft2") || this.querySelector('input[type="file"]').files[ii].name.endsWith(".ft3"))
+                    if(this.querySelector('input[type="file"]').files[ii].name.endsWith(".ft2")
+                        || this.querySelector('input[type="file"]').files[ii].name.endsWith(".ft3")
+                        || this.querySelector('input[type="file"]').files[ii].name.endsWith(".ucsf") )
                     {
                         return read_file(this.querySelector('input[type="file"]').files[ii]);
                     }
@@ -601,7 +603,20 @@ $(document).ready(function () {
                     }
                     else
                     {
-                        let result_spectrum = process_ft_file(file_data,this.querySelector('input[type="file"]').files[ii].name,-1);
+                        /**
+                         * Get first float32 number of the file_data. 
+                         * If it is "0.0", it is a nmrPipe file, otherwise consider it as Sparky .ucsf file 
+                         */
+                        let first_float32 = new Float32Array(file_data,0,1)[0];
+                        let result_spectrum;
+                        if(first_float32 === 0.0)
+                        {
+                            result_spectrum = process_ft_file(file_data,this.querySelector('input[type="file"]').files[ii].name,-1);
+                        }
+                        else
+                        {
+                            result_spectrum = process_sparky_file(file_data,this.querySelector('input[type="file"]').files[ii].name,-1);
+                        }
                         draw_spectrum([result_spectrum],false/**from fid */,false/** re-process of fid or ft2 */);
                     }
                 }
@@ -3205,6 +3220,7 @@ function process_topspin_file(file_text, file_name, field_strength) {
      * run DEEP_Picker, VoigtFit, etc.
      */
     result.header = new Float32Array(512); //empty array
+    result.header[0] = 0.0; //magic number for nmrPipe header
 
     result.header[99] = result.n_direct; //size of direct dimension of the input spectrum
     result.header[219] = result.n_indirect; //size of indirect dimension of the input spectrum
@@ -3461,6 +3477,170 @@ function process_ft_file(arrayBuffer,file_name, spectrum_origin) {
 
     return result;
 }
+
+
+function process_sparky_file(arrayBuffer, file_name, spectrum_origin) {
+
+    /**
+     * Get the 11th bytes and convert to integer (one byte integer). 
+     */
+    let n_dim = new Int8Array(arrayBuffer, 10, 1)[0]; 
+    let n_complicity = new Int8Array(arrayBuffer, 11, 1)[0]; // 1: real, 0: complex
+    // let n_version = new Int8Array(arrayBuffer, 13, 1)[0]; 
+
+    /**
+     * Make sure n_dim is 2 and n_complicity is 1 (real)
+     */
+    if (n_dim !== 2 || n_complicity !== 1) {
+        console.log('n_dim: ', n_dim, 'n_complicity: ', n_complicity,'n_version: ', n_version,' . Only 2D real data is supported');
+        return;
+    }
+
+    let result = new spectrum();
+
+    result.spectrum_format = "ucsf";
+
+    result.spectrum_origin = spectrum_origin;
+
+    let direct_parameters = new DataView(arrayBuffer, 188, 24);
+
+    /**
+     * Please notice that Sparky stores data in big endian. DataView's get* methods use big endian by default.
+     */
+    result.n_direct = direct_parameters.getInt32(0);
+    let direct_tile_size = direct_parameters.getInt32(8);
+    result.frq1 = direct_parameters.getFloat32(12); //observed frequency of direct dimension MHz
+    result.sw1 = direct_parameters.getFloat32(16); //spectral width of direct dimension, Hz
+    result.center1 = direct_parameters.getFloat32(20);   //ppm of the center of the spectrum
+    result.ref1 = result.center1 * result.frq1 + result.sw1 / 2; //staring frequency of the spectrum (highest frequency)
+    result.x_ppm_ref = 0.0; //reference correction (initially set to 0)
+    result.x_ppm_start = result.center1 + result.sw1/result.frq1/2.0; //ppm of the start of the spectrum
+    result.x_ppm_width = result.sw1 / result.frq1; //width of the spectrum in ppm
+    result.x_ppm_step = -result.x_ppm_width / result.n_direct; //step size in ppm
+
+    let indirect_parameters = new DataView(arrayBuffer, 316, 24);
+    result.n_indirect = indirect_parameters.getInt32(0);
+    let indirect_tile_size = indirect_parameters.getInt32(8); //required to read spectral data below.
+    result.frq2 = indirect_parameters.getFloat32(12); //observed frequency of indirect dimension MHz
+    result.sw2 = indirect_parameters.getFloat32(16); //spectral width of indirect dimension, Hz
+    result.center2 = direct_parameters.getFloat32(20);  //ppm of the center of the spectrum
+    result.ref2 = result.center2 * result.frq2 + result.sw2 / 2; //staring frequency of the spectrum (highest frequency)
+    result.y_ppm_ref = 0.0; //reference correction (initially set to 0)
+    result.y_ppm_start = result.center2 + result.sw2/result.frq2/2.0; //ppm of the start of the spectrum
+    result.y_ppm_width = result.sw2 / result.frq2; //width of the spectrum in ppm
+    result.y_ppm_step = -result.y_ppm_width / result.n_indirect; //step size in ppm
+
+
+    result.raw_data = new Float32Array(result.n_direct * result.n_indirect);
+
+    /**
+     * Read spectral data into result.raw_data (float32array)
+     * In sparky, data is stored in tiles, each tile is  direct_tile_size * indirect_tile_size
+     */
+    let n_direct_tile = Math.ceil(result.n_direct / direct_tile_size);
+    /**
+     * size of the last tile in direct dimension, set to direct_tile_size if n_direct is a multiple of direct_tile_size
+     */
+    let last_tile_size = result.n_direct % direct_tile_size; 
+    if(last_tile_size === 0)
+    {
+        last_tile_size = direct_tile_size;
+    }
+    let n_indirect_tile = Math.ceil(result.n_indirect / indirect_tile_size);
+
+   
+    let current_file_position = 436; //start of the spectral data. Aligned to 4 bytes boundary, so there is not need to use DataView
+
+    /**
+     * Because Sparky stores data in big endian, we need to swap the byte order
+     * from location current_file_position to the end of the arrayBuffer
+     * for all float32 data (4 bytes), swap the byte order
+     */
+    for (let i = 0; i < (arrayBuffer.byteLength - current_file_position) / 4; i++) {
+        let temp = new Uint8Array(arrayBuffer, current_file_position + i * 4, 4);
+        temp.reverse();
+    }
+
+
+    for (let i = 0; i < n_indirect_tile; i++)
+    {
+        for (let j = 0; j < n_direct_tile; j++)
+        {
+            for (let m = 0; m < indirect_tile_size; m++)
+            {
+                /**
+                 * Copy from arrayBuffer at location current_file_position
+                 *  to result.raw_data, for a length of direct_tile_size
+                 */
+                let new_data = new Float32Array(arrayBuffer, current_file_position, direct_tile_size);
+                current_file_position += direct_tile_size * 4;
+                
+                if (i * indirect_tile_size + m < result.n_indirect)
+                {
+                    if (j === n_direct_tile - 1)
+                    {
+                        /**
+                         * Copy from new_data to result.raw_data, for a length of last_tile_size.
+                         * at position (i*indirect_tile_size+m)*result.n_direct+j*direct_tile_size
+                         */
+                        result.raw_data.set(new_data.subarray(0, last_tile_size), (i * indirect_tile_size + m) * result.n_direct + j * direct_tile_size);
+                    }
+                    else
+                    {
+                        /**
+                         * Copy from new_data to result.raw_data, for a length of direct_tile_size.
+                         * at position (i*indirect_tile_size+m)*result.n_direct+j*direct_tile_size
+                         */
+                        result.raw_data.set(new_data, (i * indirect_tile_size + m) * result.n_direct + j * direct_tile_size);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Setup fake nmrPipe header, so that we can use the same code to run DEEP_Picker, etc.
+     */
+    result.header = new Float32Array(512); //empty array
+    result.header[0] = 0.0; //magic number for nmrPipe header
+
+    result.header[99] = result.n_direct; //size of direct dimension of the input spectrum
+    result.header[219] = result.n_indirect; //size of indirect dimension of the input spectrum
+    result.header[221] = 0; // not transposed
+    result.header[56] = 1; //real data along both dimensions
+    result.header[55] = 1; //real data along both dimensions
+
+    result.header[24] = 2; //direct dimension is the second dimension
+    result.header[25] = 1; //indirect dimension is the first dimension
+
+    /**
+     * Suppose filed strength is 850 along direct dimension
+     * and indirection dimension obs is 85.0
+     */
+    result.header[119] = result.frq1; //observed frequency of direct dimension
+    result.header[218] = result.frq2; //observed frequency of indirect dimension
+
+    result.header[100] = result.sw1; //spectral width of direct dimension
+    result.header[229] = result.sw2; //spectral width of indirect dimension
+
+    /**
+     * Per topspin convention, First point is inclusive, last point is exclusive in [ppm_start, ppm_start+ppm_width)]
+     * Notice x_ppm_step and y_ppm_step are negative
+     */
+    result.header[101] = (result.x_ppm_start-result.x_ppm_width - result.x_ppm_step)*result.frq1; //origin of direct dimension (last point frq in Hz)
+    result.header[249] = (result.y_ppm_start-result.y_ppm_width - result.y_ppm_step)*result.frq2; //origin of indirect dimension (last point frq in Hz)
+
+    result.filename = file_name;
+
+    /**
+     * Noise level, spectral_max and min, projection, levels, negative_levels code.
+     */
+    result = process_spectrum(result);
+    
+    return result;
+
+}
+
 
 /**
  * Shared code to process the spectrum data to get
