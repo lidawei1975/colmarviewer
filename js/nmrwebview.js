@@ -473,8 +473,8 @@ $(document).ready(function () {
     ft2_file_drop_processor = new file_drop_processor()
     .drop_area('file_area') /** id of dropzone */
     .files_name([]) /** file names to be searched from upload. It is empty because we will use file_extension*/
-    .file_extension(["ft2","ft3"])  /** file extensions to be searched from upload */
-    .files_id(["userfile","userfile"]) /** Corresponding file element IDs */
+    .file_extension(["ft2","ft3","txt","ucsf"])  /** file extensions to be searched from upload */
+    .files_id(["userfile","userfile","userfile","userfile"]) /** Corresponding file element IDs */
     .init();
 
     /**
@@ -595,9 +595,12 @@ $(document).ready(function () {
                     if(typeof file_data === "string")
                     {
                         /**
-                         * Get field strength from the html input field with id "field_strength"
+                         * Get field strength from the html input field with id "field_strength" if it exists
                          */
-                        let field_strength = parseFloat(document.getElementById("field_strength").value);
+                        let field_strength = 850.0; //default field strength
+                        if (document.getElementById("field_strength") !== null) {
+                            field_strength = parseFloat(document.getElementById("field_strength").value);
+                        }
                         let result_spectrum = process_topspin_file(file_data,this.querySelector('input[type="file"]').files[ii].name,field_strength);
                         draw_spectrum([result_spectrum],false/**from fid */,false/** re-process of fid or ft2 */);
                     }
