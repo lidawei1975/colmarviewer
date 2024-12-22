@@ -1,6 +1,6 @@
 
 
-y_good = pre1;
+y_good = data;
 
 
 % y_good = [zeros(10,1);pre1];
@@ -10,7 +10,7 @@ clf;
 hold on;
 plot(y_good);
 
-for m=1:4
+for m=1:3
     
     min_error=1e100;
     n=length(y_good);

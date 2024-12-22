@@ -29,13 +29,13 @@
                         <p>1. This is a web-based tool to view and process 2D NMR spectra. This tool is part of the
                             frontend of the more advanced <a href="https://spin.ccic.osu.edu">COLMAR deep picker</a>
                             server.</p>
-                        <p>2. Upload one or more 2D NMR spectra in .ft2 format using the "Choose File" button above.
-                            Additional
-                            files can be added by repeating this process. You can also drag and drop nmrPipe ft2 files
-                            into
-                            the dashed area titled "Uploaded Spectra". If you drop a folder, all .ft2 files within the
-                            folder will be
-                            processed sequentially.</p>
+                        <p>2. Upload one or more 2D NMR spectra in nmrPipe .ft2, Sparky .ucsf, or Topspin .txt (using command totxt) format using the "Choose File" button above.
+                                Additional
+                                files can be added by repeating this process. You can also drag and drop files
+                                into
+                                the dashed area titled "Uploaded Spectra". If you drop a folder,  all supported files within the
+                                folder will be
+                                processed sequentially.</p>
                         <p>3. The server will automatically estimate the noise level of each uploaded spectrum. By
                             default, the lowest contour level is set at 5.5 times the noise level, and each subsequent
                             level is 1.5
@@ -284,8 +284,8 @@
                 <div id="file_area" class="drop-area" style="width: 1200px;">
                     <p><button id="button_minimize_file_area" onclick="minimize_file_area(this)">-</button>Frequency domain spectra:</p>
                     <form id="ft2_file_form" action="" enctype="multipart/form-data">
-                        <label for="userfile">Frequency domain spectral file (.ft2) </label><input type="file" multiple id="userfile"><br>
-                        <label for="field_strength">Field strength (MHz): </label><input type="number" id="field_strength" value="600" step="any"><br>
+                        <label for="userfile">Frequency domain spectral file (.ft2, .ucsf or .txt) </label><input type="file" multiple id="userfile"><br>
+                        <label for="field_strength">Field strength (MHz) (only applicable when .txt file is uploaded): </label><input type="number" id="field_strength" value="600" step="any"><br>
                         <input type="submit" id="button_ft2_process" value="Upload and process spectra"></br>
                     </form>
                     <label class="information"> You can also drag and drop spectral file(s) in nmrPipe format or folder
