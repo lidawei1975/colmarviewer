@@ -266,19 +266,38 @@ class file_drop_processor {
 
             /**
              * A special case for the file input id "hsqc_acquisition_file2"
-             * if the file is acqu3s, it will replace the acqu2s file
-             * if the file is acqu2s, it will be added if currently acqu2s is empty, otherwise it will be ignored
+             * File name can be acqu2s or acqu3s. 
+             * we will read the file (either acqu2s or acqu3s) as a text file.
+             * if it contains line "##$FnMODE= 1", skip the file
              */
-            if (file_id === "acquisition_file2" && file.name === "acqu3s") {
-                document.getElementById(file_id).files = container.files;
-            }
-            else if(file_id === "acquisition_file2" && file.name === "acqu2s")
-            {
-                if(document.getElementById("acquisition_file2").files.length === 0)
-                {
+            if (file_id === "acquisition_file2" && (file.name === "acqu3s" || file.name === "acqu2s")) {
+
+                /**
+                 * Read the file as text
+                 */
+                let file_data = await read_file_text(file);
+                /**
+                 * Split the file_data by line (line break)
+                 */
+                let lines = file_data.split(/\r?\n/);
+                /**
+                 * Loop all lines, find line start with "##$FnMODE=", get the value after "="
+                 */
+                let fnmode = 0;
+                for (let i = 0; i < lines.length; i++) {
+                    if (lines[i].startsWith("##$FnMODE=")) {
+                        fnmode = parseInt(lines[i].split("=")[1]);
+                        break;
+                    }
+                }
+                /**
+                 * Only when fnmode > 1 and fnmode !=7, we will attach the file to the file input
+                */
+                if (fnmode > 1 && fnmode != 7) {
                     document.getElementById(file_id).files = container.files;
                 }
             }
+           
             else if(file_id === "nuslist_file")
             {
                 document.getElementById(file_id).files = container.files;
