@@ -78,6 +78,10 @@ function plotit(input) {
     this.predicted_peaks = [];
 
     this.zoom_on_call_function = null;
+
+
+    this.hline_ppm = null;
+    this.vline_ppm = null;
 };
 
 /**
@@ -532,7 +536,20 @@ plotit.prototype.draw = function () {
         if (x_pos >= 0 && x_pos < hsqc_spectra[spe_index].n_direct && y_pos >= 0 && y_pos < hsqc_spectra[spe_index].n_indirect) {
             data_height = hsqc_spectra[spe_index].raw_data[y_pos * hsqc_spectra[spe_index].n_direct + x_pos];
         }
-        document.getElementById("infor").innerHTML = "x_ppm: " + x_ppm.toFixed(3) + ", y_ppm: " + y_ppm.toFixed(2)+ ", Intensity: " + data_height.toExponential(2);
+
+        if(self.hline_ppm !== null && self.vline_ppm !== null) {
+            let x_distance = x_ppm - self.vline_ppm;
+            let y_distance = y_ppm - self.hline_ppm;
+
+            document.getElementById("infor").innerHTML 
+                = "x: " + x_ppm.toFixed(3) + " ppm, y: " + y_ppm.toFixed(2)+ " ppm, Inten: " + data_height.toExponential(2) + "<br>"
+                + "x: " +  x_distance.toFixed(3) + " ppm  " + (x_distance*hsqc_spectra[spe_index].frq1).toFixed(3) + " Hz" 
+                + ", y: " + y_distance.toFixed(3) + " ppm  " + (y_distance*hsqc_spectra[spe_index].frq2).toFixed(3) + " Hz";
+        }
+        else {
+            document.getElementById("infor").innerHTML
+                = "x_ppm: " + x_ppm.toFixed(3) + ", y_ppm: " + y_ppm.toFixed(2) + ", Intensity: " + data_height.toExponential(2);
+        }
 
         /**
          * Show tool tip only when mouse stops moving for 100ms
@@ -543,7 +560,7 @@ plotit.prototype.draw = function () {
             let x_ppm = self.xRange.invert(coordinates[0]);
             let y_ppm = self.yRange.invert(coordinates[1]);
 
-            
+
             let x_ppm_start = hsqc_spectra[spe_index].x_ppm_start + hsqc_spectra[spe_index].x_ppm_ref;
             let x_ppm_end = x_ppm_start + hsqc_spectra[spe_index].x_ppm_step * hsqc_spectra[spe_index].n_direct;
             let y_ppm_start = hsqc_spectra[spe_index].y_ppm_start + hsqc_spectra[spe_index].y_ppm_ref;
@@ -575,6 +592,11 @@ plotit.prototype.draw = function () {
                 .attr("stroke-width", 1)
                 .attr("stroke", "green");
 
+            /**
+             * Keep a copy of the current hline,vline ppm values
+             */
+            self.hline_ppm = y_ppm;
+            self.vline_ppm = x_ppm;
             
 
             if(self.b_show_cross_section)
@@ -733,7 +755,7 @@ plotit.prototype.draw = function () {
 
             } //end of vertical
 
-        }, 1500);
+        }, 2500);
     })
         .on("mouseleave", function (d) {
             tooldiv.style.opacity = 0.0;
