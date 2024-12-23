@@ -518,29 +518,32 @@ plotit.prototype.draw = function () {
             return;
         }
 
+
+        /**
+         * Show current ppm at the top-right corner of the plot in a span element with id "infor" (child of tooldiv)
+        */
+        tooldiv.style.opacity = 1.0;
+        let coordinates = [event.offsetX, event.offsetY];
+        let x_ppm = self.xRange.invert(coordinates[0]);
+        let y_ppm = self.yRange.invert(coordinates[1]);
+        let y_pos = Math.floor((y_ppm - hsqc_spectra[spe_index].y_ppm_ref - hsqc_spectra[spe_index].y_ppm_start) / hsqc_spectra[spe_index].y_ppm_step);
+        let x_pos = Math.floor((x_ppm - hsqc_spectra[spe_index].x_ppm_ref - hsqc_spectra[spe_index].x_ppm_start) / hsqc_spectra[spe_index].x_ppm_step);
+        let data_height = 0.0; //default value if out of range
+        if (x_pos >= 0 && x_pos < hsqc_spectra[spe_index].n_direct && y_pos >= 0 && y_pos < hsqc_spectra[spe_index].n_indirect) {
+            data_height = hsqc_spectra[spe_index].raw_data[y_pos * hsqc_spectra[spe_index].n_direct + x_pos];
+        }
+        document.getElementById("infor").innerHTML = "x_ppm: " + x_ppm.toFixed(3) + ", y_ppm: " + y_ppm.toFixed(2)+ ", Intensity: " + data_height.toExponential(2);
+
         /**
          * Show tool tip only when mouse stops moving for 100ms
          */
         self.timeout = setTimeout(function() {
-            /**
-             * Show tool tip
-             */
-            tooldiv.style.opacity = 1.0;
-            let coordinates = [event.offsetX,event.offsetY];
+
+            let coordinates = [event.offsetX, event.offsetY];
             let x_ppm = self.xRange.invert(coordinates[0]);
             let y_ppm = self.yRange.invert(coordinates[1]);
-            let y_pos = Math.floor((y_ppm - hsqc_spectra[spe_index].y_ppm_ref - hsqc_spectra[spe_index].y_ppm_start)/hsqc_spectra[spe_index].y_ppm_step);
-            let x_pos = Math.floor((x_ppm - hsqc_spectra[spe_index].x_ppm_ref - hsqc_spectra[spe_index].x_ppm_start)/hsqc_spectra[spe_index].x_ppm_step);
-            let data_height = 0.0; //default value if out of range
-            if(x_pos>=0 && x_pos<hsqc_spectra[spe_index].n_direct && y_pos>=0 && y_pos<hsqc_spectra[spe_index].n_indirect) {
-                data_height = hsqc_spectra[spe_index].raw_data[y_pos *  hsqc_spectra[spe_index].n_direct + x_pos];
-            }
-            /**
-             * Show current ppm at the top-right corner of the plot in a span element with id "infor" (child of tooldiv)
-             */
-            document.getElementById("infor").innerHTML 
-                = "x_ppm: " + x_ppm.toFixed(3) + ", y_ppm: " + y_ppm.toFixed(2)+ ", Intensity: " + data_height.toExponential(2);
 
+            
             let x_ppm_start = hsqc_spectra[spe_index].x_ppm_start + hsqc_spectra[spe_index].x_ppm_ref;
             let x_ppm_end = x_ppm_start + hsqc_spectra[spe_index].x_ppm_step * hsqc_spectra[spe_index].n_direct;
             let y_ppm_start = hsqc_spectra[spe_index].y_ppm_start + hsqc_spectra[spe_index].y_ppm_ref;
