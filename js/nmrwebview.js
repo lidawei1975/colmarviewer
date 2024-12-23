@@ -1503,7 +1503,7 @@ sortableList.addEventListener(
          * Get the index of the new order
          */
         let new_order = [];
-        let list_items = document.querySelectorAll("li");
+        let list_items = spectra_list_ol.querySelectorAll("li");
         for (let i = 0; i < list_items.length; i++) {
             let index = parseInt(list_items[i].id.split("-")[1]); //ID is spectrum-index
             new_order.push(index);
