@@ -3726,7 +3726,7 @@ function process_spectrum(result) {
      * Calculate positive contour levels 
      */
     result.levels = new Array(40);
-    result.levels[0] = 5.5 * result.noise_level;
+    result.levels[0] = 2.25 * 5.5 * result.noise_level;
     for (let i = 1; i < result.levels.length; i++) {
         result.levels[i] = 1.5 * result.levels[i - 1];
         if (result.levels[i] > result.spectral_max) {
@@ -3739,7 +3739,7 @@ function process_spectrum(result) {
      * Calculate negative contour levels
      */
     result.negative_levels = new Array(40);
-    result.negative_levels[0] = -5.5 * result.noise_level;
+    result.negative_levels[0] = -2.25 * 5.5 * result.noise_level;
     for (let i = 1; i < result.negative_levels.length; i++) {
         result.negative_levels[i] = 1.5 * result.negative_levels[i - 1];
         if (result.negative_levels[i] < result.spectral_min) {
