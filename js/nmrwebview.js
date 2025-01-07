@@ -3524,23 +3524,15 @@ function process_sparky_file(arrayBuffer, file_name, spectrum_origin) {
 
     result.spectrum_origin = spectrum_origin;
 
-    let direct_parameters = new DataView(arrayBuffer, 188, 24);
-
     /**
+     * @IMPORTANT
      * Please notice that Sparky stores data in big endian. DataView's get* methods use big endian by default.
      */
-    result.n_direct = direct_parameters.getInt32(0);
-    let direct_tile_size = direct_parameters.getInt32(8);
-    result.frq1 = direct_parameters.getFloat32(12); //observed frequency of direct dimension MHz
-    result.sw1 = direct_parameters.getFloat32(16); //spectral width of direct dimension, Hz
-    result.center1 = direct_parameters.getFloat32(20);   //ppm of the center of the spectrum
-    result.ref1 = result.center1 * result.frq1 + result.sw1 / 2; //staring frequency of the spectrum (highest frequency)
-    result.x_ppm_ref = 0.0; //reference correction (initially set to 0)
-    result.x_ppm_start = result.center1 + result.sw1/result.frq1/2.0; //ppm of the start of the spectrum
-    result.x_ppm_width = result.sw1 / result.frq1; //width of the spectrum in ppm
-    result.x_ppm_step = -result.x_ppm_width / result.n_direct; //step size in ppm
 
-    let indirect_parameters = new DataView(arrayBuffer, 316, 24);
+    let indirect_parameters = new DataView(arrayBuffer, 188, 24);
+    let direct_parameters = new DataView(arrayBuffer, 316, 24);
+
+
     result.n_indirect = indirect_parameters.getInt32(0);
     let indirect_tile_size = indirect_parameters.getInt32(8); //required to read spectral data below.
     result.frq2 = indirect_parameters.getFloat32(12); //observed frequency of indirect dimension MHz
@@ -3552,6 +3544,17 @@ function process_sparky_file(arrayBuffer, file_name, spectrum_origin) {
     result.y_ppm_width = result.sw2 / result.frq2; //width of the spectrum in ppm
     result.y_ppm_step = -result.y_ppm_width / result.n_indirect; //step size in ppm
 
+
+    result.n_direct = direct_parameters.getInt32(0);
+    let direct_tile_size = direct_parameters.getInt32(8);
+    result.frq1 = direct_parameters.getFloat32(12); //observed frequency of direct dimension MHz
+    result.sw1 = direct_parameters.getFloat32(16); //spectral width of direct dimension, Hz
+    result.center1 = direct_parameters.getFloat32(20);   //ppm of the center of the spectrum
+    result.ref1 = result.center1 * result.frq1 + result.sw1 / 2; //staring frequency of the spectrum (highest frequency)
+    result.x_ppm_ref = 0.0; //reference correction (initially set to 0)
+    result.x_ppm_start = result.center1 + result.sw1/result.frq1/2.0; //ppm of the start of the spectrum
+    result.x_ppm_width = result.sw1 / result.frq1; //width of the spectrum in ppm
+    result.x_ppm_step = -result.x_ppm_width / result.n_direct; //step size in ppm
 
     result.raw_data = new Float32Array(result.n_direct * result.n_indirect);
 
@@ -3723,7 +3726,7 @@ function process_spectrum(result) {
      * Calculate positive contour levels 
      */
     result.levels = new Array(40);
-    result.levels[0] = 5.5 * result.noise_level;
+    result.levels[0] = 2.25 * 5.5 * result.noise_level;
     for (let i = 1; i < result.levels.length; i++) {
         result.levels[i] = 1.5 * result.levels[i - 1];
         if (result.levels[i] > result.spectral_max) {
@@ -3736,7 +3739,7 @@ function process_spectrum(result) {
      * Calculate negative contour levels
      */
     result.negative_levels = new Array(40);
-    result.negative_levels[0] = -5.5 * result.noise_level;
+    result.negative_levels[0] = -2.25 * 5.5 * result.noise_level;
     for (let i = 1; i < result.negative_levels.length; i++) {
         result.negative_levels[i] = 1.5 * result.negative_levels[i - 1];
         if (result.negative_levels[i] < result.spectral_min) {
