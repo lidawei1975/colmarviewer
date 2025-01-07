@@ -291,36 +291,40 @@
                         contains them here.</label>
                 </div>
 
+                <div id="pseudo3d_area" style=" Padding: 10px; width: 1200px; overflow: clip; height: 3rem;" class="drop-area-neighbor" >
+                    <p><button id="button_minimize_preudo3d_area" onclick="minimize_pseudo3d_area(this)">+</button>Pseudo-3D fitting tool</p>
+                    <label for="max_round">Max round of pseudo-3D fitting: </label>
+                    <input type="number" id="max_round" value="50" min="1" max="1000">
+                    <button id="button_run_pseudo3d_gaussian" disabled onclick="run_pseudo3d(1)">Run Gaussian
+                        pseudo-3D fitting of all spectra</button>
+                    <button id="button_run_pseudo3d_voigt" disabled onclick="run_pseudo3d(0)">Run Voigt pseudo-3D
+                        fitting of all spectra</button>
+                    <br>
+                    <button id="button_download_fitted_peaks" disabled onclick="download_pseudo3d(0)">Download
+                        pseudo-3D fitted peaks</button>
+                    <button id="button_download_fitted_peaks_ass" disabled onclick="download_pseudo3d(1)">Download
+                        pseudo-3D fitted peaks (with assignment)</button>
+                    <input type="checkbox" id="show_pseudo3d_peaks" disabled>
+                    <label for="show_pseudo3d_peaks"> Show pseudo-3D fitting result</label>
+                    <br>
+                    <label for="assignment">Upload an peak file with assignment information to be transferred to
+                        pseudo-3D fitted peaks (.list): </label><input type="file" disabled
+                        id="assignment_file"><br>
+                    <br>
+                    <label class="information">Use this button to run pseudo-3D on all experimental spectra. The
+                        current showing peak list
+                        will be used as the initial guess. You can download pseudo-3D fitting result after
+                        finished.</label>
+                    </label>
+                </div>
+
                 <div id="spectra_list" style=" Padding: 10px; width: 1200px;" class="drop-area-neighbor">
                     <h4>Your spectra list:</h4>
                     <ol id="spectra_list_ol" type="1">
                     </ol>
-                    <div id="pseudo-3D-area">
-                        <label for="max_round">Max round of pseudo-3D fitting: </label>
-                        <input type="number" id="max_round" value="50" min="1" max="1000">
-                        <button id="button_run_pseudo3d_gaussian" disabled onclick="run_pseudo3d(1)">Run Gaussian
-                            pseudo-3D fitting of all spectra</button>
-                        <button id="button_run_pseudo3d_voigt" disabled onclick="run_pseudo3d(0)">Run Voigt pseudo-3D
-                            fitting of all spectra</button>
-                        <br>
-                        <button id="button_download_fitted_peaks" disabled onclick="download_pseudo3d(0)">Download
-                            pseudo-3D fitted peaks</button>
-                        <button id="button_download_fitted_peaks_ass" disabled onclick="download_pseudo3d(1)">Download
-                            pseudo-3D fitted peaks (with assignment)</button>
-                        <input type="checkbox" id="show_pseudo3d_peaks" disabled>
-                        <label for="show_pseudo3d_peaks"> Show pseudo-3D fitting result</label>
-                        <br>
-                        <label for="assignment">Upload an peak file with assignment information to be transferred to
-                            pseudo-3D fitted peaks (.list): </label><input type="file" disabled
-                            id="assignment_file"><br>
-                        <br>
-                        <label class="information">Use this button to run pseudo-3D on all experimental spectra. The
-                            current showing peak list
-                            will be used as the initial guess. You can download pseudo-3D fitting result after
-                            finished.</label>
-                        </label>
-                    </div>
                 </div>
+
+               
 
 
                 <div id="plot" class="drop-area-neighbor" style=" Padding: 10px;">

@@ -1606,6 +1606,30 @@ function minimize_fid_area(self)
     }
 }
 
+function minimize_pseudo3d_area(self)
+{
+    /**
+     * Get button text
+     */
+    let button_text = self.innerText;
+    /**
+     * if button_text is "+", change it to "-"
+     * and set the height of the pseudo3d_area to 3rem, clip the overflow
+     */
+    if(button_text === "-")
+    {
+        self.innerText = "+";
+        document.getElementById("pseudo3d_area").style.height = "3rem";
+        document.getElementById("pseudo3d_area").style.overflow = "clip";
+    }
+    else
+    {
+        self.innerText = "-";
+        document.getElementById("pseudo3d_area").style.height = "auto";
+        document.getElementById("pseudo3d_area").style.overflow = "visible";
+    }
+}
+
 function minimize_file_area(self)
 {
     /**
