@@ -30,6 +30,9 @@ catch (err) {
 }
 
 
+
+
+var peaks_object = new peaks();
 var main_plot = null; //hsqc plot object
 var b_plot_initialized = false; //flag to indicate if the plot is initialized
 var tooldiv; //tooltip div (used by myplot1_new.js, this is not a good practice, but it is a quick fix)
