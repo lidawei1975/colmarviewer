@@ -32,7 +32,6 @@ catch (err) {
 
 
 
-var peaks_object = new peaks();
 var main_plot = null; //hsqc plot object
 var b_plot_initialized = false; //flag to indicate if the plot is initialized
 var tooldiv; //tooltip div (used by myplot1_new.js, this is not a good practice, but it is a quick fix)
@@ -1145,7 +1144,14 @@ webassembly_worker.onmessage = function (e) {
     else if (e.data.fitted_peaks && e.data.recon_spectrum) {
         console.log("Fitted peaks and recon_spectrum received");
         hsqc_spectra[e.data.spectrum_origin].fitted_peaks = e.data.fitted_peaks.fitted_peaks; //The double fitted_peaks is correct
-        hsqc_spectra[e.data.spectrum_origin].fitted_peaks_tab = e.data.fitted_peaks_tab; //a string of fitted peaks in nmrPipe format
+        // hsqc_spectra[e.data.spectrum_origin].fitted_peaks_tab = e.data.fitted_peaks_tab; //a string of fitted peaks in nmrPipe format
+
+        /**
+         * Define a new class peaks object, process e.data.fitted_peaks_tab
+         */
+        let peaks = new cpeaks();
+        peaks.process_peaks_tab(e.data.fitted_peaks_tab);
+        hsqc_spectra[e.data.spectrum_origin].fitted_peaks_object = peaks;
 
         /**
          * Enable run deep picker and run voigt fitter buttons
@@ -1192,7 +1198,8 @@ webassembly_worker.onmessage = function (e) {
          */
         result_spectrum.picked_peaks = hsqc_spectra[e.data.spectrum_origin].picked_peaks;
         result_spectrum.fitted_peaks = hsqc_spectra[e.data.spectrum_origin].fitted_peaks;
-        result_spectrum.fitted_peaks_tab = hsqc_spectra[e.data.spectrum_origin].fitted_peaks_tab;
+        result_spectrum.fitted_peaks_object = hsqc_spectra[e.data.spectrum_origin].fitted_peaks_object;
+        // result_spectrum.fitted_peaks_tab = hsqc_spectra[e.data.spectrum_origin].fitted_peaks_tab;
 
         /**
          * Also copy scale and scale2 from the original spectrum, which are used to run deep picker and peak fitting
@@ -4481,7 +4488,10 @@ function download_peaks(spectrum_index,flag)
     }
     else if(flag === 'fitted')
     {
-        file_buffer = hsqc_spectra[spectrum_index].fitted_peaks_tab;
+        // file_buffer = hsqc_spectra[spectrum_index].fitted_peaks_tab;
+
+        file_buffer = hsqc_spectra[spectrum_index].fitted_peaks_object.save_peaks_tab();
+
     }
 
     let blob = new Blob([file_buffer], { type: 'text/plain' });

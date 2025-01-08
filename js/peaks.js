@@ -4,7 +4,7 @@
  */
 
 
-class peaks {
+class cpeaks {
     constructor() {
         this.comments = []; // comments, string array
         this.number_of_columns = 0;
@@ -45,6 +45,10 @@ class peaks {
          */
         this.columns = this.column_headers.map((header, index) => {
           return dataRows.map(row => {
+            /**
+             * Clear leading and trailing white spaces
+             */
+            row = row.trim();
             const value = row.split(/\s+/)[index];
             if (this.column_formats[index].includes('s')) {
               return value;
@@ -112,29 +116,64 @@ class peaks {
                     row += this.columns[j][i].toString().padEnd(parseInt(this.column_formats[j]), ' ');
                 }
                 else if (this.column_formats[j].includes('d')) {
-                    row += this.columns[j][i].toFixed(0).padStart(parseInt(this.column_formats[j]), ' ');
+                    /**
+                     * Get the number from a string like %4d
+                     */
+                    let num = parseInt(this.column_formats[j].substring(1, this.column_formats[j].length - 1));
+                    row += this.columns[j][i].toFixed(0).padStart(num, ' ');
                 }
                 else if (this.column_formats[j].includes('f')) {
                     /**
-                     * Get number of decimal places from column_formats[j]
+                     * Get number of decimal places from column_formats[j].
+                     * First get %5.3f to 5.3
                      * Use toFixed to format the number to that many decimal places
                      */
-                    let decimal_places = parseInt(this.column_formats[j].split('.')[1]);
-                    row += this.columns[j][i].toFixed(decimal_places).padStart(parseInt(this.column_formats[j]), ' ');
+                    let num = this.column_formats[j].substring(1, this.column_formats[j].length - 1);
+                    let decimal_places = parseInt(num.split('.')[1]);
+                    let width = parseInt(num.split('.')[0]);
+                    row += this.columns[j][i].toFixed(decimal_places).padStart(width, ' ');
                 }
                 else if (this.column_formats[j].includes('e')) {
                     /**
                      * Get number of decimal places from column_formats[j]
                      * Use toExponential to format the number to that many decimal places
                      */
-                    let decimal_places = parseInt(this.column_formats[j].split('.')[1]);
-                    row += this.columns[j][i].toExponential(decimal_places).padStart(parseInt(this.column_formats[j]), ' ');
+                    let decimal_places = 6;  //default if not specified
+                    let number = this.column_formats[j].substring(1, this.columns[j][i].length - 1);
+                    if (number.includes('.')) {
+                        decimal_places = number.split('.')[1];
+                    }
+                    let str = this.columns[j][i].toExponential(decimal_places);
+                    /**
+                     * Per C++ sprintf, if there is only single digit after the e+ or e-, add a zero
+                     */
+                    if (str.includes('e+')) {
+                        let num = str.split('e+')[1];
+                        if (num.length === 1) {
+                            str = str.replace('e+', 'e+0');
+                        }
+                    }
+                    if (str.includes('e-')) {
+                        let num = str.split('e-')[1];
+                        if (num.length === 1) {
+                            str = str.replace('e-', 'e-0');
+                        }
+                    }
+
+                    row += str;
                 }
                 else {
                     /**
                      * If column format is not recognized, just pad the value with spaces
                      */
                     row += this.columns[j][i].toString()+ ' ';
+                }
+                /**
+                 * Add a space between columns, except for the last column
+                 */
+                if(j < this.columns.length - 1)
+                {
+                    row += ' ';
                 }
             }
             peaks_tab += row + '\n';
