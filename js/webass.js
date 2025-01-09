@@ -525,19 +525,13 @@ onmessage = function (e) {
          * Save the spectrum data and picked peaks to the virtual file system
          */
         Module['FS_createDataFile']('/', 'hsqc.ft2', e.data.spectrum_data, true, true, true);
-        /**
-         * Voigt fit function requires the picked peaks to like this:
-         * {"picked_peaks": [{"cs_x": 1.0, "cs_y": 2.0, "index": 1287.6}, ...] }
-         * but what we receive is just the array of picked peaks
-         */
-        let picked_peaks = { picked_peaks: e.data.picked_peaks};
-        Module['FS_createDataFile']('/', 'peaks.json', JSON.stringify(picked_peaks), true, true, true);
+        Module['FS_createDataFile']('/', 'peaks.tab', e.data.picked_peaks, true, true, true);
 
         /**
          * Write a file named "argument_voigt_fit.txt" to the virtual file system
          * save -noise_level, -scale and -scale2 
          */
-        let content = ' -out fitted.json fitted.tab -noise_level '.concat(e.data.noise_level,' -scale ',e.data.scale,' -scale2 ',e.data.scale2);
+        let content = ' -peak_in peaks.tab -out fitted.json fitted.tab -noise_level '.concat(e.data.noise_level,' -scale ',e.data.scale,' -scale2 ',e.data.scale2);
         content = content.concat(' -combine ', e.data.combine_peak_cutoff);
         content = content.concat(' -maxround ', e.data.maxround);
         
@@ -573,7 +567,7 @@ onmessage = function (e) {
          * Read file peaks.json, parse it and send it back to the main script
          */
         FS.unlink('hsqc.ft2');
-        FS.unlink('peaks.json');
+        FS.unlink('peaks.tab');
         FS.unlink('argument_voigt_fit.txt');
         let peaks = JSON.parse(FS.readFile('fitted.json', { encoding: 'utf8' }));
         let peaks_tab = FS.readFile('fitted.tab', { encoding: 'utf8' });
@@ -629,12 +623,12 @@ onmessage = function (e) {
          */
         if(e.data.flag === 0)
         {
-            let content = ' -noise_level '.concat(e.data.noise_level,' -scale ',e.data.scale,' -scale2 ',e.data.scale2);
+            let content = ' -out peaks.json peaks.tab -noise_level '.concat(e.data.noise_level,' -scale ',e.data.scale,' -scale2 ',e.data.scale2);
             Module['FS_createDataFile']('/', 'arguments_dp.txt', content, true, true, true);
         }
         else 
         {
-            let content = ' -out peaks.json -noise_level '.concat(e.data.noise_level,' -scale ',e.data.scale);   
+            let content = ' -out peaks.json peaks.tab -noise_level '.concat(e.data.noise_level,' -scale ',e.data.scale);   
             Module['FS_createDataFile']('/', 'arguments_simple_picking.txt', content, true, true, true);
         }
 
@@ -658,7 +652,9 @@ onmessage = function (e) {
         FS.unlink('test.ft2');
         let r=FS.readFile('peaks.json', {encoding: 'utf8'});
         let peaks=JSON.parse(r);
+        let peaks_tab = FS.readFile('peaks.tab', { encoding: 'utf8' });
         FS.unlink('peaks.json');
+        FS.unlink('peaks.tab');
         if(e.data.flag === 0){
             FS.unlink('arguments_dp.txt');
         }
@@ -668,6 +664,7 @@ onmessage = function (e) {
         postMessage({
             webassembly_job: e.data.webassembly_job,
             peaks: peaks,
+            picked_peaks_tab: peaks_tab,
             spectrum_index: e.data.spectrum_index,
             scale: e.data.scale,
             scale2: e.data.scale2
@@ -729,13 +726,8 @@ onmessage = function (e) {
      */
     else if (e.data.webassembly_job === "pseudo3d_fitting") {
         console.log('Initial peaks and all files received');
-        /**
-         * Save the initial peaks to the virtual file system
-         * voigt_fit program suppose to read the json format peak file as
-         * {"picked_peaks": [{"cs_x": 1.0, "cs_y": 2.0, "index": 1287.6, sigmax: 1, sigmay: 1}, ...] }
-         */
-        let picked_peaks = { picked_peaks: e.data.initial_peaks};
-        Module['FS_createDataFile']('/', 'peaks.json', JSON.stringify(picked_peaks), true, true, true);
+
+        Module['FS_createDataFile']('/', 'peaks.tab',e.data.initial_peaks, true, true, true);
 
         /**
          * Save all files in e.data.all_files to the virtual file system,
@@ -749,7 +741,7 @@ onmessage = function (e) {
          * Write a file named "arguments_pseudo_3D.txt" to the virtual file system
          * save -noise_level, -scale and -scale2
          */
-        let content = ' -v 0 -recon no -out fitted.tab fitted.json -noise_level '.concat(e.data.noise_level,' -scale ',e.data.scale,' -scale2 ',e.data.scale2);
+        let content = ' -v 0 -recon no -peak_in peaks.tab -out fitted.tab fitted.json -noise_level '.concat(e.data.noise_level,' -scale ',e.data.scale,' -scale2 ',e.data.scale2);
         content = content.concat(' -maxround ', e.data.maxround);
         /**
          * If flag is 0, add -method voigt to the content
@@ -785,7 +777,7 @@ onmessage = function (e) {
          * Remove the input file from the virtual file system
          * Read file peaks.json, parse it and send it back to the main script
          */
-        FS.unlink('peaks.json');
+        FS.unlink('peaks.tab');
         FS.unlink('argument_voigt_fit.txt');
         for(let i=0; i<e.data.all_files.length; i++)   {
             FS.unlink('test'.concat(i+1, '.ft2'));

@@ -7,7 +7,6 @@
 class cpeaks {
     constructor() {
         this.comments = []; // comments, string array
-        this.number_of_columns = 0;
         this.column_headers = []; // column headers, string array
         this.column_formats = []; // column formats, string array
         this.columns = []; // columns, array of arrays (arrays have same length, but different types)
@@ -96,6 +95,48 @@ class cpeaks {
             return false;
         }
         return true;
+    }
+
+    /**
+     * Get values from a column, as an array
+     */
+    get_column(column_header_name) {
+        let index = this.column_headers.indexOf(column_header_name);
+        if (index === -1) {
+            return [];
+        }
+        return this.columns[index];
+    };
+
+    /**
+     * Copy all data from another peaks object
+     */
+    copy_data(peaks) {
+        this.comments = peaks.comments;
+        this.column_headers = peaks.column_headers;
+        this.column_formats = peaks.column_formats;
+        this.columns = peaks.columns;
+    }
+
+    /**
+     * Filter a column by a range of values
+     * then apply the filter to all columns
+     */
+    filter_by_column_range(column_header_name, min_value, max_value) {
+        let index = this.column_headers.indexOf(column_header_name);
+        if (index === -1) {
+            return false;
+        }
+        if (isNaN(min_value) || isNaN(max_value)) {
+            return false;
+        }
+        const indexes = this.columns[index].map((value, index) => (value >= min_value && value <= max_value) ? index : -1)
+        .filter((index) => index !== -1);
+
+        /**
+         * Apply the filter to all columns
+         */
+        this.columns = this.columns.map((column) => indexes.map((index) => column[index]));
     }
 
     /**

@@ -125,8 +125,8 @@ class spectrum {
         this.y_ppm_ref = 0.0; //reference ppm of indirect dimension
         this.frq1 = 850.0; //spectrometer frequency of direct dimension
         this.frq2 = 80.0; //spectrometer frequency of indirect dimension
-        this.picked_peaks = []; //picked peaks
-        this.fitted_peaks = []; //fitted peaks
+        this.picked_peaks_object = new cpeaks(); //picked peaks object
+        this.fitted_peaks_object = new cpeaks(); //fitted peaks object
         /**
          * spectrum origin: 
          * -4: unknown,
@@ -962,10 +962,10 @@ function run_pseudo3d(flag) {
 
     let initial_peaks;
     if (current_flag_of_peaks === 'picked') {
-        initial_peaks = hsqc_spectra[current_spectrum_index_of_peaks].picked_peaks;
+        initial_peaks = hsqc_spectra[current_spectrum_index_of_peaks].picked_peaks_object.save_peaks_tab();
     }
     else {
-        initial_peaks = hsqc_spectra[current_spectrum_index_of_peaks].fitted_peaks;
+        initial_peaks = hsqc_spectra[current_spectrum_index_of_peaks].fitted_peaks_object.save_peaks_tab();
     }
 
     /**
@@ -1077,32 +1077,22 @@ webassembly_worker.onmessage = function (e) {
      * If result is peaks
      */
     else if (e.data.peaks) {
-        hsqc_spectra[e.data.spectrum_index].picked_peaks = e.data.peaks.picked_peaks;
+        let peaks = new cpeaks();
+        peaks.process_peaks_tab(e.data.picked_peaks_tab);
+        hsqc_spectra[e.data.spectrum_index].picked_peaks_object = peaks;
 
         /**
-         * Calculate the median sigmax, sigmay, gammax, gammay of the picked peaks
-         * Get an array of sigmax, sigmay, gammax, gammay
+         * Get median of XW and YW, convert to sigma (/2.5)
          */
-        let sigmax = [];
-        let sigmay = [];
-        let gammax = [];
-        let gammay = [];
-        for (let i = 0; i < e.data.peaks.picked_peaks.length; i++) {
-            sigmax.push(e.data.peaks.picked_peaks[i].sigmax);
-            sigmay.push(e.data.peaks.picked_peaks[i].sigmay);
-            gammax.push(e.data.peaks.picked_peaks[i].gammax);
-            gammay.push(e.data.peaks.picked_peaks[i].gammay);
-        }
-
-        hsqc_spectra[e.data.spectrum_index].median_sigmax = median(sigmax);
-        hsqc_spectra[e.data.spectrum_index].median_sigmay = median(sigmay);
-        hsqc_spectra[e.data.spectrum_index].median_gammax = median(gammax);
-        hsqc_spectra[e.data.spectrum_index].median_gammay = median(gammay);
+        hsqc_spectra[e.data.spectrum_index].median_sigmax = median(peaks.get_column("XW")) / 2.5;
+        hsqc_spectra[e.data.spectrum_index].median_sigmay = median(peaks.get_column("YW")) / 2.5;
+        hsqc_spectra[e.data.spectrum_index].median_gammax = 0.1;
+        hsqc_spectra[e.data.spectrum_index].median_gammay = 0.1;
         
         /**
          * when picked peaks are received, fitted peaks need to be reset
          */
-        hsqc_spectra[e.data.spectrum_index].fitted_peaks = [];
+        hsqc_spectra[e.data.spectrum_index].fitted_peaks_object = null;
         /**
          * Disable the download fitted peaks button. Uncheck the show fitted peaks checkbox, disable it too
          */
@@ -1194,12 +1184,10 @@ webassembly_worker.onmessage = function (e) {
         result_spectrum.spectral_min = hsqc_spectra[e.data.spectrum_origin].spectral_min;
 
         /**
-         * Copy picked_peaks and fitted_peaks from the original spectrum
+         * Copy picked_peaks_object and fitted_peaks_object from the original spectrum
          */
-        result_spectrum.picked_peaks = hsqc_spectra[e.data.spectrum_origin].picked_peaks;
-        result_spectrum.fitted_peaks = hsqc_spectra[e.data.spectrum_origin].fitted_peaks;
+        result_spectrum.picked_peaks_object = hsqc_spectra[e.data.spectrum_origin].picked_peaks_object;
         result_spectrum.fitted_peaks_object = hsqc_spectra[e.data.spectrum_origin].fitted_peaks_object;
-        // result_spectrum.fitted_peaks_tab = hsqc_spectra[e.data.spectrum_origin].fitted_peaks_tab;
 
         /**
          * Also copy scale and scale2 from the original spectrum, which are used to run deep picker and peak fitting
@@ -4261,9 +4249,15 @@ function run_Voigt_fitter(spectrum_index,flag)
      */
     [x_ppm_visible_start, x_ppm_visible_end, y_ppm_visible_start, y_ppm_visible_end] = main_plot.get_visible_region();
 
-    let picked_peaks = hsqc_spectra[spectrum_index].picked_peaks.filter(function (peak) {
-        return peak.cs_x >= x_ppm_visible_start && peak.cs_x <= x_ppm_visible_end && peak.cs_y >= y_ppm_visible_start && peak.cs_y <= y_ppm_visible_end;
-    });
+    /**
+     * Get a copy of the picked peaks, so that we can filter it
+     */
+    let picked_peaks_copy = new cpeaks();
+    picked_peaks_copy.copy_data(hsqc_spectra[spectrum_index].picked_peaks_object);
+    picked_peaks_copy.filter_by_column_range("X_PPM", x_ppm_visible_start, x_ppm_visible_end);
+    picked_peaks_copy.filter_by_column_range("Y_PPM", y_ppm_visible_start, y_ppm_visible_end);
+
+    let picked_peaks_copy_tab = picked_peaks_copy.save_peaks_tab();
 
 
     /**
@@ -4286,7 +4280,7 @@ function run_Voigt_fitter(spectrum_index,flag)
     webassembly_worker.postMessage({
         webassembly_job: "peak_fitter",
         spectrum_data: data_uint8,
-        picked_peaks: picked_peaks,
+        picked_peaks: picked_peaks_copy_tab,
         spectrum_index: spectrum_index,
         combine_peak_cutoff: combine_peak_cutoff,
         maxround: maxround,
@@ -4447,51 +4441,11 @@ function download_peaks(spectrum_index,flag)
 
     if(flag === 'picked')
     {
-        let peaks = hsqc_spectra[spectrum_index].picked_peaks;
-        file_buffer = "VARS INDEX X_AXIS Y_AXIS X_PPM Y_PPM XW YW HEIGHT\nFORMAT %5d %9.3f %9.3f %10.6f %10.6f %7.3f %7.3f %+e\n";
-        for(let i=0;i<peaks.length;i++)
-        {   
-            /**
-             * Get points from ppm. Do not apply the reference ppm here !!
-             */
-            let x_point = Math.round((peaks[i].cs_x - hsqc_spectra[spectrum_index].x_ppm_start) / hsqc_spectra[spectrum_index].x_ppm_step);
-            let y_point = Math.round((peaks[i].cs_y - hsqc_spectra[spectrum_index].y_ppm_start) / hsqc_spectra[spectrum_index].y_ppm_step);
-            /**
-             * Get FWHH from sigma and gamma as
-             *  width = 0.5346 * gammax * 2 + sqrt(0.2166 * 4 * gammax * gammax + sigmax * sigmax * 8 * 0.6931);
-             */
-            let xw = 0.5346 * peaks[i].gammax * 2 + Math.sqrt(0.2166 * 4 * peaks[i].gammax * peaks[i].gammax + peaks[i].sigmax * peaks[i].sigmax * 8 * 0.6931);
-            let yw = 0.5346 * peaks[i].gammay * 2 + Math.sqrt(0.2166 * 4 * peaks[i].gammay * peaks[i].gammay + peaks[i].sigmay * peaks[i].sigmay * 8 * 0.6931);
-    
-            /**
-             * This is a peak object peaks[i] example for picked peaks.
-             * cs_x: 1.241449 ==> X_PPM, need to add x_ppm_ref
-             * cs_y : 20.02922 ==> Y_PPM, need to add y_ppm_ref
-             * gammax : 0.61602
-             * gammay : 0.40042
-             * index : 8000088.5 ==> HEIGHT
-             * sigmax : 1.304711
-             * sigmay : 1.530022
-             * type : 1
-             * i will be the index of the peak
-            */
-            file_buffer += (i+1).toFixed(0).padStart(5) + " ";
-            file_buffer += x_point.toFixed(3).padStart(9) + " ";
-            file_buffer += y_point.toFixed(3).padStart(9) + " ";
-            file_buffer += (peaks[i].cs_x + hsqc_spectra[spectrum_index].x_ppm_ref).toFixed(6).padStart(10) + " ";
-            file_buffer += (peaks[i].cs_y + hsqc_spectra[spectrum_index].y_ppm_ref).toFixed(6).padStart(10) + " ";
-            file_buffer += xw.toFixed(3).padStart(7) + " ";
-            file_buffer += yw.toFixed(3).padStart(7) + " ";
-            file_buffer += peaks[i].index.toExponential(6) + " ";
-            file_buffer += "\n";
-        }
+        file_buffer = hsqc_spectra[spectrum_index].picked_peaks_object.save_peaks_tab();
     }
     else if(flag === 'fitted')
     {
-        // file_buffer = hsqc_spectra[spectrum_index].fitted_peaks_tab;
-
         file_buffer = hsqc_spectra[spectrum_index].fitted_peaks_object.save_peaks_tab();
-
     }
 
     let blob = new Blob([file_buffer], { type: 'text/plain' });
@@ -4545,9 +4499,9 @@ function remove_spectrum(index)
     hsqc_spectra[index].header = new Float32Array();
     hsqc_spectra[index].levels = [];
     hsqc_spectra[index].negative_levels = [];
-    hsqc_spectra[index].picked_peaks = [];
-    hsqc_spectra[index].fitted_peaks = [];
     hsqc_spectra[index].spectrum_origin = -3; // -3 means the spectrum is removed
+    hsqc_spectra[index].picked_peaks_object = null;
+    hsqc_spectra[index].fitted_peaks_object = null;
 
     /**
      * Remove its contour data from main_plot and redraw the contour plot
