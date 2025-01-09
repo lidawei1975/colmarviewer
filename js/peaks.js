@@ -10,6 +10,7 @@ class cpeaks {
         this.column_headers = []; // column headers, string array
         this.column_formats = []; // column formats, string array
         this.columns = []; // columns, array of arrays (arrays have same length, but different types)
+        this.manual_peak_index = 10000; // index for manual peaks
     };
 
     /**
@@ -119,6 +120,23 @@ class cpeaks {
     }
 
     /**
+     * Get a array of json objects, each object is a row of the peaks object with only selected columns
+     * @param {string[]} column_header_names - the column header names to be selected
+     */
+    get_selected_columns(column_header_names) {
+        let indexes = column_header_names.map(header => this.column_headers.indexOf(header));
+        let result = [];
+        for (let i = 0; i < this.columns[0].length; i++) {
+            let row = {};
+            for (let j = 0; j < indexes.length; j++) {
+                row[column_header_names[j]] = this.columns[indexes[j]][i];
+            }
+            result.push(row);
+        }
+        return result;
+    }
+
+    /**
      * Filter a column by a range of values
      * then apply the filter to all columns
      */
@@ -137,6 +155,137 @@ class cpeaks {
          * Apply the filter to all columns
          */
         this.columns = this.columns.map((column) => indexes.map((index) => column[index]));
+    }
+
+    /**
+     * Filter by several columns by a range of values (must fulfill all conditions)
+     * @param {*} column_header_names 
+     * @param {*} min_values 
+     * @param {*} max_values 
+     * @param {bool} b_keep: true to keep the rows that fulfill the conditions, false to remove them
+     * @return {bool} - true if the filter is successfully applied, false if the columns are not found, not a number, or the operation is invalid
+     */
+    filter_by_columns_range(column_header_names, min_values, max_values, b_keep=true) {
+        let indexes = column_header_names.map(header => this.column_headers.indexOf(header));
+        if (indexes.includes(-1)) {
+            return false;
+        }
+        if (min_values.length !== indexes.length || max_values.length !== indexes.length) {
+            return false;
+        }
+        if (min_values.some(isNaN) || max_values.some(isNaN)) {
+            return false;
+        }
+
+        for(let i=this.columns[0].length-1; i>=0; i--)
+        {
+            let b_fulfill = true;
+            for(let j=0; j<indexes.length; j++)
+            {
+                if(this.columns[indexes[j]][i] < min_values[j] || this.columns[indexes[j]][i] > max_values[j])
+                {
+                    b_fulfill = false;
+                    break;
+                }
+            }
+
+            if(b_fulfill === false && b_keep === true)
+            {
+                for(let j=0; j<this.columns.length; j++)
+                {
+                    this.columns[j].splice(i, 1);
+                }
+            }
+            else if(b_fulfill === true && b_keep === false)
+            {
+                for(let j=0; j<this.columns.length; j++)
+                {
+                    this.columns[j].splice(i, 1);
+                }   
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Remove a row by column with header named "INDEX"
+     * @param {number} index - the index of the row to be removed
+     */
+    remove_row(index) {
+        let index_index = this.column_headers.indexOf('INDEX');
+        if (index_index === -1) {
+            return false;
+        }
+        let row_index = this.columns[index_index].indexOf(index);
+        if (row_index === -1) {
+            return false;
+        }
+        for (let i = 0; i < this.columns.length; i++) {
+            this.columns[i].splice(row_index, 1);
+        }
+        return true;
+    }
+
+    /**
+     * Update X_PPM and Y_PPM of a row, from index (value of the column with header "INDEX")
+     */
+    update_row(index, x_ppm, y_ppm) {
+        let index_index = this.column_headers.indexOf('INDEX');
+        if (index_index === -1) {
+            return false;
+        }
+        let row_index = this.columns[index_index].indexOf(index);
+        if (row_index === -1) {
+            return false;
+        }
+        let x_ppm_index = this.column_headers.indexOf('X_PPM');
+        let y_ppm_index = this.column_headers.indexOf('Y_PPM');
+        if (x_ppm_index === -1 || y_ppm_index === -1) {
+            return false;
+        }
+        this.columns[x_ppm_index][row_index] = x_ppm;
+        this.columns[y_ppm_index][row_index] = y_ppm;
+        return true;
+    }
+
+    /**
+     * Add a row to the peaks object from a json object
+     * {X_PPM: x_ppm,Y_PPM: y_ppm, HEIGHT: data_height};
+     * INDEX will be 10000, 10001, 10002, etc.
+     * Set X_PPM and Y_PPM and HEIGHT columns to the values in the json object
+     * For others:
+     * For number columns, set to median value of the column
+     * For string columns, set to the first value of the column
+     */
+    add_row(new_row) {
+        let index = this.column_headers.indexOf('INDEX');
+        if (index === -1) {
+            return false;
+        }
+        let new_index = this.manual_peak_index;
+        this.manual_peak_index += 1;
+        this.columns[index].push(new_index);
+        for (let i = 0; i < this.column_headers.length; i++) {
+            if (this.column_headers[i] === 'INDEX') {
+                continue;
+            }
+            else if (this.column_headers[i] === 'X_PPM') {
+                this.columns[i].push(new_row.X_PPM);
+            }
+            else if (this.column_headers[i] === 'Y_PPM') {
+                this.columns[i].push(new_row.Y_PPM);
+            }
+            else if (this.column_headers[i] === 'HEIGHT') {
+                this.columns[i].push(new_row.HEIGHT);
+            } 
+            else if (this.column_formats[i].includes('s')) {
+                this.columns[i].push(this.columns[i][0]);
+            } 
+            else {
+                this.columns[i].push(this.columns[i].reduce((a, b) => a + b, 0) / this.columns[i].length);
+            }
+        }
+        return true;
     }
 
     /**

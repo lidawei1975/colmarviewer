@@ -190,10 +190,10 @@ plotit.prototype.reset_axis = function () {
      */
     this.vis.selectAll('.peak')
         .attr('cx', function (d) {
-            return self.xRange(d.cs_x);
+            return self.xRange(d.X_PPM);
         })
         .attr('cy', function (d) {
-            return self.yRange(d.cs_y);
+            return self.yRange(d.Y_PPM);
         });
 
     /**
@@ -269,8 +269,10 @@ plotit.prototype.brushend = function (e) {
          * Remove all peaks within the brush.
          * This step can't be undone !!
          */
-        let new_peaks = self.spectrum.picked_peaks.filter(peak => peak.cs_x < brush_x_ppm_start || peak.cs_x > brush_x_ppm_end || peak.cs_y < brush_y_ppm_start || peak.cs_y > brush_y_ppm_end);
-        self.spectrum.picked_peaks = new_peaks;
+        self.spectrum.picked_peaks_object.filter_by_columns_range(
+            ["X_PPM","Y_PPM"],
+            [brush_x_ppm_start,brush_y_ppm_start],
+            [brush_x_ppm_end,brush_y_ppm_end],false);
 
         /**
          * Redraw peaks
@@ -891,11 +893,16 @@ plotit.prototype.draw_peaks = function () {
      */
     let new_peaks;
     if(self.peak_flag === 'picked') {
-        new_peaks = self.spectrum.picked_peaks.filter(peak => peak.index > self.peak_level);
+        new_peaks = self.spectrum.picked_peaks_object.get_selected_columns(['X_PPM','Y_PPM','HEIGHT','INDEX'])
     }
     else{
-        new_peaks = self.spectrum.fitted_peaks.filter(peak => peak.index > self.peak_level);
+        new_peaks = self.spectrum.fitted_peaks_object.get_selected_columns(['X_PPM','Y_PPM','HEIGHT','INDEX'])
     }
+
+    /**
+     * Filter peaks based on peak level
+     */
+    new_peaks = new_peaks.filter(peak => peak.HEIGHT > self.peak_level);
 
     /**
      * Draw peaks, red circles without fill
@@ -906,10 +913,10 @@ plotit.prototype.draw_peaks = function () {
         .append('circle')
         .attr('class', 'peak')
         .attr('cx', function (d) {
-            return self.xRange(d.cs_x);
+            return self.xRange(d.X_PPM);
         })
         .attr('cy', function (d) {
-            return self.yRange(d.cs_y);
+            return self.yRange(d.Y_PPM);
         })
         .attr("clip-path", "url(#clip)")
         .attr('r', self.peak_size)
@@ -944,23 +951,35 @@ plotit.prototype.allow_peak_dragging = function (flag) {
         /**
          * Get new coordinates of the peak
          */
-        d.cs_x = self.xRange.invert(event.x);
-        d.cs_y = self.yRange.invert(event.y);
+        d.X_PPM = self.xRange.invert(event.x);
+        d.Y_PPM = self.yRange.invert(event.y);
         /**
          * Check amplitude of the spectrum at the peak position
          * if less than lowest contour level, remove the peak
          */
-        let y_pos= Math.floor((d.cs_y - self.spectrum.y_ppm_ref - self.spectrum.y_ppm_start)/self.spectrum.y_ppm_step);
-        let x_pos = Math.floor((d.cs_x - self.spectrum.x_ppm_ref - self.spectrum.x_ppm_start)/self.spectrum.x_ppm_step);
+        let y_pos= Math.floor((d.Y_PPM - self.spectrum.y_ppm_ref - self.spectrum.y_ppm_start)/self.spectrum.y_ppm_step);
+        let x_pos = Math.floor((d.X_PPM - self.spectrum.x_ppm_ref - self.spectrum.x_ppm_start)/self.spectrum.x_ppm_step);
         let data_height = 0.0; //default value if out of range
         if(x_pos>=0 && x_pos<self.spectrum.n_direct && y_pos>=0 && y_pos<self.spectrum.n_indirect) {
             data_height = self.spectrum.raw_data[y_pos *  self.spectrum.n_direct + x_pos];
         }
         if(data_height < self.peak_level) {
             if(self.peak_flag === 'picked') {
-                self.spectrum.picked_peaks = self.spectrum.picked_peaks.filter(peak => peak.cs_x != d.cs_x || peak.cs_y != d.cs_y);
+                /**
+                 * Remove the peak from the picked peaks
+                 */
+                self.spectrum.picked_peaks_object.remove_row(d.INDEX);
             }
             d3.select(this).remove();
+        }
+        else
+        {
+            /**
+             * Update the peak in the picked peaks
+             */
+            if(self.peak_flag === 'picked') {
+                self.spectrum.picked_peaks_object.update_row(d.INDEX, d.X_PPM, d.Y_PPM);
+            }
         }
 
     });
@@ -995,18 +1014,13 @@ plotit.prototype.allow_click_to_add_peak = function (flag) {
                 data_height = self.spectrum.raw_data[y_pos *  self.spectrum.n_direct + x_pos];
             }
             let new_peak = {
-                cs_x: x_ppm,
-                cs_y: y_ppm,
-                index: data_height,
-                type: 1,
-                sigmax:  self.spectrum.median_sigmax,
-                sigmay:  self.spectrum.median_sigmay,
-                gamamx: self.spectrum.median_gammax,
-                gamamy: self.spectrum.median_gammay
+                X_PPM: x_ppm,
+                Y_PPM: y_ppm,
+                HEIGHT: data_height,
             };
-            if(self.spectrum != null && new_peak.index > self.peak_level)
+            if(self.spectrum != null && new_peak.HEIGHT > self.peak_level)
             {
-                self.spectrum.picked_peaks.push(new_peak);
+                self.spectrum.picked_peaks_object.add_row(new_peak);
                 self.draw_peaks();
             }
         });

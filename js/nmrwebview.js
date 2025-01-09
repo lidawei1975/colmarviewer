@@ -1133,8 +1133,6 @@ webassembly_worker.onmessage = function (e) {
      */
     else if (e.data.fitted_peaks && e.data.recon_spectrum) {
         console.log("Fitted peaks and recon_spectrum received");
-        hsqc_spectra[e.data.spectrum_origin].fitted_peaks = e.data.fitted_peaks.fitted_peaks; //The double fitted_peaks is correct
-        // hsqc_spectra[e.data.spectrum_origin].fitted_peaks_tab = e.data.fitted_peaks_tab; //a string of fitted peaks in nmrPipe format
 
         /**
          * Define a new class peaks object, process e.data.fitted_peaks_tab
@@ -1334,7 +1332,6 @@ webassembly_worker.onmessage = function (e) {
     else if (e.data.pseudo3d_fitted_peaks) {
         console.log("Pseudo 3D fitted peaks received");
         pseudo3d_fitted_peaks_tab = e.data.pseudo3d_fitted_peaks_tab;
-        pseudo3d_fitted_peaks =  e.data.pseudo3d_fitted_peaks.fitted_peaks; //The double fitted_peaks is correct 
 
         /**
          * Enable the download fitted peaks button and show the fitted peaks button
