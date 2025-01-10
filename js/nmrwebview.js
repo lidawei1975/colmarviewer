@@ -37,10 +37,8 @@ var b_plot_initialized = false; //flag to indicate if the plot is initialized
 var tooldiv; //tooltip div (used by myplot1_new.js, this is not a good practice, but it is a quick fix)
 var current_spectrum_index_of_peaks = -1; //index of the spectrum that is currently showing peaks, -1 means none, -2 means pseudo 3D fitted peaks
 var current_flag_of_peaks = 'picked'; //flag of the peaks that is currently showing, 'picked' or 'fitted
-var pseudo3d_fitted_peaks_tab = ""; // pseudo 3D fitted peaks, a long multi-line string 
-var pseudo3d_fitted_peaks_tab_ass = ""; // pseudo 3D fitted peaks with assignment, a long multi-line string 
-var pseudo3d_fitted_peaks = []; //pseudo 3D fitted peaks, JSON array
 var total_number_of_experimental_spectra = 0; //total number of experimental spectra
+var pseudo3d_fitted_peaks_object = null; //pseudo 3D fitted peaks object
 
 /**
  * For FID re-processing. Saved file data
@@ -515,10 +513,9 @@ $(document).ready(function () {
     document.getElementById('assignment_file').addEventListener('change', function (e) {
         
         /**
-         * Do nothing if pseudo3d_fitted_peaks_tab is empty
-         * or pseudo3d_fitted_peaks is empty
+         * Do nothing if pseudo3d_fitted_peaks_object is null
          */
-        if(pseudo3d_fitted_peaks_tab === "" || pseudo3d_fitted_peaks.length === 0)
+        if(pseudo3d_fitted_peaks_object === null)
         {
             return;
         }
@@ -534,7 +531,7 @@ $(document).ready(function () {
                 webassembly_worker.postMessage({
                     webassembly_job: "assignment",
                     assignment: data,
-                    fitted_peaks_tab: pseudo3d_fitted_peaks_tab,
+                    fitted_peaks_tab: pseudo3d_fitted_peaks_object.get_peaks_tab(),
                 });
             };
             reader.onerror = function (e) {
@@ -1329,9 +1326,10 @@ webassembly_worker.onmessage = function (e) {
     /**
      * If result is pseudo3d_fitted_peaks, it is from the pseudo 3D fitting
      */
-    else if (e.data.pseudo3d_fitted_peaks) {
+    else if (e.data.pseudo3d_fitted_peaks_tab) {
         console.log("Pseudo 3D fitted peaks received");
-        pseudo3d_fitted_peaks_tab = e.data.pseudo3d_fitted_peaks_tab;
+        pseudo3d_fitted_peaks_object = new cpeaks();
+        pseudo3d_fitted_peaks_object.process_peaks_tab(e.data.pseudo3d_fitted_peaks_tab);
 
         /**
          * Enable the download fitted peaks button and show the fitted peaks button
@@ -1375,14 +1373,13 @@ webassembly_worker.onmessage = function (e) {
         document.getElementById("assignment_file").disabled = false;
     }
 
-    else if(e.data.assignment)
+    else if(e.data.matched_peaks_tab)
     {
         console.log("Assignment transfer received.");
-        pseudo3d_fitted_peaks_tab_ass = e.data.matched_peaks_tab;
         /**
-         * Enable download peaks with assignment and assignment_file file input 
+         * Update pseudo3d_fitted_peaks_object with the assignment
          */
-        document.getElementById("button_download_fitted_peaks_ass").disabled = false;
+        pseudo3d_fitted_peaks_object.process_peaks_tab(e.data.matched_peaks_tab);
     }
 
     else if(e.data.webassembly_job === "spin_optimization")
@@ -4363,7 +4360,7 @@ function show_hide_peaks(index,flag,b_show)
          * First define a dummy hsqc_spectrum object. When flag is fitted, main_plot will only use fitted_peaks of the spectrum
          */
         let pseudo3d_spectrum = new spectrum();
-        pseudo3d_spectrum.fitted_peaks = pseudo3d_fitted_peaks;
+        pseudo3d_spectrum.fitted_peaks_object = pseudo3d_fitted_peaks_object;
 
         main_plot.add_peaks(pseudo3d_spectrum,'fitted');
     }
@@ -4407,20 +4404,11 @@ function show_hide_peaks(index,flag,b_show)
 /**
  * Download pseudo 3D peak fitting result
  */
-function download_pseudo3d(flag)
+function download_pseudo3d()
 {
-    /**
-     * var pseudo3d_fitted_peaks is a long multi-line string in .tab format, 
-     * we only need to save it as a text file
-     */
-    let blob;
-    if(flag==0){
-        blob = new Blob([pseudo3d_fitted_peaks_tab], { type: 'text/plain' });
-    }
-    else 
-    {
-        blob = new Blob([pseudo3d_fitted_peaks_tab_ass], { type: 'text/plain' });
-    }
+    let  pseudo3d_fitted_peaks_tab = pseudo3d_fitted_peaks_object.save_peaks_tab();   
+    let blob = new Blob([pseudo3d_fitted_peaks_tab], { type: 'text/plain' });
+
     let url = URL.createObjectURL(blob);
     let a = document.createElement('a');
     a.href = url;

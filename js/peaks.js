@@ -14,10 +14,27 @@ class cpeaks {
     };
 
     /**
+     * Clear all data in the peaks object
+     */
+    clear_all_data() {
+        this.comments = [];
+        this.column_headers = [];
+        this.column_formats = [];
+        this.columns = [];
+        this.manual_peak_index = 10000;
+    }
+
+    /**
      * A class method to process a peaks.tab file (nmrPipe format)
      * @param {string} peaks_tab - the peaks.tab file content as one big string, separated by newlines
      */
     process_peaks_tab(peaks_tab) {
+
+        /**
+         * Clear all data first
+         */
+        this.clear_all_data();
+
 
         const lines = peaks_tab.split('\n');
 

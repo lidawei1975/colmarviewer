@@ -784,7 +784,7 @@ onmessage = function (e) {
         }
 
         let peaks_tab = FS.readFile('fitted.tab', { encoding: 'utf8' });
-        let peaks = JSON.parse(FS.readFile('fitted.json', { encoding: 'utf8' }));
+        let peaks_json = FS.readFile('fitted.json', { encoding: 'utf8' });
         FS.unlink('fitted.tab');
         FS.unlink('fitted.json');
 
@@ -793,7 +793,7 @@ onmessage = function (e) {
          */
         postMessage({
             webassembly_job: e.data.webassembly_job,
-            pseudo3d_fitted_peaks: peaks, 
+            pseudo3d_fitted_peaks_json: peaks_json, 
             pseudo3d_fitted_peaks_tab: peaks_tab, //peaks_tab is a very long string with multiple lines (in nmrPipe tab format)
         });
     }
