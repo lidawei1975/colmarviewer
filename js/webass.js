@@ -723,6 +723,7 @@ onmessage = function (e) {
 
     /**
      * initial_peaks and all_files are received, run pseudo-3D fitting using api.voigt_fit
+     * 
      */
     else if (e.data.webassembly_job === "pseudo3d_fitting") {
         console.log('Initial peaks and all files received');

@@ -3,8 +3,8 @@
  * and peak processing methods.
  */
 
-
 class cpeaks {
+
     constructor() {
         this.comments = []; // comments, string array
         this.column_headers = []; // column headers, string array
@@ -50,10 +50,10 @@ class cpeaks {
         // Extract formats from the FORMAT line
         const formatLine = lines.find(line => line.startsWith('FORMAT'));
         this.column_formats = formatLine.split(/\s+/).slice(1);
-      
+
         // Extract data rows (skipping lines starting with VARS and FORMAT)
         const dataRows = lines.filter(line => !line.startsWith('VARS') && !line.startsWith('FORMAT') && !line.startsWith('DATA') && line.trim());
-      
+
         /**
          * Split data rows into columns and save each column as an array in this.columns
          * IF column format contains " %3s" or " %4s, etc., treat it as a string
@@ -61,22 +61,147 @@ class cpeaks {
          * ELSE treat it as a float
          */
         this.columns = this.column_headers.map((header, index) => {
-          return dataRows.map(row => {
-            /**
-             * Clear leading and trailing white spaces
-             */
-            row = row.trim();
-            const value = row.split(/\s+/)[index];
-            if (this.column_formats[index].includes('s')) {
-              return value;
-            } else if (this.column_formats[index].includes('d')) {
-              return parseInt(value);
-            } else {
-              return parseFloat(value);
-            }
-          });
+            return dataRows.map(row => {
+                /**
+                 * Clear leading and trailing white spaces
+                 */
+                row = row.trim();
+                const value = row.split(/\s+/)[index];
+                if (this.column_formats[index].includes('s')) {
+                    return value;
+                } else if (this.column_formats[index].includes('d')) {
+                    return parseInt(value);
+                } else {
+                    return parseFloat(value);
+                }
+            });
         });
     };
+
+    /**
+     * Class method to process a peaks.list file from Sparky
+     */
+    process_peaks_list(peaks_list) {
+        /**
+         * Clear all data first
+         */
+        this.clear_all_data();
+
+        const lines = peaks_list.split('\n');
+
+        let b_header = false;
+
+        /**
+         * Check all lines for header line and data lines
+         */
+        lines.forEach((line) => {
+            /**
+             * Trim and split the line by white spaces
+             */
+            let parts = line.trim().split(/\s+/);
+            /**
+             * Check if the line is a header line (contain w2 and w1)
+             */
+            if (b_header == false && parts.includes('w2') && parts.includes('w1')) {
+                this.column_headers = parts;
+                /**
+                 * Assign column formats based on the header,
+                 * w2 and w1 are %10.4f, Assignment is %s and height is %e
+                 * other columns are %s
+                 */
+                this.column_formats = parts.map((header) => {
+                    if (header === 'w2' || header === 'w1') {
+                        return '%10.4f';
+                    } else if (header === 'Assignment') {
+                        return '%s';
+                    } else if (header === 'height') {
+                        return '%e';
+                    } else {
+                        return '%s';
+                    }
+                });
+                b_header = true;
+                this.columns =[];
+                for(let i=0;i<this.column_headers.length;i++)
+                {
+                    this.columns.push([]);
+                }
+            }
+            else if (b_header === true) {
+                /**
+                 * only when the header line is found, process the data lines
+                 * and only process as data line when number of parts is the same as number of headers
+                 */
+                if (parts.length === this.column_headers.length) {
+                    for (let i = 0; i < this.column_headers.length; i++) {
+                        if (this.column_formats[i].includes('s')) {
+                            this.columns[i].push(parts[i]);
+                        }
+                        else if (this.column_formats[i].includes('f')) {
+                            this.columns[i].push(parseFloat(parts[i]));
+                        }
+                        else if (this.column_formats[i].includes('e')) {
+                            this.columns[i].push(parseFloat(parts[i]));
+                        }
+                    }
+                }
+            }
+        });
+
+        /**
+         * Sort this.column_headers according to the order of w2 < w1 < height < Assignment
+         * Keep track of the original index of each column header
+         * Note not necessary all column headers are present
+         */
+        let original_indexes = this.column_headers.map((header, index) =>{ return { header, index };});
+        original_indexes.sort((a, b) => {
+            let order = ['w2', 'w1', 'height', 'Assignment'];
+            return order.indexOf(a.header) - order.indexOf(b.header);
+        });
+
+        /**
+         * Apply the sorting to this.column_headers, this.column_formats, and this.columns
+         */
+        this.column_headers = original_indexes.map((item) => this.column_headers[item.index]);
+        this.column_formats = original_indexes.map((item) => this.column_formats[item.index]);
+        this.columns = original_indexes.map((item) => this.columns[item.index]);
+
+        /**
+         * Change header "Assignment" to "ASS", "w1" to "Y_PPM", "w2" to "X_PPM", and Height to HEIGHT
+         */
+        
+        this.column_headers = this.column_headers.map(item => {
+            if (item == "Assignment") {
+                return "ASS";
+            }
+            else if (item == "w1") {
+                return "Y_PPM";
+            }
+            else if (item == "w2") {
+                return "X_PPM";
+            }
+            else if (item == "Height") {
+                return "HEIGHT";
+            }
+            else {
+                return item;
+            }
+        });
+
+        /**
+         * Add a column_headers at the beginning, "INDEX", column_formats is "%5d"
+         * and column values is 1,2,3,4
+         */
+        this.column_headers.unshift("INDEX");
+        this.column_formats.unshift("%5d");
+        let index_array=[];
+        for(let i=0;i<this.columns[0].length;i++)
+        {
+            index_array.push(i);
+        }
+        this.columns.unshift(index_array);
+        return;
+    }
 
     /**
      * A class method to change all values in a column by add,sub,mul,div a value.
@@ -146,6 +271,9 @@ class cpeaks {
         for (let i = 0; i < this.columns[0].length; i++) {
             let row = {};
             for (let j = 0; j < indexes.length; j++) {
+                if (indexes[j] === -1) {
+                    continue;
+                }
                 row[column_header_names[j]] = this.columns[indexes[j]][i];
             }
             result.push(row);
@@ -166,7 +294,7 @@ class cpeaks {
             return false;
         }
         const indexes = this.columns[index].map((value, index) => (value >= min_value && value <= max_value) ? index : -1)
-        .filter((index) => index !== -1);
+            .filter((index) => index !== -1);
 
         /**
          * Apply the filter to all columns
@@ -182,7 +310,7 @@ class cpeaks {
      * @param {bool} b_keep: true to keep the rows that fulfill the conditions, false to remove them
      * @return {bool} - true if the filter is successfully applied, false if the columns are not found, not a number, or the operation is invalid
      */
-    filter_by_columns_range(column_header_names, min_values, max_values, b_keep=true) {
+    filter_by_columns_range(column_header_names, min_values, max_values, b_keep = true) {
         let indexes = column_header_names.map(header => this.column_headers.indexOf(header));
         if (indexes.includes(-1)) {
             return false;
@@ -194,31 +322,24 @@ class cpeaks {
             return false;
         }
 
-        for(let i=this.columns[0].length-1; i>=0; i--)
-        {
+        for (let i = this.columns[0].length - 1; i >= 0; i--) {
             let b_fulfill = true;
-            for(let j=0; j<indexes.length; j++)
-            {
-                if(this.columns[indexes[j]][i] < min_values[j] || this.columns[indexes[j]][i] > max_values[j])
-                {
+            for (let j = 0; j < indexes.length; j++) {
+                if (this.columns[indexes[j]][i] < min_values[j] || this.columns[indexes[j]][i] > max_values[j]) {
                     b_fulfill = false;
                     break;
                 }
             }
 
-            if(b_fulfill === false && b_keep === true)
-            {
-                for(let j=0; j<this.columns.length; j++)
-                {
+            if (b_fulfill === false && b_keep === true) {
+                for (let j = 0; j < this.columns.length; j++) {
                     this.columns[j].splice(i, 1);
                 }
             }
-            else if(b_fulfill === true && b_keep === false)
-            {
-                for(let j=0; j<this.columns.length; j++)
-                {
+            else if (b_fulfill === true && b_keep === false) {
+                for (let j = 0; j < this.columns.length; j++) {
                     this.columns[j].splice(i, 1);
-                }   
+                }
             }
         }
         return true;
@@ -294,10 +415,10 @@ class cpeaks {
             }
             else if (this.column_headers[i] === 'HEIGHT') {
                 this.columns[i].push(new_row.HEIGHT);
-            } 
+            }
             else if (this.column_formats[i].includes('s')) {
                 this.columns[i].push(this.columns[i][0]);
-            } 
+            }
             else {
                 this.columns[i].push(this.columns[i].reduce((a, b) => a + b, 0) / this.columns[i].length);
             }
@@ -373,13 +494,12 @@ class cpeaks {
                     /**
                      * If column format is not recognized, just pad the value with spaces
                      */
-                    row += this.columns[j][i].toString()+ ' ';
+                    row += this.columns[j][i].toString() + ' ';
                 }
                 /**
                  * Add a space between columns, except for the last column
                  */
-                if(j < this.columns.length - 1)
-                {
+                if (j < this.columns.length - 1) {
                     row += ' ';
                 }
             }
@@ -387,27 +507,5 @@ class cpeaks {
         }
         return peaks_tab;
     }
-
-
-    /**
-     * A class method to process a peaks.list file (Sparky format)
-     * @param {string} peaks_list - the peaks.list file content as one big string, separated by newlines
-     */
-    process_peaks_list(peaks_list) {
-            
-        };
-
-    /**
-     * A class method to extract x,y coordinates from a peaks object
-     */
-    get_xy() {
-        let x = [];
-        let y = [];
-        for (let i = 0; i < this.columns.length; i++) {
-            x.push(this.columns[i][0]);
-            y.push(this.columns[i][1]);
-        }
-        return [x, y];
-    };
 
 };

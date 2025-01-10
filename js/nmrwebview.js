@@ -1088,14 +1088,7 @@ webassembly_worker.onmessage = function (e) {
         peaks.process_peaks_tab(e.data.picked_peaks_tab);
         hsqc_spectra[e.data.spectrum_index].picked_peaks_object = peaks;
 
-        /**
-         * Get median of XW and YW, convert to sigma (/2.5)
-         */
-        hsqc_spectra[e.data.spectrum_index].median_sigmax = median(peaks.get_column("XW")) / 2.5;
-        hsqc_spectra[e.data.spectrum_index].median_sigmay = median(peaks.get_column("YW")) / 2.5;
-        hsqc_spectra[e.data.spectrum_index].median_gammax = 0.1;
-        hsqc_spectra[e.data.spectrum_index].median_gammay = 0.1;
-        
+     
         /**
          * when picked peaks are received, fitted peaks need to be reset
          */
@@ -1868,6 +1861,19 @@ function add_to_list(index) {
     if(new_spectrum.spectrum_origin === -1 || new_spectrum.spectrum_origin === -2 || new_spectrum.spectrum_origin >=10000)
     {
         /**
+         * Add a file input field to upload a peak list, with a label "Load peak list: "
+         */
+        let load_peak_list_label = document.createElement("label");
+        load_peak_list_label.setAttribute("for", "run_load_peak_list-".concat(index));
+        load_peak_list_label.innerText = " Load peak list: ";
+        let peak_list_input = document.createElement("input");
+        peak_list_input.setAttribute("type", "file");
+        peak_list_input.setAttribute("id", "run_load_peak_list-".concat(index));
+        peak_list_input.onchange = function () { load_peak_list(index); };
+        new_spectrum_div.appendChild(load_peak_list_label);
+        new_spectrum_div.appendChild(peak_list_input);
+
+        /**
          * Add a run_DEEP_Picker button to run DEEP picker. Default is enabled
          */
         let deep_picker_button = document.createElement("button");
@@ -1884,6 +1890,8 @@ function add_to_list(index) {
         simple_picker_button.innerText = "Simple Picker";
         simple_picker_button.onclick = function () { run_DEEP_Picker(index,1); };
         new_spectrum_div.appendChild(simple_picker_button);
+
+        new_spectrum_div.appendChild(document.createElement("br"));
 
         /**
          * Add a combine_peak cutoff input filed with ID "combine_peak_cutoff-".concat(index)
@@ -4165,6 +4173,76 @@ async function download_plot()
     a.href = dataURL;
     a.download = 'nmr_plot.' + format;
     a.click();
+}
+
+/**
+ * Load a peak list to a spectrum
+ */
+function load_peak_list(spectrum_index)
+{
+    /**
+     * Get the file input element with ID "run_load_peak_list-"+spectrum_index
+     */
+    let file_input = document.getElementById("run_load_peak_list-"+spectrum_index);
+    if (file_input.files.length === 0) {
+        return;
+    }
+
+    let file = file_input.files[0];
+    let reader = new FileReader();
+    reader.onload = function (e) {
+        let peak_list = new cpeaks();
+        /**
+         * Check file name extension, if it is .tab, load it as tab file, else if it is .list, load it as
+         */
+        if(file.name.endsWith(".tab") || file.name.endsWith(".list"))
+        {
+            if(file.name.endsWith(".tab"))
+            {
+                peak_list.process_peaks_tab(e.target.result);
+            }
+            else {
+                peak_list.process_peaks_list(e.target.result);
+            }
+            hsqc_spectra[spectrum_index].picked_peaks_object = peak_list;
+            
+            /**
+             * when picked peaks are received, fitted peaks need to be reset
+             */
+            hsqc_spectra[spectrum_index].fitted_peaks_object = null;
+            /**
+             * Disable the download fitted peaks button. Uncheck the show fitted peaks checkbox, disable it too
+             */
+            document.getElementById("download_fitted_peaks-".concat(spectrum_index)).disabled = true;
+            document.getElementById("show_fitted_peaks-".concat(spectrum_index)).checked = false;
+            document.getElementById("show_fitted_peaks-".concat(spectrum_index)).disabled = true;
+            /**
+             * When peaks are loaded, set default scale and scale2 for peak fitting
+             */
+            hsqc_spectra[spectrum_index].scale = 5.5;
+            hsqc_spectra[spectrum_index].scale2 = 3.5;
+
+            /**
+             * Enable the download peaks button
+             */
+            document.getElementById("download_peaks-".concat(spectrum_index)).disabled = false;
+            /**
+             * Enable peak picking (we disabled it when starting deep picker) and peak fitting buttons
+             */
+            document.getElementById("run_deep_picker-".concat(spectrum_index)).disabled = false;
+            document.getElementById("run_voigt_fitter-".concat(spectrum_index)).disabled = false;
+            /**
+             * Enable, set it as unchecked then simulate a click event to show the peaks
+             */
+            document.getElementById("show_peaks-".concat(spectrum_index)).disabled = false;
+            document.getElementById("show_peaks-".concat(spectrum_index)).checked = false;
+            document.getElementById("show_peaks-".concat(spectrum_index)).click();
+        }
+        else{
+            console.log("Unsupported peak file format");
+        }
+    };
+    reader.readAsText(file);
 }
 
 

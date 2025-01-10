@@ -900,9 +900,12 @@ plotit.prototype.draw_peaks = function () {
     }
 
     /**
-     * Filter peaks based on peak level
+     * Filter peaks based on peak level only of new_peaks.length > 0 and new_peaks[0].HEIGHT is defined
      */
-    new_peaks = new_peaks.filter(peak => peak.HEIGHT > self.peak_level);
+    if(new_peaks.length > 0 && new_peaks[0].HEIGHT !== undefined)
+    {
+        new_peaks = new_peaks.filter(peak => peak.HEIGHT > self.peak_level);
+    }
 
     /**
      * Draw peaks, red circles without fill
