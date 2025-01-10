@@ -980,7 +980,17 @@ function run_pseudo3d(flag) {
     for (let i = 0; i < hsqc_spectra.length; i++) {
         if (hsqc_spectra[i].spectrum_origin === -1 || hsqc_spectra[i].spectrum_origin === -2 || hsqc_spectra[i].spectrum_origin>=10000) {
             let data = new Float32Array(hsqc_spectra[i].header.length + hsqc_spectra[i].raw_data.length);
-            data.set(hsqc_spectra[i].header, 0);
+            let temp_header = new Float32Array(hsqc_spectra[i].header);
+            /**
+             * Set temp_header to 1.0 to indicate it is real data (not complex data) because we only send raw_data (not raw_data_ri, ..)
+             */
+            if( temp_header[55] == 0.0 && temp_header[56] == 0.0)
+            {
+                temp_header[219] /= 2.0; //when both are complex, nmrPipe set 219 to 2 times true indirect size   
+            }
+            temp_header[55] = 1;
+            temp_header[56] = 1;
+            data.set(temp_header, 0);
             data.set(hsqc_spectra[i].raw_data, hsqc_spectra[i].header.length);
             let data_uint8 = new Uint8Array(data.buffer);
             all_files.push(data_uint8);
