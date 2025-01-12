@@ -3076,7 +3076,7 @@ function update_contour_slider(e,index,flag) {
         {
             let level = hsqc_spectra[index].levels[main_plot.contour_lbs[index]];
             main_plot.set_peak_level(level);
-            main_plot.draw_peaks();
+            main_plot.redraw_peaks();
         }
 
     }

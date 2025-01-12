@@ -900,14 +900,6 @@ plotit.prototype.draw_peaks = function () {
     }
 
     /**
-     * Filter peaks based on peak level only of new_peaks.length > 0 and new_peaks[0].HEIGHT is defined
-     */
-    if(new_peaks.length > 0 && new_peaks[0].HEIGHT !== undefined)
-    {
-        new_peaks = new_peaks.filter(peak => peak.HEIGHT > self.peak_level);
-    }
-
-    /**
      * Draw peaks, red circles without fill
      */
     this.peaks_svg=self.vis.selectAll('.peak')
@@ -921,6 +913,15 @@ plotit.prototype.draw_peaks = function () {
         .attr('cy', function (d) {
             return self.yRange(d.Y_PPM);
         })
+        .attr('visibility',function(d) {
+            if(typeof d.HEIGHT === "undefined" || d.HEIGHT>self.peak_level)
+            {
+                return "visible";
+            }
+            else{
+                return "hidden";
+            }
+        })
         .attr("clip-path", "url(#clip)")
         .attr('r', self.peak_size)
         .attr('stroke', self.peak_color)
@@ -931,8 +932,8 @@ plotit.prototype.draw_peaks = function () {
      * Add a force simulation
      */
     this.sim = d3.forceSimulation(new_peaks)
-        .force("x", d3.forceX().strength(0.06).x(d => self.xRange(d.X_PPM)))
-        .force("y", d3.forceY().strength(0.06).y(d => self.yRange(d.Y_PPM)))
+        .force("x", d3.forceX().strength(0.1).x(d => self.xRange(d.X_PPM)))
+        .force("y", d3.forceY().strength(0.1).y(d => self.yRange(d.Y_PPM)))
         ;
         
 
@@ -951,6 +952,15 @@ plotit.prototype.redraw_peaks = function () {
     self.vis.selectAll('.peak')
         .attr('r', self.peak_size)
         .attr('stroke', self.peak_color)
+        .attr('visibility',function(d) {
+            if(typeof d.HEIGHT === "undefined" || d.HEIGHT>self.peak_level)
+            {
+                return "visible";
+            }
+            else{
+                return "hidden";
+            }
+        })
         .attr('fill', 'none')
         .attr('stroke-width', self.peak_thickness);
 }
