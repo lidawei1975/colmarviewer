@@ -893,10 +893,10 @@ plotit.prototype.draw_peaks = function () {
      */
     let new_peaks;
     if(self.peak_flag === 'picked') {
-        new_peaks = self.spectrum.picked_peaks_object.get_selected_columns(['X_PPM','Y_PPM','HEIGHT','INDEX'])
+        new_peaks = self.spectrum.picked_peaks_object.get_selected_columns(['X_PPM','Y_PPM','HEIGHT','INDEX','ASS'])
     }
     else{
-        new_peaks = self.spectrum.fitted_peaks_object.get_selected_columns(['X_PPM','Y_PPM','HEIGHT','INDEX'])
+        new_peaks = self.spectrum.fitted_peaks_object.get_selected_columns(['X_PPM','Y_PPM','HEIGHT','INDEX','ASS'])
     }
 
     /**
@@ -910,7 +910,7 @@ plotit.prototype.draw_peaks = function () {
     /**
      * Draw peaks, red circles without fill
      */
-    self.vis.selectAll('.peak')
+    this.peaks_svg=self.vis.selectAll('.peak')
         .data(new_peaks)
         .enter()
         .append('circle')
@@ -926,6 +926,24 @@ plotit.prototype.draw_peaks = function () {
         .attr('stroke', self.peak_color)
         .attr('fill', 'none')
         .attr('stroke-width', self.peak_thickness);
+
+    /**
+     * Add a force simulation
+     */
+    this.sim = d3.forceSimulation(new_peaks)
+        .force("x", d3.forceX().strength(0.06).x(d => self.xRange(d.X_PPM)))
+        .force("y", d3.forceY().strength(0.06).y(d => self.yRange(d.Y_PPM)))
+        ;
+        
+
+    this.sim.on("tick", () => {
+        console.log(this.sim.alpha());
+        self.peaks_svg
+            .attr("cx", d => d.x)
+            .attr("cy", d => d.y);
+    });
+
+    this.sim.alphaMin(0.01).restart();
 };
 
 plotit.prototype.redraw_peaks = function () {
