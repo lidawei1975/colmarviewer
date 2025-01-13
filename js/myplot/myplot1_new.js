@@ -908,7 +908,7 @@ plotit.prototype.add_peaks = function (spectrum,flag) {
  * Add peak labels to the plot. Only show the labels for the peaks that are visible
  * That is, this function need to be called after any zoom, pan, resize or contour level change to be valid
  */
-plotit.prototype.update_peak_labels = function () {
+plotit.prototype.update_peak_labels = function(flag,min_dis,max_dis,repulsive_force,font_size,color) {
     let self = this;
 
     /**
@@ -926,13 +926,13 @@ plotit.prototype.update_peak_labels = function () {
                 let distance2 = (self.yRange(node.Y_PPM) - node.y);
                 let distance = Math.sqrt(distance1*distance1+distance2*distance2);
                 let force_amplitude = 0;
-                if(distance > 60)
+                if(distance > max_dis)
                 {
-                    force_amplitude = (distance - 60) * strength * alpha / distance;
+                    force_amplitude = (distance - max_dis) * strength * alpha / distance;
                 }
-                else if(distance < 40)
+                else if(distance < min_dis)
                 {
-                    force_amplitude = (distance - 40) * strength * alpha / distance
+                    force_amplitude = (distance - min_dis) * strength * alpha / distance
                 }
                 let force_x = distance1 * force_amplitude;
                 let force_y = distance2 * force_amplitude;
@@ -953,7 +953,7 @@ plotit.prototype.update_peak_labels = function () {
     function avoid_peaks()
     {
         let nodes;
-        var strength = 100.0;
+        var strength = repulsive_force;
 
         /**
          * Require all nodes to avoid all peaks. Brute force method
@@ -1005,11 +1005,18 @@ plotit.prototype.update_peak_labels = function () {
     self.vis.selectAll('.peak_text').remove();
     self.vis.selectAll('.peak_line').remove();
 
+    if(flag==false)
+    {
+        return;
+    }
+
     this.peaks_text_svg = self.vis.selectAll('.peak_text')
         .data(self.visible_peaks)
         .enter()
         .append('text')
         .attr('class', 'peak_text')
+        .attr('font-size',font_size)
+        .style('fill', color)
         .attr('x', function (d) {
             return self.xRange(d.X_PPM)+10;
         })
@@ -1029,7 +1036,7 @@ plotit.prototype.update_peak_labels = function () {
         .enter()
         .append('line')
         .attr('class','peak_line')
-        .attr('stroke','black')
+        .attr('stroke',color)
         .attr('x1', function (d) {
             return d.x;
         })
@@ -1051,7 +1058,7 @@ plotit.prototype.update_peak_labels = function () {
 
     this.sim = d3.forceSimulation(self.visible_peaks)
         .force("near_peak", text_force())
-        .force("inter_collide", d3.forceCollide().radius(20).strength(1).iterations(5))
+        .force("inter_collide", d3.forceCollide().radius(20).strength(1).iterations(1))
         .force('exclude',d3.forceManyBody().strength(-10))
         .force("avoid", avoid_peaks())
         .stop();

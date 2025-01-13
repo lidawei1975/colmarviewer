@@ -876,6 +876,28 @@ $(document).ready(function () {
     });
 
     /**
+     * Event listener for checkbox "show_peak_label"
+     */
+    document.getElementById("show_peak_label").addEventListener('change', function () {
+        if (main_plot === null) {
+            return;
+        }
+
+        let min_dis = parseFloat(document.getElementById("min_distance").value);
+        let max_dis = parseFloat(document.getElementById("max_distance").value);
+        let repulsive_force = parseFloat(document.getElementById("repulsive_force").value);
+        let font_size = parseFloat(document.getElementById("peak_label_size").value);
+        let color = document.getElementById("peak_color").value;
+
+        if (this.checked) {
+            main_plot.update_peak_labels(true,min_dis,max_dis,repulsive_force,font_size,color);
+        }
+        else {
+            main_plot.update_peak_labels(false,min_dis,max_dis,repulsive_force,font_size,color);
+        }
+    });
+
+    /**
      * These 3 checkbox can only be triggered when the checkboxes are enabled
      * which means the main_plot is already defined
      * and current spectrum is an experimental spectrum
