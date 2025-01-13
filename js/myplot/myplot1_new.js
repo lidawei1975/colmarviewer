@@ -195,6 +195,16 @@ plotit.prototype.reset_axis = function () {
         .attr('cy', function (d) {
             return self.yRange(d.Y_PPM);
         });
+    /**
+     * Also need to reset the position of peak text
+     */
+    this.vis.selectAll('.peak_text')
+        .attr('x', function (d) {
+            return self.xRange(d.X_PPM) + 10;
+        })
+        .attr('y', function (d) {
+            return self.yRange(d.Y_PPM) + 10;
+        });
 
     /**
      * Reset position of predicted peaks, if any
@@ -877,6 +887,9 @@ plotit.prototype.add_peaks = function (spectrum,flag) {
 }
 
 
+
+
+
 /**
  * Draw peaks on the plot
  */
@@ -887,23 +900,116 @@ plotit.prototype.draw_peaks = function () {
      * Remove all peaks if there is any
      */
     self.vis.selectAll('.peak').remove();
+    self.vis.selectAll('.peak_text').remove();
 
     /**
      * Filter peaks based on peak level
      */
-    let new_peaks;
+    this.new_peaks;
     if(self.peak_flag === 'picked') {
-        new_peaks = self.spectrum.picked_peaks_object.get_selected_columns(['X_PPM','Y_PPM','HEIGHT','INDEX','ASS'])
+        this.new_peaks = self.spectrum.picked_peaks_object.get_selected_columns(['X_PPM','Y_PPM','HEIGHT','INDEX','ASS'])
     }
     else{
-        new_peaks = self.spectrum.fitted_peaks_object.get_selected_columns(['X_PPM','Y_PPM','HEIGHT','INDEX','ASS'])
+        this.new_peaks = self.spectrum.fitted_peaks_object.get_selected_columns(['X_PPM','Y_PPM','HEIGHT','INDEX','ASS'])
     }
+
+    /**
+     * Init new_peaks[i].x and y property for the force simulation
+     */
+    for(let i=0;i<self.new_peaks.length;i++)
+    {
+        self.new_peaks[i].x = self.xRange(self.new_peaks[i].X_PPM) + 20 * Math.random() - 10.0;
+        self.new_peaks[i].y = self.yRange(self.new_peaks[i].Y_PPM) + 20 * Math.random() - 10.0;  
+    }
+    
+    for(let i=0;i<self.new_peaks.length;i++)
+    {
+        self.new_peaks[i].radius = 10.0;
+    }
+    
+
+    /**
+     * A custom force to move text at relative (+20,-20) to the peak location.
+     * @returns 
+     */
+    function text_force() {
+        var strength = 0.1;
+        
+        function force(alpha)
+        {
+            for (var i = 0; i < nodes.length; ++i) {
+                let node = nodes[i];
+                let distance1 = (self.xRange(node.X_PPM) - node.x);
+                let distance2 = (self.yRange(node.Y_PPM) - node.y);
+                let distance = Math.sqrt(distance1*distance1+distance2*distance2);
+                let force_amplitude = (distance - 130) * strength * alpha / distance;
+                let force_x = distance1 * force_amplitude;
+                let force_y = distance2 * force_amplitude;
+
+                node.vx += force_x;
+                node.vy += force_y;
+            }
+        }
+
+        force.initialize = function(_) {
+            nodes = _;
+          };
+
+        return force;
+    };
+
+    // Resolve collisions between nodes.
+    function forceCollide() {
+        let nodes;
+        let maxRadius = 26;
+        var strength = 1.0;
+      
+        function force(alpha) {
+          const quadtree = d3.quadtree()
+              .x(d => d.x)
+              .y(d => d.y)
+              .addAll(nodes);
+          for (const node of nodes) {
+            var r = node.radius + maxRadius,
+                nx1 = node.x - r,
+                nx2 = node.x + r,
+                ny1 = node.y - r,
+                ny2 = node.y + r;
+      
+            // visit each squares in the quadtree
+            // x1 y1 x2 y2 constitues the coordinates of the square
+            // we want to check if each square is a leaf node (has data prop)
+              quadtree.visit((visited, x1, y1, x2, y2) => {
+                  if (visited.data && (visited.data !== node)) {
+                      let x = node.x - visited.data.x;
+                      let y = node.y - visited.data.y;
+                      let l = Math.sqrt(x * x + y * y);
+                      let r = node.radius + visited.data.radius;
+                      if (l < r) { // if quadtree leaf and input node collides
+                          l = (l - r) / l * alpha;
+                          x *= l * strength * alpha;
+                          y *= l * strength * alpha;
+                          node.vx -= x;
+                          node.vy -= y
+                          visited.data.vx += x;
+                          visited.data.vy += y;
+                      }
+                  }
+                  return x1 > nx2 || x2 < nx1 || y1 > ny2 || y2 < ny1;
+              });
+          }
+        }
+      
+        force.initialize = _ => nodes = _;
+      
+        return force;
+      }
 
     /**
      * Draw peaks, red circles without fill
      */
     this.peaks_svg=self.vis.selectAll('.peak')
-        .data(new_peaks)
+        .data(self.new_peaks)
         .enter()
         .append('circle')
         .attr('class', 'peak')
@@ -928,23 +1034,53 @@ plotit.prototype.draw_peaks = function () {
         .attr('fill', 'none')
         .attr('stroke-width', self.peak_thickness);
 
+    this.peaks_text_svg = self.vis.selectAll('.peak_text')
+        .data(self.new_peaks)
+        .enter()
+        .append('text')
+        .attr('class', 'peak_text')
+        .attr('x', function (d) {
+            // return self.xRange(d.X_PPM)+10;
+            return 500;
+        })
+        .attr('y', function (d) {
+            // return self.yRange(d.Y_PPM)+10;
+            return 500;
+        })
+        .attr('visibility',function(d) {
+            if(typeof d.HEIGHT === "undefined" || d.HEIGHT>self.peak_level)
+            {
+                return "visible";
+            }
+            else{
+                return "hidden";
+            }
+        })
+        .attr("clip-path", "url(#clip)")
+        .text(function(d) {
+            return d.ASS;
+        });
+
     /**
      * Add a force simulation
      */
-    this.sim = d3.forceSimulation(new_peaks)
-        .force("x", d3.forceX().strength(0.1).x(d => self.xRange(d.X_PPM)))
-        .force("y", d3.forceY().strength(0.1).y(d => self.yRange(d.Y_PPM)))
+
+    this.sim = d3.forceSimulation(self.new_peaks)
+        .force("near_peak", text_force())
+        // .force("inter_collide",d3.forceCollide().radius(50).strength(10).iterations(5))
+        .force('exclude',d3.forceManyBody().strength(-100))
+        .stop();
         ;
         
 
     this.sim.on("tick", () => {
         console.log(this.sim.alpha());
-        self.peaks_svg
-            .attr("cx", d => d.x)
-            .attr("cy", d => d.y);
+        self.peaks_text_svg
+            .attr("x", d => d.x)
+            .attr("y", d => d.y);
     });
 
-    this.sim.alphaMin(0.01).restart();
+    this.sim.alphaMin(0.1).restart();
 };
 
 plotit.prototype.redraw_peaks = function () {
@@ -994,6 +1130,13 @@ plotit.prototype.allow_peak_dragging = function (flag) {
         if(x_pos>=0 && x_pos<self.spectrum.n_direct && y_pos>=0 && y_pos<self.spectrum.n_indirect) {
             data_height = self.spectrum.raw_data[y_pos *  self.spectrum.n_direct + x_pos];
         }
+        /**
+         * Also update the text position
+         */
+        self.vis.selectAll('.peak_text').filter(function(e) {
+            return e.INDEX === d.INDEX;
+        }).attr('x', event.x+10).attr('y', event.y+10);
+
         if(data_height < self.peak_level) {
             if(self.peak_flag === 'picked') {
                 /**
@@ -1002,6 +1145,12 @@ plotit.prototype.allow_peak_dragging = function (flag) {
                 self.spectrum.picked_peaks_object.remove_row(d.INDEX);
             }
             d3.select(this).remove();
+            /**
+             * Also remove the text
+             */
+            self.vis.selectAll('.peak_text').filter(function(e) {
+                return e.INDEX === d.INDEX;
+            }).remove();
         }
         else
         {
@@ -1068,6 +1217,7 @@ plotit.prototype.remove_picked_peaks = function () {
     let self = this;
     self.spectrum = null;
     self.vis.selectAll('.peak').remove();
+    self.vis.selectAll('.peak_text').remove();
 };
 
 /**
