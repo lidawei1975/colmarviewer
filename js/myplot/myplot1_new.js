@@ -1023,6 +1023,32 @@ plotit.prototype.update_peak_labels = function(flag,min_dis,max_dis,repulsive_fo
         .attr('y', function (d) {
             return self.yRange(d.Y_PPM)+10;
         })
+        .attr('dx', function (d) {
+            /**
+             * if x is on the left side of self.xRange(d.X_PPM), then dx = -font_size*2
+             * otherwise, dx = 0
+             */
+            if(self.xRange(d.X_PPM) > d.x)
+            {
+                return -font_size*2;
+            }
+            else{
+                return 0;
+            }
+        })
+        .attr('dy', function (d) {
+            /**
+             * If y is on the top side of self.yRange(d.Y_PPM), then dy = -font_size
+             * otherwise, dy = 0
+             */
+            if(self.yRange(d.Y_PPM) < d.y)
+            {
+                return 0.5 * font_size;
+            }
+            else{
+                return 0;
+            }
+        })
         .attr("clip-path", "url(#clip)")
         .text(function (d) {
             return d.ASS;
@@ -1058,7 +1084,7 @@ plotit.prototype.update_peak_labels = function(flag,min_dis,max_dis,repulsive_fo
 
     this.sim = d3.forceSimulation(self.visible_peaks)
         .force("near_peak", text_force())
-        .force("inter_collide", d3.forceCollide().radius(20).strength(1).iterations(1))
+        .force("inter_collide", d3.forceCollide().radius(40).strength(1).iterations(1))
         .force('exclude',d3.forceManyBody().strength(-10))
         .force("avoid", avoid_peaks())
         .stop();
