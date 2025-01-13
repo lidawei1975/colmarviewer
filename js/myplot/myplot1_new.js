@@ -195,6 +195,7 @@ plotit.prototype.reset_axis = function () {
         .attr('cy', function (d) {
             return self.yRange(d.Y_PPM);
         });
+
     /**
      * Also need to reset the position of peak text
      */
@@ -204,6 +205,23 @@ plotit.prototype.reset_axis = function () {
         })
         .attr('y', function (d) {
             return self.yRange(d.Y_TEXT_PPM) + 10;
+        });
+
+    /**
+     * Reset peak_line as well
+     */
+    this.vis.selectAll('.peak_line')
+        .attr('x2', function (d) {
+            return self.xRange(d.X_PPM);
+        })
+        .attr('y2', function (d) {
+            return self.yRange(d.Y_PPM);
+        })
+        .attr('x1', function (d) {
+            return self.xRange(d.X_TEXT_PPM);
+        })
+        .attr('y1', function (d) {
+            return self.yRange(d.Y_TEXT_PPM);
         });
 
     /**
@@ -908,13 +926,13 @@ plotit.prototype.update_peak_labels = function () {
                 let distance2 = (self.yRange(node.Y_PPM) - node.y);
                 let distance = Math.sqrt(distance1*distance1+distance2*distance2);
                 let force_amplitude = 0;
-                if(distance > 120)
+                if(distance > 60)
                 {
-                    force_amplitude = (distance - 120) * strength * alpha / distance;
+                    force_amplitude = (distance - 60) * strength * alpha / distance;
                 }
-                else if(distance < 60)
+                else if(distance < 40)
                 {
-                    force_amplitude = (distance - 60) * strength * alpha / distance
+                    force_amplitude = (distance - 40) * strength * alpha / distance
                 }
                 let force_x = distance1 * force_amplitude;
                 let force_y = distance2 * force_amplitude;
@@ -935,7 +953,7 @@ plotit.prototype.update_peak_labels = function () {
     function avoid_peaks()
     {
         let nodes;
-        var strength = 1.0;
+        var strength = 100.0;
 
         /**
          * Require all nodes to avoid all peaks. Brute force method
@@ -954,15 +972,14 @@ plotit.prototype.update_peak_labels = function () {
                     let distance1 = self.xRange(peak.X_PPM) - node.x;
                     let distance2 = self.yRange(peak.Y_PPM) - node.y;
                     let distance_square = distance1*distance1+distance2*distance2;
-                    if(distance_square < 400)
-                    {
-                        let distance = Math.sqrt(distance_square)*distance_square;
+                    if(distance_square < 40000)
+                    {                        
                         let force_amplitude = strength * alpha;
-                        let force_x = distance1 * force_amplitude/distance;
-                        let force_y = distance2 * force_amplitude/distance;
+                        let force_x = distance1 * force_amplitude/distance_square;
+                        let force_y = distance2 * force_amplitude/distance_square;
 
-                        node.vx += force_x;
-                        node.vy += force_y;
+                        node.vx -= force_x;
+                        node.vy -= force_y;
                     }
                 }
             }
@@ -986,6 +1003,7 @@ plotit.prototype.update_peak_labels = function () {
     });
 
     self.vis.selectAll('.peak_text').remove();
+    self.vis.selectAll('.peak_line').remove();
 
     this.peaks_text_svg = self.vis.selectAll('.peak_text')
         .data(self.visible_peaks)
@@ -1002,6 +1020,30 @@ plotit.prototype.update_peak_labels = function () {
         .text(function (d) {
             return d.ASS;
         });
+
+    /**
+     * Also add a line between peak and peak_text
+     */
+    this.peak_line_svg = self.vis.selectAll('.peak_line')
+        .data(self.visible_peaks)
+        .enter()
+        .append('line')
+        .attr('class','peak_line')
+        .attr('stroke','black')
+        .attr('x1', function (d) {
+            return d.x;
+        })
+        .attr('y1', function (d) {
+            return d.y;
+        })
+        .attr('x2', function(d) {
+            return self.xRange(d.X_PPM);
+        })
+        .attr('y2', function (d) {
+            return self.yRange(d.Y_PPM);
+        })
+        .attr("clip-path", "url(#clip)");
+        
 
     /**
      * Add a force simulation
@@ -1028,6 +1070,9 @@ plotit.prototype.update_peak_labels = function () {
             peak.X_TEXT_PPM = self.xRange.invert(peak.x);
             peak.Y_TEXT_PPM = self.yRange.invert(peak.y);
         });
+        self.peak_line_svg
+            .attr('x1', d => d.x)
+            .attr('y1', d => d.y);
     });
 
     this.sim.alphaMin(0.1).restart();
