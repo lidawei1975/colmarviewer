@@ -942,7 +942,15 @@ plotit.prototype.draw_peaks = function () {
                 let distance1 = (self.xRange(node.X_PPM) - node.x);
                 let distance2 = (self.yRange(node.Y_PPM) - node.y);
                 let distance = Math.sqrt(distance1*distance1+distance2*distance2);
-                let force_amplitude = (distance - 130) * strength * alpha / distance;
+                let force_amplitude = 0;
+                if(distance > 120)
+                {
+                    force_amplitude = (distance - 120) * strength * alpha / distance;
+                }
+                else if(distance < 60)
+                {
+                    force_amplitude = (distance - 60) * strength * alpha / distance
+                }
                 let force_x = distance1 * force_amplitude;
                 let force_y = distance2 * force_amplitude;
 
@@ -958,52 +966,47 @@ plotit.prototype.draw_peaks = function () {
         return force;
     };
 
-    // Resolve collisions between nodes.
-    function forceCollide() {
+
+    function avoid_peaks()
+    {
         let nodes;
-        let maxRadius = 26;
         var strength = 1.0;
-      
+
+        /**
+         * Require all nodes to avoid all peaks. Brute force method
+         * @param {*} alpha 
+         */
         function force(alpha) {
-          const quadtree = d3.quadtree()
-              .x(d => d.x)
-              .y(d => d.y)
-              .addAll(nodes);
-          for (const node of nodes) {
-            var r = node.radius + maxRadius,
-                nx1 = node.x - r,
-                nx2 = node.x + r,
-                ny1 = node.y - r,
-                ny2 = node.y + r;
-      
-            // visit each squares in the quadtree
-            // x1 y1 x2 y2 constitues the coordinates of the square
-            // we want to check if each square is a leaf node (has data prop)
-              quadtree.visit((visited, x1, y1, x2, y2) => {
-                  if (visited.data && (visited.data !== node)) {
-                      let x = node.x - visited.data.x;
-                      let y = node.y - visited.data.y;
-                      let l = Math.sqrt(x * x + y * y);
-                      let r = node.radius + visited.data.radius;
-                      if (l < r) { // if quadtree leaf and input node collides
-                          l = (l - r) / l * alpha;
-                          x *= l * strength * alpha;
-                          y *= l * strength * alpha;
-                          node.vx -= x;
-                          node.vy -= y
-                          visited.data.vx += x;
-                          visited.data.vy += y;
-                      }
-                  }
-                  return x1 > nx2 || x2 < nx1 || y1 > ny2 || y2 < ny1;
-              });
-          }
+            for (let j=0;j<nodes.length;j++)
+            {
+                let node = nodes[j];
+                for (let i=0;i<nodes.length;i++)
+                {
+                    if(i===j){
+                        continue;
+                    }
+                    let peak = nodes[i];
+                    let distance1 = self.xRange(peak.X_PPM) - node.x;
+                    let distance2 = self.yRange(peak.Y_PPM) - node.y;
+                    let distance_square = distance1*distance1+distance2*distance2;
+                    if(distance_square < 400)
+                    {
+                        let distance = Math.sqrt(distance_square)*distance_square;
+                        let force_amplitude = strength * alpha;
+                        let force_x = distance1 * force_amplitude/distance;
+                        let force_y = distance2 * force_amplitude/distance;
+
+                        node.vx += force_x;
+                        node.vy += force_y;
+                    }
+                }
+            }
+
         }
-      
+
         force.initialize = _ => nodes = _;
-      
         return force;
-      }
+    }
 
     /**
      * Draw peaks, red circles without fill
@@ -1067,8 +1070,9 @@ plotit.prototype.draw_peaks = function () {
 
     this.sim = d3.forceSimulation(self.new_peaks)
         .force("near_peak", text_force())
-        // .force("inter_collide",d3.forceCollide().radius(50).strength(10).iterations(5))
-        .force('exclude',d3.forceManyBody().strength(-100))
+        .force("inter_collide",d3.forceCollide().radius(20).strength(1).iterations(5))
+        // .force('exclude',d3.forceManyBody().strength(-100))
+        .force("avoid",avoid_peaks())
         .stop();
         ;
         
