@@ -200,10 +200,10 @@ plotit.prototype.reset_axis = function () {
      */
     this.vis.selectAll('.peak_text')
         .attr('x', function (d) {
-            return self.xRange(d.X_PPM) + 10;
+            return self.xRange(d.X_TEXT_PPM) + 10;
         })
         .attr('y', function (d) {
-            return self.yRange(d.Y_PPM) + 10;
+            return self.yRange(d.Y_TEXT_PPM) + 10;
         });
 
     /**
@@ -886,47 +886,12 @@ plotit.prototype.add_peaks = function (spectrum,flag) {
     this.draw_peaks();
 }
 
-
-
-
-
 /**
- * Draw peaks on the plot
+ * Add peak labels to the plot. Only show the labels for the peaks that are visible
+ * That is, this function need to be called after any zoom, pan, resize or contour level change to be valid
  */
-plotit.prototype.draw_peaks = function () {
-
+plotit.prototype.update_peak_labels = function () {
     let self = this;
-    /**
-     * Remove all peaks if there is any
-     */
-    self.vis.selectAll('.peak').remove();
-    self.vis.selectAll('.peak_text').remove();
-
-    /**
-     * Filter peaks based on peak level
-     */
-    this.new_peaks;
-    if(self.peak_flag === 'picked') {
-        this.new_peaks = self.spectrum.picked_peaks_object.get_selected_columns(['X_PPM','Y_PPM','HEIGHT','INDEX','ASS'])
-    }
-    else{
-        this.new_peaks = self.spectrum.fitted_peaks_object.get_selected_columns(['X_PPM','Y_PPM','HEIGHT','INDEX','ASS'])
-    }
-
-    /**
-     * Init new_peaks[i].x and y property for the force simulation
-     */
-    for(let i=0;i<self.new_peaks.length;i++)
-    {
-        self.new_peaks[i].x = self.xRange(self.new_peaks[i].X_PPM) + 20 * Math.random() - 10.0;
-        self.new_peaks[i].y = self.yRange(self.new_peaks[i].Y_PPM) + 20 * Math.random() - 10.0;  
-    }
-    
-    for(let i=0;i<self.new_peaks.length;i++)
-    {
-        self.new_peaks[i].radius = 10.0;
-    }
-    
 
     /**
      * A custom force to move text at relative (+20,-20) to the peak location.
@@ -1009,6 +974,108 @@ plotit.prototype.draw_peaks = function () {
     }
 
     /**
+     * Get a subset of peaks that are visible. 
+     * shallow copy of self.new_peaks
+     */
+    this.visible_peaks = this.new_peaks.filter(function (d) {
+        return d.X_PPM <= self.xscale[0]
+            && d.X_PPM >= self.xscale[1]
+            && d.Y_PPM <= self.yscale[0]
+            && d.Y_PPM >= self.yscale[1]
+            && (typeof d.HEIGHT === "undefined" || d.HEIGHT > self.peak_level);
+    });
+
+    self.vis.selectAll('.peak_text').remove();
+
+    this.peaks_text_svg = self.vis.selectAll('.peak_text')
+        .data(self.visible_peaks)
+        .enter()
+        .append('text')
+        .attr('class', 'peak_text')
+        .attr('x', function (d) {
+            return self.xRange(d.X_PPM)+10;
+        })
+        .attr('y', function (d) {
+            return self.yRange(d.Y_PPM)+10;
+        })
+        .attr("clip-path", "url(#clip)")
+        .text(function (d) {
+            return d.ASS;
+        });
+
+    /**
+     * Add a force simulation
+     */
+
+    this.sim = d3.forceSimulation(self.visible_peaks)
+        .force("near_peak", text_force())
+        .force("inter_collide", d3.forceCollide().radius(20).strength(1).iterations(5))
+        .force('exclude',d3.forceManyBody().strength(-10))
+        .force("avoid", avoid_peaks())
+        .stop();
+    ;
+
+
+    this.sim.on("tick", () => {
+        console.log(this.sim.alpha());
+        self.peaks_text_svg
+            .attr("x", d => d.x)
+            .attr("y", d => d.y);
+            /**
+             * Need to update X_TEXT_PPM and Y_TEXT_PPM, so that reset_axis will work properly
+             */
+        this.visible_peaks.forEach(peak => {
+            peak.X_TEXT_PPM = self.xRange.invert(peak.x);
+            peak.Y_TEXT_PPM = self.yRange.invert(peak.y);
+        });
+    });
+
+    this.sim.alphaMin(0.1).restart();
+
+}
+
+
+/**
+ * Draw peaks on the plot
+ */
+plotit.prototype.draw_peaks = function () {
+
+    let self = this;
+    /**
+     * Remove all peaks if there is any
+     */
+    self.vis.selectAll('.peak').remove();
+    
+
+    /**
+     * Filter peaks based on peak level
+     */
+    this.new_peaks;
+    if(self.peak_flag === 'picked') {
+        this.new_peaks = self.spectrum.picked_peaks_object.get_selected_columns(['X_PPM','Y_PPM','HEIGHT','INDEX','ASS'])
+    }
+    else{
+        this.new_peaks = self.spectrum.fitted_peaks_object.get_selected_columns(['X_PPM','Y_PPM','HEIGHT','INDEX','ASS'])
+    }
+
+    /**
+     * Init new_peaks[i].x and y property for the force simulation
+     */
+    for(let i=0;i<self.new_peaks.length;i++)
+    {
+        self.new_peaks[i].x = self.xRange(self.new_peaks[i].X_PPM) + 20 * Math.random() - 10.0;
+        self.new_peaks[i].y = self.yRange(self.new_peaks[i].Y_PPM) + 20 * Math.random() - 10.0;  
+    }
+    
+    for(let i=0;i<self.new_peaks.length;i++)
+    {
+        self.new_peaks[i].radius = 10.0;
+    }
+    
+
+    
+
+    /**
      * Draw peaks, red circles without fill
      */
     this.peaks_svg=self.vis.selectAll('.peak')
@@ -1036,55 +1103,6 @@ plotit.prototype.draw_peaks = function () {
         .attr('stroke', self.peak_color)
         .attr('fill', 'none')
         .attr('stroke-width', self.peak_thickness);
-
-    this.peaks_text_svg = self.vis.selectAll('.peak_text')
-        .data(self.new_peaks)
-        .enter()
-        .append('text')
-        .attr('class', 'peak_text')
-        .attr('x', function (d) {
-            // return self.xRange(d.X_PPM)+10;
-            return 500;
-        })
-        .attr('y', function (d) {
-            // return self.yRange(d.Y_PPM)+10;
-            return 500;
-        })
-        .attr('visibility',function(d) {
-            if(typeof d.HEIGHT === "undefined" || d.HEIGHT>self.peak_level)
-            {
-                return "visible";
-            }
-            else{
-                return "hidden";
-            }
-        })
-        .attr("clip-path", "url(#clip)")
-        .text(function(d) {
-            return d.ASS;
-        });
-
-    /**
-     * Add a force simulation
-     */
-
-    this.sim = d3.forceSimulation(self.new_peaks)
-        .force("near_peak", text_force())
-        .force("inter_collide",d3.forceCollide().radius(20).strength(1).iterations(5))
-        // .force('exclude',d3.forceManyBody().strength(-100))
-        .force("avoid",avoid_peaks())
-        .stop();
-        ;
-        
-
-    this.sim.on("tick", () => {
-        console.log(this.sim.alpha());
-        self.peaks_text_svg
-            .attr("x", d => d.x)
-            .attr("y", d => d.y);
-    });
-
-    this.sim.alphaMin(0.1).restart();
 };
 
 plotit.prototype.redraw_peaks = function () {
@@ -1134,13 +1152,7 @@ plotit.prototype.allow_peak_dragging = function (flag) {
         if(x_pos>=0 && x_pos<self.spectrum.n_direct && y_pos>=0 && y_pos<self.spectrum.n_indirect) {
             data_height = self.spectrum.raw_data[y_pos *  self.spectrum.n_direct + x_pos];
         }
-        /**
-         * Also update the text position
-         */
-        self.vis.selectAll('.peak_text').filter(function(e) {
-            return e.INDEX === d.INDEX;
-        }).attr('x', event.x+10).attr('y', event.y+10);
-
+        
         if(data_height < self.peak_level) {
             if(self.peak_flag === 'picked') {
                 /**
@@ -1149,12 +1161,6 @@ plotit.prototype.allow_peak_dragging = function (flag) {
                 self.spectrum.picked_peaks_object.remove_row(d.INDEX);
             }
             d3.select(this).remove();
-            /**
-             * Also remove the text
-             */
-            self.vis.selectAll('.peak_text').filter(function(e) {
-                return e.INDEX === d.INDEX;
-            }).remove();
         }
         else
         {
