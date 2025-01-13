@@ -197,6 +197,34 @@ plotit.prototype.reset_axis = function () {
         });
 
     /**
+     * Also need to reset the position of peak text
+     */
+    this.vis.selectAll('.peak_text')
+        .attr('x', function (d) {
+            return self.xRange(d.X_TEXT_PPM) + 10;
+        })
+        .attr('y', function (d) {
+            return self.yRange(d.Y_TEXT_PPM) + 10;
+        });
+
+    /**
+     * Reset peak_line as well
+     */
+    this.vis.selectAll('.peak_line')
+        .attr('x2', function (d) {
+            return self.xRange(d.X_PPM);
+        })
+        .attr('y2', function (d) {
+            return self.yRange(d.Y_PPM);
+        })
+        .attr('x1', function (d) {
+            return self.xRange(d.X_TEXT_PPM);
+        })
+        .attr('y1', function (d) {
+            return self.yRange(d.Y_TEXT_PPM);
+        });
+
+    /**
      * Reset position of predicted peaks, if any
      */
     self.x = d3.scaleLinear().range([self.MARGINS.left, self.WIDTH - self.MARGINS.right])
@@ -876,6 +904,214 @@ plotit.prototype.add_peaks = function (spectrum,flag) {
     this.draw_peaks();
 }
 
+/**
+ * Add peak labels to the plot. Only show the labels for the peaks that are visible
+ * That is, this function need to be called after any zoom, pan, resize or contour level change to be valid
+ */
+plotit.prototype.update_peak_labels = function(flag,min_dis,max_dis,repulsive_force,font_size,color) {
+    let self = this;
+
+    /**
+     * A custom force to move text at relative (+20,-20) to the peak location.
+     * @returns 
+     */
+    function text_force() {
+        var strength = 0.1;
+        
+        function force(alpha)
+        {
+            for (var i = 0; i < nodes.length; ++i) {
+                let node = nodes[i];
+                let distance1 = (self.xRange(node.X_PPM) - node.x);
+                let distance2 = (self.yRange(node.Y_PPM) - node.y);
+                let distance = Math.sqrt(distance1*distance1+distance2*distance2);
+                let force_amplitude = 0;
+                if(distance > max_dis)
+                {
+                    force_amplitude = (distance - max_dis) * strength * alpha / distance;
+                }
+                else if(distance < min_dis)
+                {
+                    force_amplitude = (distance - min_dis) * strength * alpha / distance
+                }
+                let force_x = distance1 * force_amplitude;
+                let force_y = distance2 * force_amplitude;
+
+                node.vx += force_x;
+                node.vy += force_y;
+            }
+        }
+
+        force.initialize = function(_) {
+            nodes = _;
+          };
+
+        return force;
+    };
+
+
+    function avoid_peaks()
+    {
+        let nodes;
+        var strength = repulsive_force;
+
+        /**
+         * Require all nodes to avoid all peaks. Brute force method
+         * @param {*} alpha 
+         */
+        function force(alpha) {
+            for (let j=0;j<nodes.length;j++)
+            {
+                let node = nodes[j];
+                for (let i=0;i<nodes.length;i++)
+                {
+                    if(i===j){
+                        continue;
+                    }
+                    let peak = nodes[i];
+                    let distance1 = self.xRange(peak.X_PPM) - node.x;
+                    let distance2 = self.yRange(peak.Y_PPM) - node.y;
+                    let distance_square = distance1*distance1+distance2*distance2;
+                    if(distance_square < 40000)
+                    {                        
+                        let force_amplitude = strength * alpha;
+                        let force_x = distance1 * force_amplitude/distance_square;
+                        let force_y = distance2 * force_amplitude/distance_square;
+
+                        node.vx -= force_x;
+                        node.vy -= force_y;
+                    }
+                }
+            }
+
+        }
+
+        force.initialize = _ => nodes = _;
+        return force;
+    }
+
+    /**
+     * Get a subset of peaks that are visible. 
+     * shallow copy of self.new_peaks
+     */
+    this.visible_peaks = this.new_peaks.filter(function (d) {
+        return d.X_PPM <= self.xscale[0]
+            && d.X_PPM >= self.xscale[1]
+            && d.Y_PPM <= self.yscale[0]
+            && d.Y_PPM >= self.yscale[1]
+            && (typeof d.HEIGHT === "undefined" || d.HEIGHT > self.peak_level);
+    });
+
+    self.vis.selectAll('.peak_text').remove();
+    self.vis.selectAll('.peak_line').remove();
+
+    if(flag==false)
+    {
+        return;
+    }
+
+    this.peaks_text_svg = self.vis.selectAll('.peak_text')
+        .data(self.visible_peaks)
+        .enter()
+        .append('text')
+        .attr('class', 'peak_text')
+        .attr('font-size',font_size)
+        .style('fill', color)
+        .attr('x', function (d) {
+            return self.xRange(d.X_PPM)+10;
+        })
+        .attr('y', function (d) {
+            return self.yRange(d.Y_PPM)+10;
+        })
+        .attr('dx', function (d) {
+            /**
+             * if x is on the left side of self.xRange(d.X_PPM), then dx = -font_size*2
+             * otherwise, dx = 0
+             */
+            if(self.xRange(d.X_PPM) > d.x)
+            {
+                return -font_size*2;
+            }
+            else{
+                return 0;
+            }
+        })
+        .attr('dy', function (d) {
+            /**
+             * If y is on the top side of self.yRange(d.Y_PPM), then dy = -font_size
+             * otherwise, dy = 0
+             */
+            if(self.yRange(d.Y_PPM) < d.y)
+            {
+                return 0.5 * font_size;
+            }
+            else{
+                return 0;
+            }
+        })
+        .attr("clip-path", "url(#clip)")
+        .text(function (d) {
+            return d.ASS;
+        });
+
+    /**
+     * Also add a line between peak and peak_text
+     */
+    this.peak_line_svg = self.vis.selectAll('.peak_line')
+        .data(self.visible_peaks)
+        .enter()
+        .append('line')
+        .attr('class','peak_line')
+        .attr('stroke',color)
+        .attr('x1', function (d) {
+            return d.x;
+        })
+        .attr('y1', function (d) {
+            return d.y;
+        })
+        .attr('x2', function(d) {
+            return self.xRange(d.X_PPM);
+        })
+        .attr('y2', function (d) {
+            return self.yRange(d.Y_PPM);
+        })
+        .attr("clip-path", "url(#clip)");
+        
+
+    /**
+     * Add a force simulation
+     */
+
+    this.sim = d3.forceSimulation(self.visible_peaks)
+        .force("near_peak", text_force())
+        .force("inter_collide", d3.forceCollide().radius(40).strength(1).iterations(1))
+        .force('exclude',d3.forceManyBody().strength(-10))
+        .force("avoid", avoid_peaks())
+        .stop();
+    ;
+
+
+    this.sim.on("tick", () => {
+        console.log(this.sim.alpha());
+        self.peaks_text_svg
+            .attr("x", d => d.x)
+            .attr("y", d => d.y);
+            /**
+             * Need to update X_TEXT_PPM and Y_TEXT_PPM, so that reset_axis will work properly
+             */
+        this.visible_peaks.forEach(peak => {
+            peak.X_TEXT_PPM = self.xRange.invert(peak.x);
+            peak.Y_TEXT_PPM = self.yRange.invert(peak.y);
+        });
+        self.peak_line_svg
+            .attr('x1', d => d.x)
+            .attr('y1', d => d.y);
+    });
+
+    this.sim.alphaMin(0.1).restart();
+
+}
+
 
 /**
  * Draw peaks on the plot
@@ -887,31 +1123,41 @@ plotit.prototype.draw_peaks = function () {
      * Remove all peaks if there is any
      */
     self.vis.selectAll('.peak').remove();
+    
 
     /**
      * Filter peaks based on peak level
      */
-    let new_peaks;
+    this.new_peaks;
     if(self.peak_flag === 'picked') {
-        new_peaks = self.spectrum.picked_peaks_object.get_selected_columns(['X_PPM','Y_PPM','HEIGHT','INDEX'])
+        this.new_peaks = self.spectrum.picked_peaks_object.get_selected_columns(['X_PPM','Y_PPM','HEIGHT','INDEX','ASS'])
     }
     else{
-        new_peaks = self.spectrum.fitted_peaks_object.get_selected_columns(['X_PPM','Y_PPM','HEIGHT','INDEX'])
+        this.new_peaks = self.spectrum.fitted_peaks_object.get_selected_columns(['X_PPM','Y_PPM','HEIGHT','INDEX','ASS'])
     }
 
     /**
-     * Filter peaks based on peak level only of new_peaks.length > 0 and new_peaks[0].HEIGHT is defined
+     * Init new_peaks[i].x and y property for the force simulation
      */
-    if(new_peaks.length > 0 && new_peaks[0].HEIGHT !== undefined)
+    for(let i=0;i<self.new_peaks.length;i++)
     {
-        new_peaks = new_peaks.filter(peak => peak.HEIGHT > self.peak_level);
+        self.new_peaks[i].x = self.xRange(self.new_peaks[i].X_PPM) + 20 * Math.random() - 10.0;
+        self.new_peaks[i].y = self.yRange(self.new_peaks[i].Y_PPM) + 20 * Math.random() - 10.0;  
     }
+    
+    for(let i=0;i<self.new_peaks.length;i++)
+    {
+        self.new_peaks[i].radius = 10.0;
+    }
+    
+
+    
 
     /**
      * Draw peaks, red circles without fill
      */
-    self.vis.selectAll('.peak')
-        .data(new_peaks)
+    this.peaks_svg=self.vis.selectAll('.peak')
+        .data(self.new_peaks)
         .enter()
         .append('circle')
         .attr('class', 'peak')
@@ -920,6 +1166,15 @@ plotit.prototype.draw_peaks = function () {
         })
         .attr('cy', function (d) {
             return self.yRange(d.Y_PPM);
+        })
+        .attr('visibility',function(d) {
+            if(typeof d.HEIGHT === "undefined" || d.HEIGHT>self.peak_level)
+            {
+                return "visible";
+            }
+            else{
+                return "hidden";
+            }
         })
         .attr("clip-path", "url(#clip)")
         .attr('r', self.peak_size)
@@ -933,6 +1188,15 @@ plotit.prototype.redraw_peaks = function () {
     self.vis.selectAll('.peak')
         .attr('r', self.peak_size)
         .attr('stroke', self.peak_color)
+        .attr('visibility',function(d) {
+            if(typeof d.HEIGHT === "undefined" || d.HEIGHT>self.peak_level)
+            {
+                return "visible";
+            }
+            else{
+                return "hidden";
+            }
+        })
         .attr('fill', 'none')
         .attr('stroke-width', self.peak_thickness);
 }
@@ -966,6 +1230,7 @@ plotit.prototype.allow_peak_dragging = function (flag) {
         if(x_pos>=0 && x_pos<self.spectrum.n_direct && y_pos>=0 && y_pos<self.spectrum.n_indirect) {
             data_height = self.spectrum.raw_data[y_pos *  self.spectrum.n_direct + x_pos];
         }
+        
         if(data_height < self.peak_level) {
             if(self.peak_flag === 'picked') {
                 /**
@@ -1040,6 +1305,7 @@ plotit.prototype.remove_picked_peaks = function () {
     let self = this;
     self.spectrum = null;
     self.vis.selectAll('.peak').remove();
+    self.vis.selectAll('.peak_text').remove();
 };
 
 /**
