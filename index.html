@@ -291,36 +291,38 @@
                         contains them here.</label>
                 </div>
 
+                <div id="pseudo3d_area" style=" Padding: 10px; width: 1200px; overflow: clip; height: 3rem;" class="drop-area-neighbor" >
+                    <p><button id="button_minimize_preudo3d_area" onclick="minimize_pseudo3d_area(this)">+</button>Pseudo-3D fitting tool</p>
+                    <label for="max_round">Max round of pseudo-3D fitting: </label>
+                    <input type="number" id="max_round" value="50" min="1" max="1000">
+                    <button id="button_run_pseudo3d_gaussian" disabled onclick="run_pseudo3d(1)">Run Gaussian
+                        pseudo-3D fitting of all spectra</button>
+                    <button id="button_run_pseudo3d_voigt" disabled onclick="run_pseudo3d(0)">Run Voigt pseudo-3D
+                        fitting of all spectra</button>
+                    <br>
+                    <button id="button_download_fitted_peaks" disabled onclick="download_pseudo3d()">Download
+                        pseudo-3D fitted peaks</button>
+                    <input type="checkbox" id="show_pseudo3d_peaks" disabled>
+                    <label for="show_pseudo3d_peaks"> Show pseudo-3D fitting result</label>
+                    <br>
+                    <label for="assignment">Upload an peak file with assignment information to be transferred to
+                        pseudo-3D fitted peaks (.list): </label><input type="file" disabled
+                        id="assignment_file"><br>
+                    <br>
+                    <label class="information">Use this button to run pseudo-3D on all experimental spectra. The
+                        current showing peak list
+                        will be used as the initial guess. You can download pseudo-3D fitting result after
+                        finished.</label>
+                    </label>
+                </div>
+
                 <div id="spectra_list" style=" Padding: 10px; width: 1200px;" class="drop-area-neighbor">
                     <h4>Your spectra list:</h4>
                     <ol id="spectra_list_ol" type="1">
                     </ol>
-                    <div id="pseudo-3D-area">
-                        <label for="max_round">Max round of pseudo-3D fitting: </label>
-                        <input type="number" id="max_round" value="50" min="1" max="1000">
-                        <button id="button_run_pseudo3d_gaussian" disabled onclick="run_pseudo3d(1)">Run Gaussian
-                            pseudo-3D fitting of all spectra</button>
-                        <button id="button_run_pseudo3d_voigt" disabled onclick="run_pseudo3d(0)">Run Voigt pseudo-3D
-                            fitting of all spectra</button>
-                        <br>
-                        <button id="button_download_fitted_peaks" disabled onclick="download_pseudo3d(0)">Download
-                            pseudo-3D fitted peaks</button>
-                        <button id="button_download_fitted_peaks_ass" disabled onclick="download_pseudo3d(1)">Download
-                            pseudo-3D fitted peaks (with assignment)</button>
-                        <input type="checkbox" id="show_pseudo3d_peaks" disabled>
-                        <label for="show_pseudo3d_peaks"> Show pseudo-3D fitting result</label>
-                        <br>
-                        <label for="assignment">Upload an peak file with assignment information to be transferred to
-                            pseudo-3D fitted peaks (.list): </label><input type="file" disabled
-                            id="assignment_file"><br>
-                        <br>
-                        <label class="information">Use this button to run pseudo-3D on all experimental spectra. The
-                            current showing peak list
-                            will be used as the initial guess. You can download pseudo-3D fitting result after
-                            finished.</label>
-                        </label>
-                    </div>
                 </div>
+
+               
 
 
                 <div id="plot" class="drop-area-neighbor" style=" Padding: 10px;">
@@ -340,6 +342,17 @@
                         <input type="number" id="peak_size" value="6" min="1" max="20">&nbsp;&nbsp;
                         <label for="peak_thickness">Thickness: </label>
                         <input type="number" id="peak_thickness" value="5" min="1" max="10">
+                        <br>
+                        <input type="checkbox" id="show_peak_label">
+                        <label for="show_peak_label"> Show peak label</label>
+                        <label for="peak_label_size">Size: </label>
+                        <input type="number" id="peak_label_size" value="24">
+                        <label for="min_distance">Min peak-label distance: </label>
+                        <input type="number" id="min_distance" value="40">
+                        <label for="max_distance">Max: </label>
+                        <input type="number" id="max_distance" value="80">
+                        <label for="repulsive_force">Repulsive</label>
+                        <input type="number" id="repulsive_force" value="100">
                         <br>
 
 
@@ -433,6 +446,7 @@
         <script type="text/javascript" src="js/myplot/myplot_webgl.js"></script>
         <script type="text/javascript" src="js/myplot/cross_section_plot.js"></script>
         <script type="text/javascript" src="js/myplot/myplot1_new.js"></script>
+        <script type="text/javascript" src="js/peaks.js"></script>
         <script type="text/javascript" src="js/nmrwebview.js"></script>
     </div>
 </body>

@@ -30,15 +30,15 @@ catch (err) {
 }
 
 
+
+
 var main_plot = null; //hsqc plot object
 var b_plot_initialized = false; //flag to indicate if the plot is initialized
 var tooldiv; //tooltip div (used by myplot1_new.js, this is not a good practice, but it is a quick fix)
 var current_spectrum_index_of_peaks = -1; //index of the spectrum that is currently showing peaks, -1 means none, -2 means pseudo 3D fitted peaks
 var current_flag_of_peaks = 'picked'; //flag of the peaks that is currently showing, 'picked' or 'fitted
-var pseudo3d_fitted_peaks_tab = ""; // pseudo 3D fitted peaks, a long multi-line string 
-var pseudo3d_fitted_peaks_tab_ass = ""; // pseudo 3D fitted peaks with assignment, a long multi-line string 
-var pseudo3d_fitted_peaks = []; //pseudo 3D fitted peaks, JSON array
 var total_number_of_experimental_spectra = 0; //total number of experimental spectra
+var pseudo3d_fitted_peaks_object = null; //pseudo 3D fitted peaks object
 
 /**
  * For FID re-processing. Saved file data
@@ -123,8 +123,8 @@ class spectrum {
         this.y_ppm_ref = 0.0; //reference ppm of indirect dimension
         this.frq1 = 850.0; //spectrometer frequency of direct dimension
         this.frq2 = 80.0; //spectrometer frequency of indirect dimension
-        this.picked_peaks = []; //picked peaks
-        this.fitted_peaks = []; //fitted peaks
+        this.picked_peaks_object = new cpeaks(); //picked peaks object
+        this.fitted_peaks_object = new cpeaks(); //fitted peaks object
         /**
          * spectrum origin: 
          * -4: unknown,
@@ -513,10 +513,9 @@ $(document).ready(function () {
     document.getElementById('assignment_file').addEventListener('change', function (e) {
         
         /**
-         * Do nothing if pseudo3d_fitted_peaks_tab is empty
-         * or pseudo3d_fitted_peaks is empty
+         * Do nothing if pseudo3d_fitted_peaks_object is null
          */
-        if(pseudo3d_fitted_peaks_tab === "" || pseudo3d_fitted_peaks.length === 0)
+        if(pseudo3d_fitted_peaks_object === null)
         {
             return;
         }
@@ -532,7 +531,7 @@ $(document).ready(function () {
                 webassembly_worker.postMessage({
                     webassembly_job: "assignment",
                     assignment: data,
-                    fitted_peaks_tab: pseudo3d_fitted_peaks_tab,
+                    fitted_peaks_tab: pseudo3d_fitted_peaks_object.get_peaks_tab(),
                 });
             };
             reader.onerror = function (e) {
@@ -877,6 +876,28 @@ $(document).ready(function () {
     });
 
     /**
+     * Event listener for checkbox "show_peak_label"
+     */
+    document.getElementById("show_peak_label").addEventListener('change', function () {
+        if (main_plot === null) {
+            return;
+        }
+
+        let min_dis = parseFloat(document.getElementById("min_distance").value);
+        let max_dis = parseFloat(document.getElementById("max_distance").value);
+        let repulsive_force = parseFloat(document.getElementById("repulsive_force").value);
+        let font_size = parseFloat(document.getElementById("peak_label_size").value);
+        let color = document.getElementById("peak_color").value;
+
+        if (this.checked) {
+            main_plot.update_peak_labels(true,min_dis,max_dis,repulsive_force,font_size,color);
+        }
+        else {
+            main_plot.update_peak_labels(false,min_dis,max_dis,repulsive_force,font_size,color);
+        }
+    });
+
+    /**
      * These 3 checkbox can only be triggered when the checkboxes are enabled
      * which means the main_plot is already defined
      * and current spectrum is an experimental spectrum
@@ -960,10 +981,10 @@ function run_pseudo3d(flag) {
 
     let initial_peaks;
     if (current_flag_of_peaks === 'picked') {
-        initial_peaks = hsqc_spectra[current_spectrum_index_of_peaks].picked_peaks;
+        initial_peaks = hsqc_spectra[current_spectrum_index_of_peaks].picked_peaks_object.save_peaks_tab();
     }
     else {
-        initial_peaks = hsqc_spectra[current_spectrum_index_of_peaks].fitted_peaks;
+        initial_peaks = hsqc_spectra[current_spectrum_index_of_peaks].fitted_peaks_object.save_peaks_tab();
     }
 
     /**
@@ -981,7 +1002,17 @@ function run_pseudo3d(flag) {
     for (let i = 0; i < hsqc_spectra.length; i++) {
         if (hsqc_spectra[i].spectrum_origin === -1 || hsqc_spectra[i].spectrum_origin === -2 || hsqc_spectra[i].spectrum_origin>=10000) {
             let data = new Float32Array(hsqc_spectra[i].header.length + hsqc_spectra[i].raw_data.length);
-            data.set(hsqc_spectra[i].header, 0);
+            let temp_header = new Float32Array(hsqc_spectra[i].header);
+            /**
+             * Set temp_header to 1.0 to indicate it is real data (not complex data) because we only send raw_data (not raw_data_ri, ..)
+             */
+            if( temp_header[55] == 0.0 && temp_header[56] == 0.0)
+            {
+                temp_header[219] /= 2.0; //when both are complex, nmrPipe set 219 to 2 times true indirect size   
+            }
+            temp_header[55] = 1;
+            temp_header[56] = 1;
+            data.set(temp_header, 0);
             data.set(hsqc_spectra[i].raw_data, hsqc_spectra[i].header.length);
             let data_uint8 = new Uint8Array(data.buffer);
             all_files.push(data_uint8);
@@ -1075,32 +1106,15 @@ webassembly_worker.onmessage = function (e) {
      * If result is peaks
      */
     else if (e.data.peaks) {
-        hsqc_spectra[e.data.spectrum_index].picked_peaks = e.data.peaks.picked_peaks;
+        let peaks = new cpeaks();
+        peaks.process_peaks_tab(e.data.picked_peaks_tab);
+        hsqc_spectra[e.data.spectrum_index].picked_peaks_object = peaks;
 
-        /**
-         * Calculate the median sigmax, sigmay, gammax, gammay of the picked peaks
-         * Get an array of sigmax, sigmay, gammax, gammay
-         */
-        let sigmax = [];
-        let sigmay = [];
-        let gammax = [];
-        let gammay = [];
-        for (let i = 0; i < e.data.peaks.picked_peaks.length; i++) {
-            sigmax.push(e.data.peaks.picked_peaks[i].sigmax);
-            sigmay.push(e.data.peaks.picked_peaks[i].sigmay);
-            gammax.push(e.data.peaks.picked_peaks[i].gammax);
-            gammay.push(e.data.peaks.picked_peaks[i].gammay);
-        }
-
-        hsqc_spectra[e.data.spectrum_index].median_sigmax = median(sigmax);
-        hsqc_spectra[e.data.spectrum_index].median_sigmay = median(sigmay);
-        hsqc_spectra[e.data.spectrum_index].median_gammax = median(gammax);
-        hsqc_spectra[e.data.spectrum_index].median_gammay = median(gammay);
-        
+     
         /**
          * when picked peaks are received, fitted peaks need to be reset
          */
-        hsqc_spectra[e.data.spectrum_index].fitted_peaks = [];
+        hsqc_spectra[e.data.spectrum_index].fitted_peaks_object = null;
         /**
          * Disable the download fitted peaks button. Uncheck the show fitted peaks checkbox, disable it too
          */
@@ -1141,8 +1155,13 @@ webassembly_worker.onmessage = function (e) {
      */
     else if (e.data.fitted_peaks && e.data.recon_spectrum) {
         console.log("Fitted peaks and recon_spectrum received");
-        hsqc_spectra[e.data.spectrum_origin].fitted_peaks = e.data.fitted_peaks.fitted_peaks; //The double fitted_peaks is correct
-        hsqc_spectra[e.data.spectrum_origin].fitted_peaks_tab = e.data.fitted_peaks_tab; //a string of fitted peaks in nmrPipe format
+
+        /**
+         * Define a new class peaks object, process e.data.fitted_peaks_tab
+         */
+        let peaks = new cpeaks();
+        peaks.process_peaks_tab(e.data.fitted_peaks_tab);
+        hsqc_spectra[e.data.spectrum_origin].fitted_peaks_object = peaks;
 
         /**
          * Enable run deep picker and run voigt fitter buttons
@@ -1185,11 +1204,10 @@ webassembly_worker.onmessage = function (e) {
         result_spectrum.spectral_min = hsqc_spectra[e.data.spectrum_origin].spectral_min;
 
         /**
-         * Copy picked_peaks and fitted_peaks from the original spectrum
+         * Copy picked_peaks_object and fitted_peaks_object from the original spectrum
          */
-        result_spectrum.picked_peaks = hsqc_spectra[e.data.spectrum_origin].picked_peaks;
-        result_spectrum.fitted_peaks = hsqc_spectra[e.data.spectrum_origin].fitted_peaks;
-        result_spectrum.fitted_peaks_tab = hsqc_spectra[e.data.spectrum_origin].fitted_peaks_tab;
+        result_spectrum.picked_peaks_object = hsqc_spectra[e.data.spectrum_origin].picked_peaks_object;
+        result_spectrum.fitted_peaks_object = hsqc_spectra[e.data.spectrum_origin].fitted_peaks_object;
 
         /**
          * Also copy scale and scale2 from the original spectrum, which are used to run deep picker and peak fitting
@@ -1333,10 +1351,10 @@ webassembly_worker.onmessage = function (e) {
     /**
      * If result is pseudo3d_fitted_peaks, it is from the pseudo 3D fitting
      */
-    else if (e.data.pseudo3d_fitted_peaks) {
+    else if (e.data.pseudo3d_fitted_peaks_tab) {
         console.log("Pseudo 3D fitted peaks received");
-        pseudo3d_fitted_peaks_tab = e.data.pseudo3d_fitted_peaks_tab;
-        pseudo3d_fitted_peaks =  e.data.pseudo3d_fitted_peaks.fitted_peaks; //The double fitted_peaks is correct 
+        pseudo3d_fitted_peaks_object = new cpeaks();
+        pseudo3d_fitted_peaks_object.process_peaks_tab(e.data.pseudo3d_fitted_peaks_tab);
 
         /**
          * Enable the download fitted peaks button and show the fitted peaks button
@@ -1380,14 +1398,13 @@ webassembly_worker.onmessage = function (e) {
         document.getElementById("assignment_file").disabled = false;
     }
 
-    else if(e.data.assignment)
+    else if(e.data.matched_peaks_tab)
     {
         console.log("Assignment transfer received.");
-        pseudo3d_fitted_peaks_tab_ass = e.data.matched_peaks_tab;
         /**
-         * Enable download peaks with assignment and assignment_file file input 
+         * Update pseudo3d_fitted_peaks_object with the assignment
          */
-        document.getElementById("button_download_fitted_peaks_ass").disabled = false;
+        pseudo3d_fitted_peaks_object.process_peaks_tab(e.data.matched_peaks_tab);
     }
 
     else if(e.data.webassembly_job === "spin_optimization")
@@ -1603,6 +1620,30 @@ function minimize_fid_area(self)
         self.innerText = "-";
         document.getElementById("fid_file_area").style.height = "auto";
         document.getElementById("fid_file_area").style.overflow = "visible";
+    }
+}
+
+function minimize_pseudo3d_area(self)
+{
+    /**
+     * Get button text
+     */
+    let button_text = self.innerText;
+    /**
+     * if button_text is "+", change it to "-"
+     * and set the height of the pseudo3d_area to 3rem, clip the overflow
+     */
+    if(button_text === "-")
+    {
+        self.innerText = "+";
+        document.getElementById("pseudo3d_area").style.height = "3rem";
+        document.getElementById("pseudo3d_area").style.overflow = "clip";
+    }
+    else
+    {
+        self.innerText = "-";
+        document.getElementById("pseudo3d_area").style.height = "auto";
+        document.getElementById("pseudo3d_area").style.overflow = "visible";
     }
 }
 
@@ -1842,6 +1883,19 @@ function add_to_list(index) {
     if(new_spectrum.spectrum_origin === -1 || new_spectrum.spectrum_origin === -2 || new_spectrum.spectrum_origin >=10000)
     {
         /**
+         * Add a file input field to upload a peak list, with a label "Load peak list: "
+         */
+        let load_peak_list_label = document.createElement("label");
+        load_peak_list_label.setAttribute("for", "run_load_peak_list-".concat(index));
+        load_peak_list_label.innerText = " Load peak list: ";
+        let peak_list_input = document.createElement("input");
+        peak_list_input.setAttribute("type", "file");
+        peak_list_input.setAttribute("id", "run_load_peak_list-".concat(index));
+        peak_list_input.onchange = function () { load_peak_list(index); };
+        new_spectrum_div.appendChild(load_peak_list_label);
+        new_spectrum_div.appendChild(peak_list_input);
+
+        /**
          * Add a run_DEEP_Picker button to run DEEP picker. Default is enabled
          */
         let deep_picker_button = document.createElement("button");
@@ -1858,6 +1912,8 @@ function add_to_list(index) {
         simple_picker_button.innerText = "Simple Picker";
         simple_picker_button.onclick = function () { run_DEEP_Picker(index,1); };
         new_spectrum_div.appendChild(simple_picker_button);
+
+        new_spectrum_div.appendChild(document.createElement("br"));
 
         /**
          * Add a combine_peak cutoff input filed with ID "combine_peak_cutoff-".concat(index)
@@ -3042,7 +3098,7 @@ function update_contour_slider(e,index,flag) {
         {
             let level = hsqc_spectra[index].levels[main_plot.contour_lbs[index]];
             main_plot.set_peak_level(level);
-            main_plot.draw_peaks();
+            main_plot.redraw_peaks();
         }
 
     }
@@ -4141,6 +4197,76 @@ async function download_plot()
     a.click();
 }
 
+/**
+ * Load a peak list to a spectrum
+ */
+function load_peak_list(spectrum_index)
+{
+    /**
+     * Get the file input element with ID "run_load_peak_list-"+spectrum_index
+     */
+    let file_input = document.getElementById("run_load_peak_list-"+spectrum_index);
+    if (file_input.files.length === 0) {
+        return;
+    }
+
+    let file = file_input.files[0];
+    let reader = new FileReader();
+    reader.onload = function (e) {
+        let peak_list = new cpeaks();
+        /**
+         * Check file name extension, if it is .tab, load it as tab file, else if it is .list, load it as
+         */
+        if(file.name.endsWith(".tab") || file.name.endsWith(".list"))
+        {
+            if(file.name.endsWith(".tab"))
+            {
+                peak_list.process_peaks_tab(e.target.result);
+            }
+            else {
+                peak_list.process_peaks_list(e.target.result);
+            }
+            hsqc_spectra[spectrum_index].picked_peaks_object = peak_list;
+            
+            /**
+             * when picked peaks are received, fitted peaks need to be reset
+             */
+            hsqc_spectra[spectrum_index].fitted_peaks_object = null;
+            /**
+             * Disable the download fitted peaks button. Uncheck the show fitted peaks checkbox, disable it too
+             */
+            document.getElementById("download_fitted_peaks-".concat(spectrum_index)).disabled = true;
+            document.getElementById("show_fitted_peaks-".concat(spectrum_index)).checked = false;
+            document.getElementById("show_fitted_peaks-".concat(spectrum_index)).disabled = true;
+            /**
+             * When peaks are loaded, set default scale and scale2 for peak fitting
+             */
+            hsqc_spectra[spectrum_index].scale = 5.5;
+            hsqc_spectra[spectrum_index].scale2 = 3.5;
+
+            /**
+             * Enable the download peaks button
+             */
+            document.getElementById("download_peaks-".concat(spectrum_index)).disabled = false;
+            /**
+             * Enable peak picking (we disabled it when starting deep picker) and peak fitting buttons
+             */
+            document.getElementById("run_deep_picker-".concat(spectrum_index)).disabled = false;
+            document.getElementById("run_voigt_fitter-".concat(spectrum_index)).disabled = false;
+            /**
+             * Enable, set it as unchecked then simulate a click event to show the peaks
+             */
+            document.getElementById("show_peaks-".concat(spectrum_index)).disabled = false;
+            document.getElementById("show_peaks-".concat(spectrum_index)).checked = false;
+            document.getElementById("show_peaks-".concat(spectrum_index)).click();
+        }
+        else{
+            console.log("Unsupported peak file format");
+        }
+    };
+    reader.readAsText(file);
+}
+
 
 /**
  * Call DEEP Picker to run peaks picking the spectrum
@@ -4227,9 +4353,15 @@ function run_Voigt_fitter(spectrum_index,flag)
      */
     [x_ppm_visible_start, x_ppm_visible_end, y_ppm_visible_start, y_ppm_visible_end] = main_plot.get_visible_region();
 
-    let picked_peaks = hsqc_spectra[spectrum_index].picked_peaks.filter(function (peak) {
-        return peak.cs_x >= x_ppm_visible_start && peak.cs_x <= x_ppm_visible_end && peak.cs_y >= y_ppm_visible_start && peak.cs_y <= y_ppm_visible_end;
-    });
+    /**
+     * Get a copy of the picked peaks, so that we can filter it
+     */
+    let picked_peaks_copy = new cpeaks();
+    picked_peaks_copy.copy_data(hsqc_spectra[spectrum_index].picked_peaks_object);
+    picked_peaks_copy.filter_by_column_range("X_PPM", x_ppm_visible_start, x_ppm_visible_end);
+    picked_peaks_copy.filter_by_column_range("Y_PPM", y_ppm_visible_start, y_ppm_visible_end);
+
+    let picked_peaks_copy_tab = picked_peaks_copy.save_peaks_tab();
 
 
     /**
@@ -4252,7 +4384,7 @@ function run_Voigt_fitter(spectrum_index,flag)
     webassembly_worker.postMessage({
         webassembly_job: "peak_fitter",
         spectrum_data: data_uint8,
-        picked_peaks: picked_peaks,
+        picked_peaks: picked_peaks_copy_tab,
         spectrum_index: spectrum_index,
         combine_peak_cutoff: combine_peak_cutoff,
         maxround: maxround,
@@ -4338,7 +4470,7 @@ function show_hide_peaks(index,flag,b_show)
          * First define a dummy hsqc_spectrum object. When flag is fitted, main_plot will only use fitted_peaks of the spectrum
          */
         let pseudo3d_spectrum = new spectrum();
-        pseudo3d_spectrum.fitted_peaks = pseudo3d_fitted_peaks;
+        pseudo3d_spectrum.fitted_peaks_object = pseudo3d_fitted_peaks_object;
 
         main_plot.add_peaks(pseudo3d_spectrum,'fitted');
     }
@@ -4382,20 +4514,11 @@ function show_hide_peaks(index,flag,b_show)
 /**
  * Download pseudo 3D peak fitting result
  */
-function download_pseudo3d(flag)
+function download_pseudo3d()
 {
-    /**
-     * var pseudo3d_fitted_peaks is a long multi-line string in .tab format, 
-     * we only need to save it as a text file
-     */
-    let blob;
-    if(flag==0){
-        blob = new Blob([pseudo3d_fitted_peaks_tab], { type: 'text/plain' });
-    }
-    else 
-    {
-        blob = new Blob([pseudo3d_fitted_peaks_tab_ass], { type: 'text/plain' });
-    }
+    let  pseudo3d_fitted_peaks_tab = pseudo3d_fitted_peaks_object.save_peaks_tab();   
+    let blob = new Blob([pseudo3d_fitted_peaks_tab], { type: 'text/plain' });
+
     let url = URL.createObjectURL(blob);
     let a = document.createElement('a');
     a.href = url;
@@ -4413,48 +4536,11 @@ function download_peaks(spectrum_index,flag)
 
     if(flag === 'picked')
     {
-        let peaks = hsqc_spectra[spectrum_index].picked_peaks;
-        file_buffer = "VARS INDEX X_AXIS Y_AXIS X_PPM Y_PPM XW YW HEIGHT\nFORMAT %5d %9.3f %9.3f %10.6f %10.6f %7.3f %7.3f %+e\n";
-        for(let i=0;i<peaks.length;i++)
-        {   
-            /**
-             * Get points from ppm. Do not apply the reference ppm here !!
-             */
-            let x_point = Math.round((peaks[i].cs_x - hsqc_spectra[spectrum_index].x_ppm_start) / hsqc_spectra[spectrum_index].x_ppm_step);
-            let y_point = Math.round((peaks[i].cs_y - hsqc_spectra[spectrum_index].y_ppm_start) / hsqc_spectra[spectrum_index].y_ppm_step);
-            /**
-             * Get FWHH from sigma and gamma as
-             *  width = 0.5346 * gammax * 2 + sqrt(0.2166 * 4 * gammax * gammax + sigmax * sigmax * 8 * 0.6931);
-             */
-            let xw = 0.5346 * peaks[i].gammax * 2 + Math.sqrt(0.2166 * 4 * peaks[i].gammax * peaks[i].gammax + peaks[i].sigmax * peaks[i].sigmax * 8 * 0.6931);
-            let yw = 0.5346 * peaks[i].gammay * 2 + Math.sqrt(0.2166 * 4 * peaks[i].gammay * peaks[i].gammay + peaks[i].sigmay * peaks[i].sigmay * 8 * 0.6931);
-    
-            /**
-             * This is a peak object peaks[i] example for picked peaks.
-             * cs_x: 1.241449 ==> X_PPM, need to add x_ppm_ref
-             * cs_y : 20.02922 ==> Y_PPM, need to add y_ppm_ref
-             * gammax : 0.61602
-             * gammay : 0.40042
-             * index : 8000088.5 ==> HEIGHT
-             * sigmax : 1.304711
-             * sigmay : 1.530022
-             * type : 1
-             * i will be the index of the peak
-            */
-            file_buffer += (i+1).toFixed(0).padStart(5) + " ";
-            file_buffer += x_point.toFixed(3).padStart(9) + " ";
-            file_buffer += y_point.toFixed(3).padStart(9) + " ";
-            file_buffer += (peaks[i].cs_x + hsqc_spectra[spectrum_index].x_ppm_ref).toFixed(6).padStart(10) + " ";
-            file_buffer += (peaks[i].cs_y + hsqc_spectra[spectrum_index].y_ppm_ref).toFixed(6).padStart(10) + " ";
-            file_buffer += xw.toFixed(3).padStart(7) + " ";
-            file_buffer += yw.toFixed(3).padStart(7) + " ";
-            file_buffer += peaks[i].index.toExponential(6) + " ";
-            file_buffer += "\n";
-        }
+        file_buffer = hsqc_spectra[spectrum_index].picked_peaks_object.save_peaks_tab();
     }
     else if(flag === 'fitted')
     {
-        file_buffer = hsqc_spectra[spectrum_index].fitted_peaks_tab;
+        file_buffer = hsqc_spectra[spectrum_index].fitted_peaks_object.save_peaks_tab();
     }
 
     let blob = new Blob([file_buffer], { type: 'text/plain' });
@@ -4508,9 +4594,9 @@ function remove_spectrum(index)
     hsqc_spectra[index].header = new Float32Array();
     hsqc_spectra[index].levels = [];
     hsqc_spectra[index].negative_levels = [];
-    hsqc_spectra[index].picked_peaks = [];
-    hsqc_spectra[index].fitted_peaks = [];
     hsqc_spectra[index].spectrum_origin = -3; // -3 means the spectrum is removed
+    hsqc_spectra[index].picked_peaks_object = null;
+    hsqc_spectra[index].fitted_peaks_object = null;
 
     /**
      * Remove its contour data from main_plot and redraw the contour plot

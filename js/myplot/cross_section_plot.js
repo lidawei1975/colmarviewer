@@ -435,6 +435,11 @@ class cross_section_plot {
         }
     }
 
+    /**
+     * Function to date the experimental spectrum
+     * @param {*} data0 
+     * @param {*} data 
+     */
     update_data(data0,data) {
         /**
          * Remove old experimental spectrum, including "g" element and "path" element
