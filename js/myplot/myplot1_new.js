@@ -201,10 +201,12 @@ plotit.prototype.reset_axis = function () {
      */
     this.vis.selectAll('.peak_text')
         .attr('x', function (d) {
-            return self.xRange(d.X_TEXT_PPM) + 10;
+            d.x = self.xRange(d.X_TEXT_PPM);
+            return d.x;
         })
         .attr('y', function (d) {
-            return self.yRange(d.Y_TEXT_PPM) + 10;
+            d.y = self.yRange(d.Y_TEXT_PPM);
+            return d.y;
         });
 
     /**
@@ -912,6 +914,14 @@ plotit.prototype.update_peak_labels = function(flag,min_dis,max_dis,repulsive_fo
     let self = this;
 
     /**
+     * In case of new simulation, stop the old one
+     */
+    if( this.sim != null)
+    {
+        this.sim.stop();
+    }
+
+    /**
      * A custom force to move text at relative (+20,-20) to the peak location.
      * @returns 
      */
@@ -1010,6 +1020,32 @@ plotit.prototype.update_peak_labels = function(flag,min_dis,max_dis,repulsive_fo
         return;
     }
 
+    const peak_text_drag = d3.drag()
+        .on("start", function () {
+        })
+        .on("drag", function (event,d) {
+            /**
+             * Update the x and y of the peak_text
+             */
+            d3.select(this).attr('x', event.x).attr('y', event.y);
+            d.x = event.x;
+            d.y = event.y;
+            d.X_TEXT_PPM = self.xRange.invert(event.x);
+            d.Y_TEXT_PPM = self.yRange.invert(event.y);
+            /**
+             * Also update the x1 and y1 of the peak_line_svg,
+             */
+        })
+        .on("end", function (event,d) {
+            /**
+             * Start the simulation again
+             */
+            d.X_TEXT_PPM = self.xRange.invert(event.x);
+            d.Y_TEXT_PPM = self.yRange.invert(event.y);
+            self.sim.stop();
+            self.sim.alpha(1.0).alphaMin(0.1).restart();
+        });
+
     this.peaks_text_svg = self.vis.selectAll('.peak_text')
         .data(self.visible_peaks)
         .enter()
@@ -1076,7 +1112,8 @@ plotit.prototype.update_peak_labels = function(flag,min_dis,max_dis,repulsive_fo
             return self.yRange(d.Y_PPM);
         })
         .attr("clip-path", "url(#clip)");
-        
+    
+    self.peaks_text_svg.call(peak_text_drag);
 
     /**
      * Add a force simulation
@@ -1095,7 +1132,23 @@ plotit.prototype.update_peak_labels = function(flag,min_dis,max_dis,repulsive_fo
         console.log(this.sim.alpha());
         self.peaks_text_svg
             .attr("x", d => d.x)
-            .attr("y", d => d.y);
+            .attr("y", d => d.y)
+            .attr('dx', function (d) {
+                if (self.xRange(d.X_PPM) > d.x) {
+                    return -font_size * 2;
+                }
+                else {
+                    return 0;
+                }
+            })
+            .attr('dy', function (d) {
+                if (self.yRange(d.Y_PPM) < d.y) {
+                    return 0.5 * font_size;
+                }
+                else {
+                    return 0;
+                }
+            });
             /**
              * Need to update X_TEXT_PPM and Y_TEXT_PPM, so that reset_axis will work properly
              */
@@ -1106,6 +1159,10 @@ plotit.prototype.update_peak_labels = function(flag,min_dis,max_dis,repulsive_fo
         self.peak_line_svg
             .attr('x1', d => d.x)
             .attr('y1', d => d.y);
+    });
+
+    this.sim.on("end", () => {
+        console.log("end");
     });
 
     this.sim.alphaMin(0.1).restart();
