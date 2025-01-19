@@ -69,9 +69,9 @@ function plotit(input) {
     this.b_show_cross_section = false;
     this.b_show_projection = false; 
     this.x_cross_section_plot = new cross_section_plot(this);
-    this.x_cross_section_plot.init( this.WIDTH, 200, this.xscale, [0, 1],{ top: 10, right: 10, bottom: 10, left: 70 }, "cross_section_svg_x","horizontal");
+    this.x_cross_section_plot.init( this.WIDTH, 200, this.xscale, [0, 1],{ top: 10, right: this.MARGINS.right, bottom: 10, left: this.MARGINS.left }, "cross_section_svg_x","horizontal");
     this.y_cross_section_plot = new cross_section_plot(this);
-    this.y_cross_section_plot.init(200, this.HEIGHT,[0, 1], this.yscale, { top: 20, right: 10, bottom: 70, left: 10 }, "cross_section_svg_y",'vertical');
+    this.y_cross_section_plot.init(200, this.HEIGHT,[0, 1], this.yscale, { top: this.MARGINS.top, right: 10, bottom: this.MARGINS.bottom, left: 10 }, "cross_section_svg_y",'vertical');
 
     this.lastCallTime_zoom_x = Date.now();
     this.lastCallTime_zoom_y = Date.now();
@@ -536,6 +536,7 @@ plotit.prototype.draw = function () {
         .attr("x", this.WIDTH / 2)
         .attr("y", this.HEIGHT - 20)
         .style("font-size", "22px")
+        .attr("font-family", "Arial, Helvetica, sans-serif")
         .text("Chemical Shift (ppm)");
 
     this.vis.append("text")
@@ -546,6 +547,7 @@ plotit.prototype.draw = function () {
         .attr("cx", 0).attr("cy", 0)
         .attr("transform", "rotate(-90 12," + this.HEIGHT / 2 + ")")
         .style("font-size", "22px")
+        .attr("font-family", "Arial, Helvetica, sans-serif")
         .text("Chemical Shift (ppm)");
 
 

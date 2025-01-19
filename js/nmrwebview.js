@@ -405,7 +405,7 @@ $(document).ready(function () {
     /**
      * Initialize the big plot
      */
-    resize_main_plot(1200, 800, 20, 70, 20);
+    resize_main_plot(1200, 800, 20, 80, 20);
 
     /**
      * Resize observer for the big plot
@@ -1355,7 +1355,7 @@ var plot_div_resize_observer = new ResizeObserver(entries => {
 
         const cr = entry.contentRect;
         let padding = 20;
-        let margin_left = 70;
+        let margin_left = 80;
         let margin_top = 20;
 
         resize_main_plot(cr.width,cr.height,padding,margin_left,margin_top);
@@ -2664,7 +2664,7 @@ function init_plot(input) {
     input.PointData = [];
     input.WIDTH = current_width;
     input.HEIGHT = current_height;
-    input.MARGINS = { top: 20, right: 20, bottom: 70, left: 70 };
+    input.MARGINS = { top: 20, right: 20, bottom: 70, left: 80 };
     input.drawto = "#visualization";
     input.drawto_legend = "#legend";
     input.drawto_peak = "#peaklist";
@@ -3438,7 +3438,7 @@ async function download_plot()
     $canvas.height = $svg.clientHeight
     $canvas.getContext('2d').fillStyle = "white";
     $canvas.getContext('2d').fillRect(0, 0, $svg.clientWidth, $svg.clientHeight);
-    $canvas.getContext('2d').drawImage(contour_image,70,20,$svg.clientWidth-90,$svg.clientHeight-90);
+    $canvas.getContext('2d').drawImage(contour_image,80,20,$svg.clientWidth-100,$svg.clientHeight-90);
     $canvas.getContext('2d').drawImage(img, 0, 0, $svg.clientWidth, $svg.clientHeight)
     
     const dataURL = await $canvas.toDataURL(`image/${format}`, 1.0)
