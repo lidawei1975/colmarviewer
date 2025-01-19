@@ -56,6 +56,7 @@ function plotit(input) {
     this.peak_size = 6;
     this.peak_thickness = 5;
 
+    this.font_size = 24; //default font size is 24 for peak labels
 
     /**
      * Init cross section plot
@@ -220,10 +221,38 @@ plotit.prototype.reset_axis = function () {
             return self.yRange(d.Y_PPM);
         })
         .attr('x1', function (d) {
-            return self.xRange(d.X_TEXT_PPM);
+            if(Math.abs(d.x - self.xRange(d.X_PPM)) > Math.abs(d.y - self.yRange(d.Y_PPM)))
+            {
+                if(d.x > self.xRange(d.X_PPM))
+                {
+                    return d.x - d.text_width/2;
+                }
+                else
+                {
+                    return d.x + d.text_width/2;
+                }
+            }
+            else
+            {
+                return d.x;
+            }
         })
         .attr('y1', function (d) {
-            return self.yRange(d.Y_TEXT_PPM);
+            if(Math.abs(d.x - self.xRange(d.X_PPM)) > Math.abs(d.y - self.yRange(d.Y_PPM)))
+            {
+                return d.y;
+            }
+            else
+            {
+                if(d.y > self.yRange(d.Y_PPM))
+                {
+                    return d.y - 0.5*self.font_size;
+                }
+                else
+                {
+                    return d.y + 0.5*self.font_size;
+                }
+            }
         });
 
     /**
@@ -913,6 +942,8 @@ plotit.prototype.add_peaks = function (spectrum,flag) {
 plotit.prototype.update_peak_labels = function(flag,min_dis,max_dis,repulsive_force,font_size,color) {
     let self = this;
 
+    self.font_size = font_size;
+
     /**
      * In case of new simulation, stop the old one
      */
@@ -1062,21 +1093,32 @@ plotit.prototype.update_peak_labels = function(flag,min_dis,max_dis,repulsive_fo
         .attr('class', 'peak_text')
         .attr('font-size',font_size)
         .style('fill', color)
+        .text(function (d) {
+            return d.ASS;
+        })
         .attr('x', function (d) {
-            return self.xRange(d.X_PPM)+1;
+            return self.xRange(d.X_PPM);
         })
         .attr('y', function (d) {
-            return self.yRange(d.Y_PPM)+1;
+            return self.yRange(d.Y_PPM);
         })
-        .attr('dx', function () {
+        .attr("clip-path", "url(#clip)");
+        
+    /**
+     * Update pos using dx,dy and save text length (width) to visible_peaks as well
+     * to be used in drawing of line
+     */
+    this.peaks_text_svg
+        .attr('dx', function (d) {
+            /**
+             * Save the text width to d.text_width. to be used in the tick function
+             * to update line position
+             */
+            d.text_width = this.getComputedTextLength();
             return -this.getComputedTextLength()/2;
         })
         .attr('dy', function () {
             return 0.5*font_size;
-        })
-        .attr("clip-path", "url(#clip)")
-        .text(function (d) {
-            return d.ASS;
         });
 
     /**
@@ -1088,6 +1130,9 @@ plotit.prototype.update_peak_labels = function(flag,min_dis,max_dis,repulsive_fo
         .append('line')
         .attr('class','peak_line')
         .attr('stroke',color)
+        /**
+         * x1 and y1 is the peak label position
+         */
         .attr('x1', function (d) {
             return d.x;
         })
@@ -1095,6 +1140,9 @@ plotit.prototype.update_peak_labels = function(flag,min_dis,max_dis,repulsive_fo
             return d.y;
         })
         .attr('x2', function(d) {
+            /**
+             * x2 and y2 is the peak position
+             */
             return self.xRange(d.X_PPM);
         })
         .attr('y2', function (d) {
@@ -1128,6 +1176,7 @@ plotit.prototype.update_peak_labels = function(flag,min_dis,max_dis,repulsive_fo
             .attr('dy', function () {
                 return 0.5*font_size
             });
+
             /**
              * Need to update X_TEXT_PPM and Y_TEXT_PPM, so that reset_axis will work properly
              */
@@ -1135,16 +1184,49 @@ plotit.prototype.update_peak_labels = function(flag,min_dis,max_dis,repulsive_fo
             peak.X_TEXT_PPM = self.xRange.invert(peak.x);
             peak.Y_TEXT_PPM = self.yRange.invert(peak.y);
         });
+
         self.peak_line_svg
-            .attr('x1', d => d.x)
-            .attr('y1', d => d.y);
+        .attr('x1', function (d) {
+            if(Math.abs(d.x - self.xRange(d.X_PPM)) > Math.abs(d.y - self.yRange(d.Y_PPM)))
+            {
+                if(d.x > self.xRange(d.X_PPM))
+                {
+                    return d.x - d.text_width/2;
+                }
+                else
+                {
+                    return d.x + d.text_width/2;
+                }
+            }
+            else
+            {
+                return d.x;
+            }
+        })
+        .attr('y1', function (d) {
+            if(Math.abs(d.x - self.xRange(d.X_PPM)) > Math.abs(d.y - self.yRange(d.Y_PPM)))
+            {
+                return d.y;
+            }
+            else
+            {
+                if(d.y > self.yRange(d.Y_PPM))
+                {
+                    return d.y - 0.5*font_size;
+                }
+                else
+                {
+                    return d.y + 0.5*font_size;
+                }
+            }
+        })
     });
 
     this.sim.on("end", () => {
         console.log("end");
     });
 
-    // this.sim.alphaMin(0.1).restart();
+    this.sim.alphaMin(0.1).restart();
 
 }
 
