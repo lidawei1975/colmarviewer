@@ -1012,6 +1012,15 @@ plotit.prototype.update_peak_labels = function(flag,min_dis,max_dis,repulsive_fo
             && (typeof d.HEIGHT === "undefined" || d.HEIGHT > self.peak_level);
     });
 
+     /**
+     * Init new_peaks[i].x and y property for the force simulation
+     */
+     for(let i=0;i<self.visible_peaks.length;i++)
+     {
+         self.visible_peaks[i].x = self.xRange(self.visible_peaks[i].X_PPM) + 20 * Math.random() - 10.0;
+         self.visible_peaks[i].y = self.yRange(self.visible_peaks[i].Y_PPM) + 20 * Math.random() - 10.0;  
+     }
+
     self.vis.selectAll('.peak_text').remove();
     self.vis.selectAll('.peak_line').remove();
 
@@ -1054,36 +1063,16 @@ plotit.prototype.update_peak_labels = function(flag,min_dis,max_dis,repulsive_fo
         .attr('font-size',font_size)
         .style('fill', color)
         .attr('x', function (d) {
-            return self.xRange(d.X_PPM)+10;
+            return self.xRange(d.X_PPM)+1;
         })
         .attr('y', function (d) {
-            return self.yRange(d.Y_PPM)+10;
+            return self.yRange(d.Y_PPM)+1;
         })
-        .attr('dx', function (d) {
-            /**
-             * if x is on the left side of self.xRange(d.X_PPM), then dx = -font_size*2
-             * otherwise, dx = 0
-             */
-            if(self.xRange(d.X_PPM) > d.x)
-            {
-                return -font_size*2;
-            }
-            else{
-                return 0;
-            }
+        .attr('dx', function () {
+            return -this.getComputedTextLength()/2;
         })
-        .attr('dy', function (d) {
-            /**
-             * If y is on the top side of self.yRange(d.Y_PPM), then dy = -font_size
-             * otherwise, dy = 0
-             */
-            if(self.yRange(d.Y_PPM) < d.y)
-            {
-                return 0.5 * font_size;
-            }
-            else{
-                return 0;
-            }
+        .attr('dy', function () {
+            return 0.5*font_size;
         })
         .attr("clip-path", "url(#clip)")
         .text(function (d) {
@@ -1134,20 +1123,10 @@ plotit.prototype.update_peak_labels = function(flag,min_dis,max_dis,repulsive_fo
             .attr("x", d => d.x)
             .attr("y", d => d.y)
             .attr('dx', function (d) {
-                if (self.xRange(d.X_PPM) > d.x) {
-                    return -font_size * 2;
-                }
-                else {
-                    return 0;
-                }
+                return -this.getComputedTextLength()/2;
             })
-            .attr('dy', function (d) {
-                if (self.yRange(d.Y_PPM) < d.y) {
-                    return 0.5 * font_size;
-                }
-                else {
-                    return 0;
-                }
+            .attr('dy', function () {
+                return 0.5*font_size
             });
             /**
              * Need to update X_TEXT_PPM and Y_TEXT_PPM, so that reset_axis will work properly
@@ -1165,7 +1144,7 @@ plotit.prototype.update_peak_labels = function(flag,min_dis,max_dis,repulsive_fo
         console.log("end");
     });
 
-    this.sim.alphaMin(0.1).restart();
+    // this.sim.alphaMin(0.1).restart();
 
 }
 
@@ -1191,15 +1170,6 @@ plotit.prototype.draw_peaks = function () {
     }
     else{
         this.new_peaks = self.spectrum.fitted_peaks_object.get_selected_columns(['X_PPM','Y_PPM','HEIGHT','INDEX','ASS'])
-    }
-
-    /**
-     * Init new_peaks[i].x and y property for the force simulation
-     */
-    for(let i=0;i<self.new_peaks.length;i++)
-    {
-        self.new_peaks[i].x = self.xRange(self.new_peaks[i].X_PPM) + 20 * Math.random() - 10.0;
-        self.new_peaks[i].y = self.yRange(self.new_peaks[i].Y_PPM) + 20 * Math.random() - 10.0;  
     }
     
     for(let i=0;i<self.new_peaks.length;i++)
