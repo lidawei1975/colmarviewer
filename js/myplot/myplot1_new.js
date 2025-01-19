@@ -542,7 +542,7 @@ plotit.prototype.draw = function () {
     this.vis.append("text")
         .attr("class", "ylabel")
         .attr("text-anchor", "center")
-        .attr("y", this.HEIGHT / 2 + 5)
+        .attr("y", this.HEIGHT / 2 + 10)
         .attr("x", 6)
         .attr("cx", 0).attr("cy", 0)
         .attr("transform", "rotate(-90 12," + this.HEIGHT / 2 + ")")
