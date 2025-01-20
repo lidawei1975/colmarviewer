@@ -2890,6 +2890,10 @@ function adjust_ref(index, flag) {
      * Redraw the contour plot
      */
     main_plot.redraw_contour();
+    /**
+     * Update the cross section with the new reference
+     */
+    main_plot.update_cross_section(index,flag);
 }
 
 

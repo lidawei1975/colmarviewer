@@ -912,6 +912,30 @@ plotit.prototype.redraw_contour = function ()
     this.contour_plot.drawScene();
 }
 
+plotit.prototype.update_cross_section = function (spe_index,flag) {
+    /**
+     * Only need to update when current cross section is the same as the spectral_index
+     */
+    if(this.current_spectral_index === spe_index) {
+        if(flag === 0) {
+            let ppm =[];
+            for(let i = 0; i < hsqc_spectra[spe_index].n_direct; i++)
+            {
+                ppm.push(hsqc_spectra[spe_index].x_ppm_start + hsqc_spectra[spe_index].x_ppm_ref + i * hsqc_spectra[spe_index].x_ppm_step);
+            }
+            this.x_cross_section_plot.update_data0([hsqc_spectra[spe_index].x_ppm_start + hsqc_spectra[spe_index].x_ppm_ref,hsqc_spectra[spe_index].x_ppm_step,hsqc_spectra[spe_index].n_direct],ppm);
+        }
+        else if(flag === 1) {
+            let ppm2 =[];
+            for(let i = 0; i < hsqc_spectra[spe_index].n_indirect; i++)
+            {
+                ppm2.push(hsqc_spectra[spe_index].y_ppm_start + hsqc_spectra[spe_index].y_ppm_ref + i * hsqc_spectra[spe_index].y_ppm_step);
+            }
+            self.y_cross_section_plot.update_data0([hsqc_spectra[spe_index].y_ppm_start + hsqc_spectra[spe_index].y_ppm_ref,hsqc_spectra[spe_index].y_ppm_step,hsqc_spectra[spe_index].n_indirect],ppm2);
+        }
+    }
+};
+
 /**
  * Redraw contour plot with new order of spectra
  */
