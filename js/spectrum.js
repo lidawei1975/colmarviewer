@@ -93,6 +93,41 @@ class spectrum {
     };
 
 
+    update_x_ppm_ref(x_ppm_ref) {
+        let delta_ppm = x_ppm_ref - this.x_ppm_ref;
+        this.x_ppm_ref = x_ppm_ref;
+        this.header[101] += delta_ppm * this.frq1;
+        this.ref1 = this.header[101];
+
+         /**
+         * Update peaks as well if there are any
+         */
+         if (this.picked_peaks_object != null) {
+            this.picked_peaks_object.update_x_ppm_ref(delta_ppm);
+        }
+        if (this.fitted_peaks_object != null) {
+            this.fitted_peaks_object.update_x_ppm_ref(delta_ppm);
+        }
+    };
+
+    update_y_ppm_ref(y_ppm_ref) {
+        let delta_ppm = y_ppm_ref - this.y_ppm_ref;
+        this.y_ppm_ref = y_ppm_ref;
+        this.header[249] += delta_ppm * this.frq2;
+        this.ref2 = this.header[249];
+
+        /**
+         * Update peaks as well if there are any
+         */
+        if (this.picked_peaks_object != null) {
+            this.picked_peaks_object.update_y_ppm_ref(delta_ppm);
+        }
+        if (this.fitted_peaks_object != null) {
+            this.fitted_peaks_object.update_y_ppm_ref(delta_ppm);
+        }
+    };
+
+
     /**
      * Process the raw file data of a 2D FT spectrum (.txt from Topspin totxt command)
      * @param {*} file_text: raw file data as a string
@@ -262,6 +297,8 @@ class spectrum {
          */
         this.header[101] = (this.x_ppm_start - this.x_ppm_width - this.x_ppm_step) * field_strength; //origin of direct dimension (last point frq in Hz)
         this.header[249] = (this.y_ppm_start - this.y_ppm_width - this.y_ppm_step) * 85.0; //origin of indirect dimension (last point frq in Hz)
+        this.ref1 = this.header[101];
+        this.ref2 = this.header[249];
 
         /**
          * We did not fill carrier frequency, because we do not need it for DEEP_Picker, VoigtFit, etc.
@@ -522,7 +559,7 @@ class spectrum {
         this.frq2 = indirect_parameters.getFloat32(12); //observed frequency of indirect dimension MHz
         this.sw2 = indirect_parameters.getFloat32(16); //spectral width of indirect dimension, Hz
         this.center2 = direct_parameters.getFloat32(20);  //ppm of the center of the spectrum
-        this.ref2 = this.center2 * this.frq2 + this.sw2 / 2; //staring frequency of the spectrum (highest frequency)
+        this.ref2 = this.center2 * this.frq2 - this.sw2 / 2; //end frequency of the spectrum (lowest frequency)
         this.y_ppm_ref = 0.0; //reference correction (initially set to 0)
         this.y_ppm_start = this.center2 + this.sw2 / this.frq2 / 2.0; //ppm of the start of the spectrum
         this.y_ppm_width = this.sw2 / this.frq2; //width of the spectrum in ppm
@@ -534,7 +571,7 @@ class spectrum {
         this.frq1 = direct_parameters.getFloat32(12); //observed frequency of direct dimension MHz
         this.sw1 = direct_parameters.getFloat32(16); //spectral width of direct dimension, Hz
         this.center1 = direct_parameters.getFloat32(20);   //ppm of the center of the spectrum
-        this.ref1 = this.center1 * this.frq1 + this.sw1 / 2; //staring frequency of the spectrum (highest frequency)
+        this.ref1 = this.center1 * this.frq1 - this.sw1 / 2; //end frequency of the spectrum (lowest frequency)
         this.x_ppm_ref = 0.0; //reference correction (initially set to 0)
         this.x_ppm_start = this.center1 + this.sw1 / this.frq1 / 2.0; //ppm of the start of the spectrum
         this.x_ppm_width = this.sw1 / this.frq1; //width of the spectrum in ppm
@@ -631,6 +668,8 @@ class spectrum {
          */
         this.header[101] = (this.x_ppm_start - this.x_ppm_width - this.x_ppm_step) * this.frq1; //origin of direct dimension (last point frq in Hz)
         this.header[249] = (this.y_ppm_start - this.y_ppm_width - this.y_ppm_step) * this.frq2; //origin of indirect dimension (last point frq in Hz)
+        this.ref1 = this.header[101];
+        this.ref2 = this.header[249];
 
         this.filename = file_name;
 
