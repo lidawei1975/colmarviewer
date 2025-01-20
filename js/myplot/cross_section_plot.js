@@ -436,9 +436,27 @@ class cross_section_plot {
     }
 
     /**
-     * Function to date the experimental spectrum
+     * Update only ppm, not intensity
      * @param {*} data0 
-     * @param {*} data 
+     * @param {*} ppm 
+     */
+    update_data0(data0,ppm) {
+
+        this.ppm_start = data0[0];
+        this.ppm_step = data0[1];
+        this.ppm_size = data0[2];
+
+        for(let i=0;i<this.data.length;i++)
+        {
+            this.data[i][0] = ppm[i];
+        }
+        this.redraw();
+    }
+
+    /**
+     * Function to update the experimental spectrum
+     * @param {*} data0: [ppm_start, ppm_step, ppm_size]
+     * @param {*} data: [ppm, real_data, imaginary_data]
      */
     update_data(data0,data) {
         /**
