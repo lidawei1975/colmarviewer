@@ -709,6 +709,7 @@ class spectrum {
                 break;
             }
         }
+        this.positive_contour_type = "logarithmic";
 
         /**
          * Calculate negative contour levels
@@ -722,6 +723,7 @@ class spectrum {
                 break;
             }
         }
+        this.negative_contour_type = "logarithmic";
     };
 
 };

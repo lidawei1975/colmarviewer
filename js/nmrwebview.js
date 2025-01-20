@@ -2050,6 +2050,7 @@ function add_to_list(index) {
     reduce_contour_button.onclick = function() { reduce_contour(index,0); };
     reduce_contour_button.style.marginLeft = "1em";
     reduce_contour_button.style.marginRight = "1em";
+    reduce_contour_button.setAttribute("id", "reduce_contour-".concat(index));
     /**
      * Add a tooltip to the button
      */
@@ -2083,6 +2084,32 @@ function add_to_list(index) {
     update_contour_button.style.marginLeft = "1em";
     update_contour_button.style.marginRight = "1em";
     new_spectrum_div.appendChild(update_contour_button);
+
+    /**
+     * A input number element with the number of contour levels,for linear contour levels
+     * whose ID is "number_of_contours-".concat(index). Default value is 30
+     */
+    let number_of_contours_label = document.createElement("label");
+    number_of_contours_label.setAttribute("for", "number_of_contours-".concat(index));
+    number_of_contours_label.innerText = " # of linear contours: ";
+    let number_of_contours_input = document.createElement("input");
+    number_of_contours_input.setAttribute("type", "number"); 
+    number_of_contours_input.setAttribute("min", "10");
+    number_of_contours_input.setAttribute("max", "50");
+    number_of_contours_input.setAttribute("value", "30");
+    number_of_contours_input.setAttribute("id", "number_of_contours-".concat(index));
+    /**
+     * A button to update the contour plot with the new number of linear contour levels
+     */
+    let update_contour_button_linear = document.createElement("button");
+    update_contour_button_linear.innerText = "Recalculate";
+    update_contour_button_linear.onclick = function() { update_linear_scale(index,0); };
+    update_contour_button_linear.setAttribute("title","Update the contour plot with the new number of linear contour levels. This process might be slow.");
+    update_contour_button_linear.style.marginLeft = "1em";
+    update_contour_button_linear.style.marginRight = "1em";
+    new_spectrum_div.appendChild(number_of_contours_label);
+    new_spectrum_div.appendChild(number_of_contours_input);
+    new_spectrum_div.appendChild(update_contour_button_linear);
 
     /**
      * Add a new line and a slider for the contour level
@@ -2175,6 +2202,7 @@ function add_to_list(index) {
     reduce_contour_button_negative.onclick = function () { reduce_contour(index, 1); };
     reduce_contour_button_negative.style.marginLeft = "1em";
     reduce_contour_button_negative.style.marginRight = "1em";
+    reduce_contour_button_negative.setAttribute("id", "reduce_contour_negative-".concat(index));
     /**
      * Add a tooltip to the button
      */
@@ -2208,6 +2236,34 @@ function add_to_list(index) {
     update_contour_button_negative.style.marginLeft = "1em";
     update_contour_button_negative.style.marginRight = "1em";
     new_spectrum_div.appendChild(update_contour_button_negative);
+
+
+     /**
+     * A input number element with the number of negative contour levels,for linear contour levels
+     * whose ID is "number_of_negative_contours-".concat(index). Default value is 30
+     */
+    let number_of_negative_contours_label = document.createElement("label");
+    number_of_negative_contours_label.setAttribute("for", "number_of_negative_contours-".concat(index));
+    number_of_negative_contours_label.innerText = " # of linear contours: ";
+    let number_of_negative_contours_input = document.createElement("input");
+    number_of_negative_contours_input.setAttribute("type", "number");
+    number_of_negative_contours_input.setAttribute("min", "10");
+    number_of_negative_contours_input.setAttribute("max", "60");
+    number_of_negative_contours_input.setAttribute("value", "30");
+    number_of_negative_contours_input.setAttribute("id", "number_of_negative_contours-".concat(index));
+    /**
+     * A button to update the contour plot with the new number of linear contour levels
+     */
+    let update_contour_button_linear_negative = document.createElement("button");
+    update_contour_button_linear_negative.innerText = "Recalculate";
+    update_contour_button_linear_negative.onclick = function () { update_linear_scale(index, 1); };
+    update_contour_button_linear_negative.setAttribute("title", "Update the contour plot with the new number of linear contour levels. This process might be slow.");
+    update_contour_button_linear_negative.style.marginLeft = "1em";
+    update_contour_button_linear_negative.style.marginRight = "1em";
+    new_spectrum_div.appendChild(number_of_negative_contours_label);
+    new_spectrum_div.appendChild(number_of_negative_contours_input);
+    new_spectrum_div.appendChild(update_contour_button_linear_negative);
+
 
     /**
      * Add a new line and a slider for the contour level
@@ -2926,7 +2982,7 @@ function reduce_contour(index,flag) {
 }
 
 /**
- * Event listener for text input field contour0
+ * Called on button to update logarithmic scale contour
  */
 function update_contour0_or_logarithmic_scale(index,flag) {
 
@@ -2957,6 +3013,11 @@ function update_contour0_or_logarithmic_scale(index,flag) {
                 break;
             }
         }
+        hsqc_spectra[index].positive_contour_type = "logarithmic";
+        /**
+         * Enable reduce_contour button
+         */
+        document.getElementById("reduce_contour-".concat(index)).disabled = false;
 
         spectrum_information.levels = hsqc_spectrum.levels;
         
@@ -2983,6 +3044,11 @@ function update_contour0_or_logarithmic_scale(index,flag) {
                 break;
             }
         }
+        hsqc_spectra[index].negative_contour_type = "logarithmic";
+        /**
+         * Enable reduce_contour button
+         */
+        document.getElementById("reduce_contour_negative-".concat(index)).disabled = false;
 
         /**
          * Update slider.
@@ -2997,9 +3063,85 @@ function update_contour0_or_logarithmic_scale(index,flag) {
 
     my_contour_worker.postMessage({ response_value: hsqc_spectrum.raw_data, spectrum: spectrum_information });
 
-
-
 }
+
+
+/**
+ * Called on button to update linear scale contour
+ * @param {int} index index of the spectrum
+ * @param {int} flag 0 for positive contour, 1 for negative contour
+ */
+function update_linear_scale(index,flag) {
+
+    let hsqc_spectrum = hsqc_spectra[index];
+
+    let spectrum_information = {
+        n_direct: hsqc_spectrum.n_direct,
+        n_indirect: hsqc_spectrum.n_indirect,
+        spectrum_type: "full",
+        spectrum_index: index,
+        spectrum_origin: hsqc_spectrum.spectrum_origin,
+        contour_sign: flag,
+    };
+
+    /**
+     * Recalculate the hsqc_spectrum.levels
+     * levels[0] = hsqc_spectrum.spectral_max/number_of_contours
+     * levels[1] = 2*levels[0]
+     * levels[2] = 3*levels[0]
+     */
+    if(flag==0)
+    {
+        let number_of_contours = parseInt(document.getElementById('number_of_contours-'.concat(index)).value);
+        
+        hsqc_spectrum.levels = [];
+        hsqc_spectrum.levels.push(hsqc_spectrum.spectral_max/number_of_contours);
+        for(let i=1;i<number_of_contours;i++)
+        {
+            hsqc_spectrum.levels.push((i+1)*hsqc_spectrum.levels[0]);
+        }
+        hsqc_spectra[index].positive_contour_type = "linear";
+        /**
+         * Disable reduce_contour button
+         */
+        document.getElementById("reduce_contour-".concat(index)).disabled = true;
+
+        spectrum_information.levels = hsqc_spectrum.levels;
+
+        /**
+         * Update slider.
+         */
+        document.getElementById("contour-slider-".concat(index)).max = hsqc_spectrum.levels.length;
+        document.getElementById("contour-slider-".concat(index)).value = 1;
+        document.getElementById("contour_level-".concat(index)).innerText = hsqc_spectrum.levels[0].toExponential(4);
+    }
+    else if(flag==1){
+        let number_of_contours = parseInt(document.getElementById('number_of_negative_contours-'.concat(index)).value);
+        
+        hsqc_spectrum.negative_levels = [];
+        hsqc_spectrum.negative_levels.push(hsqc_spectrum.spectral_min/number_of_contours);
+        for(let i=1;i<number_of_contours;i++)
+        {
+            hsqc_spectrum.negative_levels.push((i+1)*hsqc_spectrum.negative_levels[0]);
+        }
+        hsqc_spectra[index].negative_contour_type = "linear";
+        /**
+         * Disable reduce_contour button
+         */
+        document.getElementById("reduce_contour_negative-".concat(index)).disabled = true;
+
+        spectrum_information.levels = hsqc_spectrum.negative_levels;
+
+        /**
+         * Update slider.
+         */
+        document.getElementById("contour-slider_negative-".concat(index)).max = hsqc_spectrum.negative_levels.length;
+        document.getElementById("contour-slider_negative-".concat(index)).value = 1;
+        document.getElementById("contour_level_negative-".concat(index)).innerText = hsqc_spectrum.negative_levels[0].toExponential(4);
+    }
+
+    my_contour_worker.postMessage({ response_value: hsqc_spectrum.raw_data, spectrum: spectrum_information });
+};
 
 /**
  * Event listener for slider contour-slider
