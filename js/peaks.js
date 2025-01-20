@@ -25,6 +25,30 @@ class cpeaks {
     }
 
     /**
+     * Apply X_PPM reference shift to all X_PPM values
+     */
+    update_x_ppm_ref(x_ppm_ref) {
+        let x_ppm_index = this.column_headers.indexOf('X_PPM');
+        if (x_ppm_index === -1) {
+            return false;
+        }
+        this.columns[x_ppm_index] = this.columns[x_ppm_index].map(x => x + x_ppm_ref);
+        return true;
+    }
+
+    /**
+     * Apply Y_PPM reference shift to all Y_PPM values
+     */
+    update_y_ppm_ref(y_ppm_ref) {
+        let y_ppm_index = this.column_headers.indexOf('Y_PPM');
+        if (y_ppm_index === -1) {
+            return false;
+        }
+        this.columns[y_ppm_index] = this.columns[y_ppm_index].map(y => y + y_ppm_ref);
+        return true;
+    }
+
+    /**
      * A class method to process a peaks.tab file (nmrPipe format)
      * @param {string} peaks_tab - the peaks.tab file content as one big string, separated by newlines
      */

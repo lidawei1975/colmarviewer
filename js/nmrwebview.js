@@ -2878,12 +2878,33 @@ function adjust_ref(index, flag) {
     
     if (flag === 0) {
         let new_ref = parseFloat(document.getElementById("ref1".concat("-").concat(index)).value);
+        let delta_ref = new_ref - hsqc_spectra[index].x_ppm_ref;
         hsqc_spectra[index].x_ppm_ref = new_ref;
+        /**
+         * Update peaks as well if there are any
+         */
+        if (hsqc_spectra[index].picked_peaks_object != null) {
+            hsqc_spectra[index].picked_peaks_object.update_x_ppm_ref(delta_ref);
+        }
+        if (hsqc_spectra[index].fitted_peaks_object != null) {
+            hsqc_spectra[index].fitted_peaks_object.update_x_ppm_ref(delta_ref);
+        }
+
         main_plot.spectral_information[index].x_ppm_ref = new_ref;
     }
     else if (flag === 1) {
         let new_ref = parseFloat(document.getElementById("ref2".concat("-").concat(index)).value);
+        let delta_ref = new_ref - hsqc_spectra[index].y_ppm_ref;
         hsqc_spectra[index].y_ppm_ref = new_ref;
+        /**
+         * Update peaks as well if there are any
+         */
+        if (hsqc_spectra[index].picked_peaks_object != null) {
+            hsqc_spectra[index].picked_peaks_object.update_y_ppm_ref(delta_ref);
+        }
+        if (hsqc_spectra[index].fitted_peaks_object != null) {
+            hsqc_spectra[index].fitted_peaks_object.update_y_ppm_ref(delta_ref);
+        }
         main_plot.spectral_information[index].y_ppm_ref = new_ref;
     }
     /**
@@ -2894,6 +2915,10 @@ function adjust_ref(index, flag) {
      * Update the cross section with the new reference
      */
     main_plot.update_cross_section(index,flag);
+    /**
+     * Redraw the peak list. Need to call draw_peaks() to update the peak list because the reference has changed
+     */
+    main_plot.draw_peaks();
 }
 
 

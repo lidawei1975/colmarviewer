@@ -1061,13 +1061,18 @@ plotit.prototype.update_peak_labels = function(flag,min_dis,max_dis,repulsive_fo
      * Get a subset of peaks that are visible. 
      * shallow copy of self.new_peaks
      */
-    this.visible_peaks = this.new_peaks.filter(function (d) {
+    let visible_peaks = this.new_peaks.filter(function (d) {
         return d.X_PPM <= self.xscale[0]
             && d.X_PPM >= self.xscale[1]
             && d.Y_PPM <= self.yscale[0]
             && d.Y_PPM >= self.yscale[1]
             && (typeof d.HEIGHT === "undefined" || d.HEIGHT > self.peak_level);
     });
+
+    /**
+     * Make a deep copy of visible_peaks to this.visible_peaks
+     */
+    this.visible_peaks=JSON.parse(JSON.stringify(visible_peaks));
 
      /**
      * Init new_peaks[i].x and y property for the force simulation
@@ -1343,11 +1348,15 @@ plotit.prototype.allow_peak_dragging = function (flag) {
 
     let self = this;
 
-    const drag = d3.drag()
+    this.peak_drag = d3.drag()
     .on('start', function (d) {
+        d3.select(this).raise().classed('active', true);
+        
     })
     .on('drag', function (event,d) {
-        d3.select(this).attr('cx', event.x).attr('cy', event.y);
+        d3.select(this)
+            .attr('cx', event.x)
+            .attr('cy', event.y);
     })
     .on('end', function (event,d) {
         /**
@@ -1366,16 +1375,16 @@ plotit.prototype.allow_peak_dragging = function (flag) {
             data_height = self.spectrum.raw_data[y_pos *  self.spectrum.n_direct + x_pos];
         }
         
-        if(data_height < self.peak_level) {
-            if(self.peak_flag === 'picked') {
-                /**
-                 * Remove the peak from the picked peaks
-                 */
-                self.spectrum.picked_peaks_object.remove_row(d.INDEX);
-            }
-            d3.select(this).remove();
-        }
-        else
+        // if(data_height < self.peak_level) {
+        //     if(self.peak_flag === 'picked') {
+        //         /**
+        //          * Remove the peak from the picked peaks
+        //          */
+        //         self.spectrum.picked_peaks_object.remove_row(d.INDEX);
+        //     }
+        //     d3.select(this).remove();
+        // }
+        // else
         {
             /**
              * Update the peak in the picked peaks
@@ -1388,7 +1397,7 @@ plotit.prototype.allow_peak_dragging = function (flag) {
     });
 
     if(flag===true){
-        self.vis.selectAll('.peak').call(drag);
+        self.vis.selectAll('.peak').call(self.peak_drag);
     }
     else{
         self.vis.selectAll('.peak').on('.drag',null);
