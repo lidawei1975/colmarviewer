@@ -558,7 +558,7 @@ class spectrum {
         let indirect_tile_size = indirect_parameters.getInt32(8); //required to read spectral data below.
         this.frq2 = indirect_parameters.getFloat32(12); //observed frequency of indirect dimension MHz
         this.sw2 = indirect_parameters.getFloat32(16); //spectral width of indirect dimension, Hz
-        this.center2 = direct_parameters.getFloat32(20);  //ppm of the center of the spectrum
+        this.center2 = indirect_parameters.getFloat32(20);  //ppm of the center of the spectrum
         this.ref2 = this.center2 * this.frq2 - this.sw2 / 2; //end frequency of the spectrum (lowest frequency)
         this.y_ppm_ref = 0.0; //reference correction (initially set to 0)
         this.y_ppm_start = this.center2 + this.sw2 / this.frq2 / 2.0; //ppm of the start of the spectrum
