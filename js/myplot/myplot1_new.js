@@ -931,7 +931,7 @@ plotit.prototype.update_cross_section = function (spe_index,flag) {
             {
                 ppm2.push(hsqc_spectra[spe_index].y_ppm_start + hsqc_spectra[spe_index].y_ppm_ref + i * hsqc_spectra[spe_index].y_ppm_step);
             }
-            self.y_cross_section_plot.update_data0([hsqc_spectra[spe_index].y_ppm_start + hsqc_spectra[spe_index].y_ppm_ref,hsqc_spectra[spe_index].y_ppm_step,hsqc_spectra[spe_index].n_indirect],ppm2);
+            this.y_cross_section_plot.update_data0([hsqc_spectra[spe_index].y_ppm_start + hsqc_spectra[spe_index].y_ppm_ref,hsqc_spectra[spe_index].y_ppm_step,hsqc_spectra[spe_index].n_indirect],ppm2);
         }
     }
 };
@@ -1266,13 +1266,17 @@ plotit.prototype.update_peak_labels = function(flag,min_dis,max_dis,repulsive_fo
  * Draw peaks on the plot
  */
 plotit.prototype.draw_peaks = function () {
-
+    
     let self = this;
+    if(typeof self.peak_flag ===  'undefined' || self.peak_flag === null)
+    {
+        return;
+    }
+    
     /**
      * Remove all peaks if there is any
      */
     self.vis.selectAll('.peak').remove();
-    
 
     /**
      * Filter peaks based on peak level
