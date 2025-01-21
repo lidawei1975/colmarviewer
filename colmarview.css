@@ -135,6 +135,14 @@
             overflow: hidden;
         }
 
+        div.resizable_stack_invisible {
+            border: none;
+            border-radius: 0.5rem;
+            padding: 20px;
+            resize: none;
+            overflow: hidden;
+        }
+
         .rotate90 {
             transform: rotate(90deg);
         }
