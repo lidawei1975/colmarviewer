@@ -58,6 +58,7 @@ class spectrum {
         /**
          * spectrum origin: 
          * -4: unknown,
+         * -3" removed spectrum
          * -2: experimental spectrum from fid, 
          * -1: experimental spectrum uploaded,  
          * n(n>=0 and n<10000): reconstructed from experimental spectrum n

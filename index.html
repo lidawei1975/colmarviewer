@@ -138,7 +138,7 @@
                         </p>
                         <p>4. Click on the cross section plot to set anchor point. Right click to unset anchor point.</p>
                         <p>5. When anchor is set, use mouse wheel to change P1.</p>
-                        <p>6. After you are satisfied with the phase correction, click "Apply PS" to apply the phase correction to the 2D spectrum and saved processing parameters.</p>
+                        <p>6. After you are satisfied with the phase correction, click "Apply PC" to apply the phase correction to the 2D spectrum and saved processing parameters.</p>
                     </details>
                     </p>
 
@@ -334,7 +334,10 @@
                         <button onclick="popzoom()">Zoom Back</button>,
                         <button onclick="zoomout()">Zoom out 120%</button>
                         <button onclick="download_plot()">Download plot</button>
-                        <button id="button_apply_ps" disabled onclick="apply_current_pc()">Apply PC</button>
+                        <button id="automatic_pc" disabled onclick="apply_current_pc_or_auto_pc(1)">Automatic PC</button>
+                        <button id="button_apply_ps" disabled onclick="apply_current_pc_or_auto_pc(0)">Apply PC</button>
+                        <!-- Information for user: phase correction applied -->
+                        <span id="pc_info"></span>
                         <br>
 
                         <label for="peak_color">Peak color: </label>
@@ -369,7 +372,7 @@
                     <div style = "display: flex; flex-direction: column; gap: 10px;"> 
                         <div style = "display: flex; flex-direction: row; gap: 10px;">   
                             <!-- Empty div with size 200*200 -->
-                            <div id="cross_section_empty" class="resizable_stack" style="width: 200px; height: 200px;"></div>
+                            <div id="cross_section_empty" class="resizable_stack_invisible" style="width: 200px; height: 200px;"></div>
 
                             <!-- On top of the main plot, show 1D cross section of selected trace. Same width as 2D plot -->
                             <div id="cross_section_x"  class="resizable_stack" style="position: relative; width:fit-content; height: fit-content;">

@@ -1268,7 +1268,7 @@ webassembly_worker.onmessage = function (e) {
     }
 
     /**
-     * Only file_data, it is a phase corrected spectrum
+     * Only file_data and phase_correction. it is a phase corrected spectrum
      */
     else if (e.data.file_data && e.data.spectrum_name)
     {
@@ -1279,6 +1279,14 @@ webassembly_worker.onmessage = function (e) {
         result_spectrum.process_ft_file(arrayBuffer,e.data.spectrum_name,-1);
         result_spectrum.spectrum_index = e.data.spectrum_index;
         draw_spectrum([result_spectrum],false/**from fid */,true/**re-process of fid or ft2 */);
+        /**
+         * If e.data.b_auto is true. This is an automatic phase correction run. We need to update
+         * html element "pc_info" with the e.data.phase_correction (trim ending newline if it exists)
+         */
+        if(e.data.automatic_pc)
+        {
+            document.getElementById("pc_info").innerText =  "Phase correction: " + e.data.phase_correction.trim();
+        }
     }
 
     /**
@@ -2780,6 +2788,21 @@ function show_cross_section(index) {
     main_plot.current_spectral_index = index;
     main_plot.b_show_cross_section = true;
     main_plot.b_show_projection = false;
+    /**
+     * when showing cross section and image data of hsqc_spectra[index] is not null
+     * and  current spectrum is from a ft2 file
+     * Enable button_apply_ps button
+     */
+    if(hsqc_spectra[index].raw_data_ri.length > 0 && hsqc_spectra[index].raw_data_ir.length > 0 && hsqc_spectra[index].raw_data_ii.length > 0 && hsqc_spectra[index].spectrum_origin === -1)
+    {
+        document.getElementById("automatic_pc").disabled = false;
+        document.getElementById("button_apply_ps").disabled = false;
+    }
+    else
+    {
+        document.getElementById("button_apply_ps").disabled = true;
+        document.getElementById("automatic_pc").disabled = true;
+    }
 
 }
 
@@ -2789,6 +2812,8 @@ function show_projection(index) {
     main_plot.b_show_cross_section = false;
     main_plot.b_show_projection = true;
     main_plot.show_projection();
+    document.getElementById("button_apply_ps").disabled = true;
+    document.getElementById("automatic_pc").disabled = true;
 }
 
 function uncheck_all_1d_except(index) {
@@ -4044,52 +4069,80 @@ function remove_spectrum(index)
     main_plot.redraw_contour();
 }
 
-function apply_current_pc()
+
+/**
+ * When flag ==0, apply manual phase correction
+ * Get current manual phase correction values from main_plot
+ * apply it to current spectrum.
+ * If it is form fid, update the fid_process_parameters as well
+ * 
+ * When flag ==1, run automatic phase correction
+ * @returns 
+ */
+function apply_current_pc_or_auto_pc(flag)
 {
-    /**
-     * Get the current PS from main_plot. array of 2 elements [p0,p1] in radian
-     */
-    let current_ps = main_plot.get_phase_correction();
-    /**
-     * Convert to degree from radian
-     */
-    current_ps[0][0] *= 180.0 / Math.PI;
-    current_ps[0][1] *= 180.0 / Math.PI;
-    current_ps[1][0] *= 180.0 / Math.PI;
-    current_ps[1][1] *= 180.0 / Math.PI;
-
-
-    /**
-     * If main_plot.current_spectrum_index == current_reprocess_spectrum_index, we have fid data for the spectrum,
-     * we need to update the phase correction for the fid data processing as well
-     */
-    if(main_plot.current_spectral_index === current_reprocess_spectrum_index)
+    let current_ps = [[0.0, 0.0], [0.0, 0.0]]; //all 0.0 means auto phase correction
+    if(flag==0)
     {
-        let v;
-        v=parseFloat(document.getElementById("phase_correction_direct_p0").value) + current_ps[0][0];
-        document.getElementById("phase_correction_direct_p0").value = v.toFixed(1);
-        hsqc_spectra[current_reprocess_spectrum_index].fid_process_parameters.phase_correction_direct_p0 = v;
-
-        v=parseFloat(document.getElementById("phase_correction_direct_p1").value) + current_ps[0][1];
-        document.getElementById("phase_correction_direct_p1").value = v.toFixed(1);
-        hsqc_spectra[current_reprocess_spectrum_index].fid_process_parameters.phase_correction_direct_p1 = v;
-
-        v=parseFloat(document.getElementById("phase_correction_indirect_p0").value) + current_ps[1][0];
-        document.getElementById("phase_correction_indirect_p0").value = v.toFixed(1);
-        hsqc_spectra[current_reprocess_spectrum_index].fid_process_parameters.phase_correction_indirect_p0 = v;
-
-        v=parseFloat(document.getElementById("phase_correction_indirect_p1").value) + current_ps[1][1];
-        document.getElementById("phase_correction_indirect_p1").value = v.toFixed(1);
-        hsqc_spectra[current_reprocess_spectrum_index].fid_process_parameters.phase_correction_indirect_p1 = v;
         /**
-         * To be safe, uncheck auto phase correction
+         * Get the current PS from main_plot. array of 2 elements [p0,p1] in radian
          */
-        document.getElementById("auto_direct").checked = false;
-        document.getElementById("auto_indirect").checked = false;
-        hsqc_spectra[current_reprocess_spectrum_index].fid_process_parameters.auto_direct = false;
-        hsqc_spectra[current_reprocess_spectrum_index].fid_process_parameters.auto_indirect = false;
-        
+        current_ps = main_plot.get_phase_correction();
+        /**
+         * Convert to degree from radian
+         */
+        current_ps[0][0] *= 180.0 / Math.PI;
+        current_ps[0][1] *= 180.0 / Math.PI;
+        current_ps[1][0] *= 180.0 / Math.PI;
+        current_ps[1][1] *= 180.0 / Math.PI;
+
+        /**
+         * If all are zero, do nothing
+         */
+        if(current_ps[0][0] === 0.0 && current_ps[0][1] === 0.0 && current_ps[1][0] === 0.0 && current_ps[1][1] === 0.0)
+        {
+            console.log('All phase correction are zero, do nothing');
+            return;
+        }
+
+
+        /**
+         * If main_plot.current_spectrum_index == current_reprocess_spectrum_index, we have fid data for the spectrum,
+         * we need to update the phase correction for the fid data processing as well
+         */
+        if(main_plot.current_spectral_index === current_reprocess_spectrum_index)
+        {
+            let v;
+            v=parseFloat(document.getElementById("phase_correction_direct_p0").value) + current_ps[0][0];
+            document.getElementById("phase_correction_direct_p0").value = v.toFixed(1);
+            hsqc_spectra[current_reprocess_spectrum_index].fid_process_parameters.phase_correction_direct_p0 = v;
+
+            v=parseFloat(document.getElementById("phase_correction_direct_p1").value) + current_ps[0][1];
+            document.getElementById("phase_correction_direct_p1").value = v.toFixed(1);
+            hsqc_spectra[current_reprocess_spectrum_index].fid_process_parameters.phase_correction_direct_p1 = v;
+
+            v=parseFloat(document.getElementById("phase_correction_indirect_p0").value) + current_ps[1][0];
+            document.getElementById("phase_correction_indirect_p0").value = v.toFixed(1);
+            hsqc_spectra[current_reprocess_spectrum_index].fid_process_parameters.phase_correction_indirect_p0 = v;
+
+            v=parseFloat(document.getElementById("phase_correction_indirect_p1").value) + current_ps[1][1];
+            document.getElementById("phase_correction_indirect_p1").value = v.toFixed(1);
+            hsqc_spectra[current_reprocess_spectrum_index].fid_process_parameters.phase_correction_indirect_p1 = v;
+            /**
+             * To be safe, uncheck auto phase correction
+             */
+            document.getElementById("auto_direct").checked = false;
+            document.getElementById("auto_indirect").checked = false;
+            hsqc_spectra[current_reprocess_spectrum_index].fid_process_parameters.auto_direct = false;
+            hsqc_spectra[current_reprocess_spectrum_index].fid_process_parameters.auto_indirect = false;
+        }
+
+        /**
+         * Update span pc_info
+         */
+        document.getElementById("pc_info").innerText = "Phase correction: " + current_ps[0][0].toFixed(1) + " " + current_ps[0][1].toFixed(1) + " " + current_ps[1][0].toFixed(1) + " " + current_ps[1][1].toFixed(1);
     }
+
 
     /**
      * Run webass worker to apply phase correction.
@@ -4125,7 +4178,7 @@ function apply_current_pc()
     webassembly_worker.postMessage({
         webassembly_job: "apply_phase_correction",
         spectrum_data: data_uint8,
-        phase_correction: current_ps,
+        phase_correction: current_ps, //all 0.0 means auto phase correction
         spectrum_index: main_plot.current_spectral_index,
         spectrum_name: hsqc_spectra[main_plot.current_spectral_index].filename,
     });
@@ -4352,11 +4405,13 @@ function reprocess_spectrum(self,spectrum_index)
         set_fid_parameters(hsqc_spectra[spectrum_index].fid_process_parameters);
         
         /**
-         * Switch to cross section mode for current spectrum
+         * Switch to cross section mode for current spectrum by simulating a click event
          */
-        document.getElementById("show_cross_section".concat("-").concat(spectrum_index)).checked = true;
-        document.getElementById("show_projection".concat("-").concat(spectrum_index)).checked = false;
+        document.getElementById("show_cross_section".concat("-").concat(spectrum_index)).click();
+        // document.getElementById("show_cross_section".concat("-").concat(spectrum_index)).checked = true;
+        // document.getElementById("show_projection".concat("-").concat(spectrum_index)).checked = false;
         current_reprocess_spectrum_index = spectrum_index;
+
 
         /**
          * Enable apply_phase_correction button

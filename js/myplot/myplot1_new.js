@@ -708,10 +708,12 @@ plotit.prototype.draw = function () {
                     let data_height = hsqc_spectra[spe_index].raw_data.slice(y_pos *  hsqc_spectra[spe_index].n_direct, (y_pos+1) *  hsqc_spectra[spe_index].n_direct );
                     let data_height_i = [];
                     /**
-                     * If hsqc_spectra[spe_index].raw_data_ri is not empty and current_reprocess_spectrum_index === spe_index
+                     * If hsqc_spectra[spe_index].raw_data_ri is not empty 
                      *  then use it to get the data_height_i
+                     * if hsqc_spectra[spe_index].spectrum_origin == -2 (from fid), also require current_reprocess_spectrum_index is not -1 
                      */
-                    if(current_reprocess_spectrum_index === spe_index && hsqc_spectra[spe_index].raw_data_ri.length > 0) {
+                    if( hsqc_spectra[spe_index].raw_data_ri.length > 0 && (hsqc_spectra[spe_index].spectrum_origin != -2 || current_reprocess_spectrum_index != -1))
+                    {
                         data_height_i = hsqc_spectra[spe_index].raw_data_ri.slice(y_pos *  hsqc_spectra[spe_index].n_direct , (y_pos+1) *  hsqc_spectra[spe_index].n_direct );
                     }
                     
@@ -786,10 +788,12 @@ plotit.prototype.draw = function () {
                     }
                     let data_height_i = [];
                     /**
-                     * If hsqc_spectra[spe_index].raw_data_ir is not empty and current_reprocess_spectrum_index === spe_index
+                     * If hsqc_spectra[spe_index].raw_data_ir is not empty 
                      * then use it to get the data_height_i
+                     * if hsqc_spectra[spe_index].spectrum_origin == -2 (from fid), also require current_reprocess_spectrum_index is not -1 
                      */
-                    if(current_reprocess_spectrum_index === spe_index && hsqc_spectra[spe_index].raw_data_ir.length > 0) {
+                    if( hsqc_spectra[spe_index].raw_data_ir.length > 0 && (hsqc_spectra[spe_index].spectrum_origin != -2 || current_reprocess_spectrum_index != -1))
+                    {
                         for(let i = 0; i < hsqc_spectra[spe_index].n_indirect; i++){
                             data_height_i.push(hsqc_spectra[spe_index].raw_data_ir[i *  hsqc_spectra[spe_index].n_direct + x_pos]);
                         }
@@ -931,7 +935,7 @@ plotit.prototype.update_cross_section = function (spe_index,flag) {
             {
                 ppm2.push(hsqc_spectra[spe_index].y_ppm_start + hsqc_spectra[spe_index].y_ppm_ref + i * hsqc_spectra[spe_index].y_ppm_step);
             }
-            self.y_cross_section_plot.update_data0([hsqc_spectra[spe_index].y_ppm_start + hsqc_spectra[spe_index].y_ppm_ref,hsqc_spectra[spe_index].y_ppm_step,hsqc_spectra[spe_index].n_indirect],ppm2);
+            this.y_cross_section_plot.update_data0([hsqc_spectra[spe_index].y_ppm_start + hsqc_spectra[spe_index].y_ppm_ref,hsqc_spectra[spe_index].y_ppm_step,hsqc_spectra[spe_index].n_indirect],ppm2);
         }
     }
 };
@@ -1266,13 +1270,17 @@ plotit.prototype.update_peak_labels = function(flag,min_dis,max_dis,repulsive_fo
  * Draw peaks on the plot
  */
 plotit.prototype.draw_peaks = function () {
-
+    
     let self = this;
+    if(typeof self.peak_flag ===  'undefined' || self.peak_flag === null)
+    {
+        return;
+    }
+    
     /**
      * Remove all peaks if there is any
      */
     self.vis.selectAll('.peak').remove();
-    
 
     /**
      * Filter peaks based on peak level

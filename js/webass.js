@@ -681,40 +681,65 @@ onmessage = function (e) {
          */
         Module['FS_createDataFile']('/', 'input.ft2', e.data.spectrum_data, true, true, true);
         console.log('Spectrum data saved to virtual file system, size is:', e.data.spectrum_data.length);
-        /**
-         * Save phase correction to the virtual file system as phase-correction.txt
-         * e.data.phase_correction is array of 2 arrays, each array has 2 numbers; convert to string with 4 numbers, separated by space
-         */
-        let phase_correction_string = e.data.phase_correction.map(x => x.join(' ')).join(' ');
-        Module['FS_createDataFile']('/', 'phase-correction.txt', phase_correction_string, true, true, true);
-
+        
         /**
          * Write a file named "arguments_fid_2d.txt" to the virtual file system
          */
-        let content = ' -in input.ft2 -out test.ft2 -phase-in phase-correction.txt -di no -di-indirect no -process other -nus none';
-        Module['FS_createDataFile']('/', 'arguments_fid_2d.txt', content, true, true, true);
-        console.log(content);
-
+        let content = ' -in input.ft2 -out test.ft2 ';
+        
+        
+        let b_auto = false;
         /**
-         * Call fid function
+         * If all are 0, add "-phase-in none " to the content
          */
-        postMessage({ stdout: "Running fid function to apply phase correction" });
-        api.fid();
-        console.log('Finished running fid for phase correction');
+        if(e.data.phase_correction[0][0] === 0 && e.data.phase_correction[0][1] === 0 && e.data.phase_correction[1][0] === 0 && e.data.phase_correction[1][1] === 0)
+        {
+            content = content.concat(' -user no ');
+            content = content.concat(' -out-phase phase-correction.txt');
+            b_auto = true;
+            Module['FS_createDataFile']('/', 'arguments_phase_2d.txt', content, true, true, true);
+            postMessage({ stdout: "Running phase function to apply automatic phase correction" });
+            api.phasing();
+            console.log('Finished running phase for phase correction');
+            FS.unlink('arguments_phase_2d.txt');
+        }
+        else
+        {
+            content = content.concat(' -phase-in phase-correction.txt ');
+            content = content.concat(' -di no -di-indirect no -process other -nus none -water no -poly -1');
+            let phase_correction_string = e.data.phase_correction.map(x => x.join(' ')).join(' ');
+            Module['FS_createDataFile']('/', 'phase-correction.txt', phase_correction_string, true, true, true);
+            b_auto = false;
+
+            Module['FS_createDataFile']('/', 'arguments_fid_2d.txt', content, true, true, true);
+            postMessage({ stdout: "Running fid function to apply phase correction or run automatic phase correction" });
+            api.fid();
+            console.log('Finished running fid for phase correction');
+            FS.unlink('arguments_fid_2d.txt');
+        }
 
         /**
          * Remove the input files from the virtual file system
          */
         FS.unlink('input.ft2');
-        FS.unlink('phase-correction.txt');
-        FS.unlink('arguments_fid_2d.txt');
         const file_data = FS.readFile('test.ft2', { encoding: 'binary' });
         console.log('File data read from virtual file system length:', file_data.length);
         FS.unlink('test.ft2');
-        FS.unlink('fid-information.json');
+
+        let phase_correction = FS.readFile('phase-correction.txt', { encoding: 'utf8' });
+        FS.unlink('phase-correction.txt');
+
+       
+        if(b_auto === false)
+        {
+            FS.unlink('fid-information.json');
+        }
+        
         postMessage({
             webassembly_job: e.data.webassembly_job,
             file_data: file_data,
+            automatic_pc: b_auto,
+            phase_correction: phase_correction,
             spectrum_name: e.data.spectrum_name, //pass through the spectrum name
             spectrum_index: e.data.spectrum_index //pass through the spectrum index
         });
