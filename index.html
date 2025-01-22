@@ -334,8 +334,8 @@
                         <button onclick="popzoom()">Zoom Back</button>,
                         <button onclick="zoomout()">Zoom out 120%</button>
                         <button onclick="download_plot()">Download plot</button>
-                        <button id="automatic_pc" disabled onclick="automatic_pc()">Automatic PC</button>
-                        <button id="button_apply_ps" disabled onclick="apply_current_pc()">Apply PC</button>
+                        <button id="automatic_pc" disabled onclick="apply_current_pc_or_auto_pc(1)">Automatic PC</button>
+                        <button id="button_apply_ps" disabled onclick="apply_current_pc_or_auto_pc(0)">Apply PC</button>
                         <!-- Information for user: phase correction applied -->
                         <span id="pc_info"></span>
                         <br>
