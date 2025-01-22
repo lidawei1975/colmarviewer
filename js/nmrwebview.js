@@ -2780,6 +2780,13 @@ function show_cross_section(index) {
     main_plot.current_spectral_index = index;
     main_plot.b_show_cross_section = true;
     main_plot.b_show_projection = false;
+    /**
+     * Enable button_apply_ps button, when showing cross section and image data of hsqc_spectra[index] is not null
+     */
+    if(hsqc_spectra[index].raw_data_ri.length > 0 && hsqc_spectra[index].raw_data_ir.length > 0 && hsqc_spectra[index].raw_data_ii.length > 0)
+    {
+        document.getElementById("button_apply_ps").disabled = false;
+    }
 
 }
 
@@ -2789,6 +2796,7 @@ function show_projection(index) {
     main_plot.b_show_cross_section = false;
     main_plot.b_show_projection = true;
     main_plot.show_projection();
+    document.getElementById("button_apply_ps").disabled = true;
 }
 
 function uncheck_all_1d_except(index) {
@@ -4057,6 +4065,15 @@ function apply_current_pc()
     current_ps[0][1] *= 180.0 / Math.PI;
     current_ps[1][0] *= 180.0 / Math.PI;
     current_ps[1][1] *= 180.0 / Math.PI;
+
+    /**
+     * If all are zero, do nothing
+     */
+    if(current_ps[0][0] === 0.0 && current_ps[0][1] === 0.0 && current_ps[1][0] === 0.0 && current_ps[1][1] === 0.0)
+    {
+        console.log('All phase correction are zero, do nothing');
+        return;
+    }
 
 
     /**

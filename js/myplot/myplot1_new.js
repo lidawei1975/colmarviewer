@@ -708,10 +708,10 @@ plotit.prototype.draw = function () {
                     let data_height = hsqc_spectra[spe_index].raw_data.slice(y_pos *  hsqc_spectra[spe_index].n_direct, (y_pos+1) *  hsqc_spectra[spe_index].n_direct );
                     let data_height_i = [];
                     /**
-                     * If hsqc_spectra[spe_index].raw_data_ri is not empty and current_reprocess_spectrum_index === spe_index
+                     * If hsqc_spectra[spe_index].raw_data_ri is not empty 
                      *  then use it to get the data_height_i
                      */
-                    if(current_reprocess_spectrum_index === spe_index && hsqc_spectra[spe_index].raw_data_ri.length > 0) {
+                    if( hsqc_spectra[spe_index].raw_data_ri.length > 0) {
                         data_height_i = hsqc_spectra[spe_index].raw_data_ri.slice(y_pos *  hsqc_spectra[spe_index].n_direct , (y_pos+1) *  hsqc_spectra[spe_index].n_direct );
                     }
                     
@@ -786,10 +786,10 @@ plotit.prototype.draw = function () {
                     }
                     let data_height_i = [];
                     /**
-                     * If hsqc_spectra[spe_index].raw_data_ir is not empty and current_reprocess_spectrum_index === spe_index
+                     * If hsqc_spectra[spe_index].raw_data_ir is not empty 
                      * then use it to get the data_height_i
                      */
-                    if(current_reprocess_spectrum_index === spe_index && hsqc_spectra[spe_index].raw_data_ir.length > 0) {
+                    if( hsqc_spectra[spe_index].raw_data_ir.length > 0) {
                         for(let i = 0; i < hsqc_spectra[spe_index].n_indirect; i++){
                             data_height_i.push(hsqc_spectra[spe_index].raw_data_ir[i *  hsqc_spectra[spe_index].n_direct + x_pos]);
                         }
