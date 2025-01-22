@@ -2781,11 +2781,19 @@ function show_cross_section(index) {
     main_plot.b_show_cross_section = true;
     main_plot.b_show_projection = false;
     /**
-     * Enable button_apply_ps button, when showing cross section and image data of hsqc_spectra[index] is not null
+     * when showing cross section and image data of hsqc_spectra[index] is not null
+     * and  current spectrum is from a ft2 file
+     * Enable button_apply_ps button
      */
-    if(hsqc_spectra[index].raw_data_ri.length > 0 && hsqc_spectra[index].raw_data_ir.length > 0 && hsqc_spectra[index].raw_data_ii.length > 0)
+    if(hsqc_spectra[index].raw_data_ri.length > 0 && hsqc_spectra[index].raw_data_ir.length > 0 && hsqc_spectra[index].raw_data_ii.length > 0 && hsqc_spectra[index].spectrum_origin === -1)
     {
+        document.getElementById("automatic_pc").disabled = false;
         document.getElementById("button_apply_ps").disabled = false;
+    }
+    else
+    {
+        document.getElementById("button_apply_ps").disabled = true;
+        document.getElementById("automatic_pc").disabled = true;
     }
 
 }
@@ -2797,6 +2805,7 @@ function show_projection(index) {
     main_plot.b_show_projection = true;
     main_plot.show_projection();
     document.getElementById("button_apply_ps").disabled = true;
+    document.getElementById("automatic_pc").disabled = true;
 }
 
 function uncheck_all_1d_except(index) {
@@ -4105,8 +4114,12 @@ function apply_current_pc()
         document.getElementById("auto_indirect").checked = false;
         hsqc_spectra[current_reprocess_spectrum_index].fid_process_parameters.auto_direct = false;
         hsqc_spectra[current_reprocess_spectrum_index].fid_process_parameters.auto_indirect = false;
-        
     }
+
+    /**
+     * Update span pc_info
+     */
+    document.getElementById("pc_info").innerText = "Phase correction: " + current_ps[0][0].toFixed(1) + " " + current_ps[0][1].toFixed(1) + " " + current_ps[1][0].toFixed(1) + " " + current_ps[1][1].toFixed(1);
 
     /**
      * Run webass worker to apply phase correction.
@@ -4369,11 +4382,13 @@ function reprocess_spectrum(self,spectrum_index)
         set_fid_parameters(hsqc_spectra[spectrum_index].fid_process_parameters);
         
         /**
-         * Switch to cross section mode for current spectrum
+         * Switch to cross section mode for current spectrum by simulating a click event
          */
-        document.getElementById("show_cross_section".concat("-").concat(spectrum_index)).checked = true;
-        document.getElementById("show_projection".concat("-").concat(spectrum_index)).checked = false;
+        document.getElementById("show_cross_section".concat("-").concat(spectrum_index)).click();
+        // document.getElementById("show_cross_section".concat("-").concat(spectrum_index)).checked = true;
+        // document.getElementById("show_projection".concat("-").concat(spectrum_index)).checked = false;
         current_reprocess_spectrum_index = spectrum_index;
+
 
         /**
          * Enable apply_phase_correction button
