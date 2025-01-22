@@ -4061,6 +4061,21 @@ function remove_spectrum(index)
     main_plot.redraw_contour();
 }
 
+/**
+ * Call webass worker to run automatic phase correction on current spectrum
+ * Then 
+ */
+function automatic_pc()
+{
+
+}
+
+/**
+ * Get current manual phase correction values from main_plot
+ * apply it to current spectrum.
+ * If it is form fid, update the fid_process_parameters as well
+ * @returns 
+ */
 function apply_current_pc()
 {
     /**

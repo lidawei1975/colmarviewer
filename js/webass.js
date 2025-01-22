@@ -691,7 +691,7 @@ onmessage = function (e) {
         /**
          * Write a file named "arguments_fid_2d.txt" to the virtual file system
          */
-        let content = ' -in input.ft2 -out test.ft2 -phase-in phase-correction.txt -di no -di-indirect no -process other -nus none';
+        let content = ' -in input.ft2 -out test.ft2 -phase-in phase-correction.txt -di no -di-indirect no -process other -nus none -water no -poly -1';
         Module['FS_createDataFile']('/', 'arguments_fid_2d.txt', content, true, true, true);
         console.log(content);
 
