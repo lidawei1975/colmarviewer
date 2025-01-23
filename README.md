@@ -11,15 +11,7 @@ Alternatively, you can download the program and open index.html in your browser.
 
 # Functions
 
-For spectra visualization, users can upload 2D NMR spectra in .ft2 format, adjust noise levels, and manage contour levels. The tool allows zooming, spectrum reordering, and displaying cross-sections.
-
-For running Deep Picker and Voigt Fitter, users can perform peak picking, edit picked peaks, and run peak fitting. Reconstructed spectra can be added or removed, and peak lists can be downloaded or hidden.
-
-For pseudo-3D workflows, users upload the first plane, adjust contour levels, optimize peaks, and then upload remaining planes for fitting. Optional assignments can be uploaded, and results can be downloaded.
-
-To run the COLMAR Viewer locally, special settings must be applied to Google Chrome, though it involves security risks.
-
-An experimental feature allows processing Bruker time-domain data (still under development).
+Please refer to the wiki page https://github.com/lidawei1975/colmarviewer/wiki for user instructions. 
 
               
 
