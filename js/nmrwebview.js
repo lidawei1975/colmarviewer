@@ -30,6 +30,10 @@ catch (err) {
 }
 
 
+var plot_margin_top = 20;
+var plot_margin_bottom = 70;
+var plot_margin_left = 90;
+var plot_margin_right = 20;
 
 
 var main_plot = null; //hsqc plot object
@@ -405,7 +409,7 @@ $(document).ready(function () {
     /**
      * Initialize the big plot
      */
-    resize_main_plot(1200, 800, 20, 90, 20);
+    resize_main_plot(1200, 800, 20, 90, 20, 20, 20);
 
     /**
      * Resize observer for the big plot
@@ -1363,15 +1367,17 @@ var plot_div_resize_observer = new ResizeObserver(entries => {
 
         const cr = entry.contentRect;
         let padding = 20;
-        let margin_left = 90;
-        let margin_top = 20;
+        let margin_left = plot_margin_left;
+        let margin_top = plot_margin_top;
+        let margin_right = plot_margin_right;
+        let margin_bottom = plot_margin_bottom;
 
-        resize_main_plot(cr.width,cr.height,padding,margin_left,margin_top);
+        resize_main_plot(cr.width,cr.height,padding,margin_left,margin_top,margin_right,margin_bottom);
     }
 });
 
 
-function resize_main_plot(wid, height, padding, margin_left, margin_top)
+function resize_main_plot(wid, height, padding, margin_left, margin_top, margin_right, margin_bottom)
 {
     /**
      * same size for svg_parent (parent of visualization), canvas_parent (parent of canvas1), canvas1, 
@@ -1392,8 +1398,8 @@ function resize_main_plot(wid, height, padding, margin_left, margin_top)
      * canvas is shifted 50px to the right, 20 px to the bottom.
      * It is also shortened by 20px in width on the right and 50px in height on the bottom.
      */
-    let canvas_height = height - 90;
-    let canvas_width = wid - 90;
+    let canvas_height = height - (margin_top + margin_bottom);
+    let canvas_width = wid - (margin_left + margin_right);
 
     // document.getElementById('canvas_parent').style.height = canvas_height.toString().concat('px');
     // document.getElementById('canvas_parent').style.width = canvas_width.toString().concat('px');
@@ -2728,7 +2734,7 @@ function init_plot(input) {
     input.PointData = [];
     input.WIDTH = current_width;
     input.HEIGHT = current_height;
-    input.MARGINS = { top: 20, right: 20, bottom: 70, left: 90 };
+    input.MARGINS = { top: plot_margin_top, right: plot_margin_right, bottom: plot_margin_bottom, left: plot_margin_left };
     input.drawto = "#visualization";
     input.drawto_legend = "#legend";
     input.drawto_peak = "#peaklist";
