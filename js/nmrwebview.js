@@ -340,12 +340,32 @@ class file_drop_processor {
                 /**
                  * Get all files in the directory
                  */
-                for await (const entry of handle.values()) {
-                    if (entry.kind === 'file') {
-                        /**
-                         * If the dropped file is in the list, attach it to the corresponding file input
-                         */
-                        this.process_file_attachment(entry);
+                if (typeof FileSystemDirectoryHandle !== 'undefined' && handle instanceof FileSystemDirectoryHandle) {
+                    for await (const entry of handle.values()) {
+                        if (entry.kind === 'file' || entry.isFile) {
+                            /**
+                             * If the dropped file is in the list, attach it to the corresponding file input
+                             */
+                            this.process_file_attachment(entry);
+                        }
+                    }
+                }
+                else if(typeof FileSystemDirectoryEntry !== 'undefined' && handle instanceof FileSystemDirectoryEntry)
+                {
+                    /**
+                     * Read all files in the directory
+                     */
+                    let reader = handle.createReader();
+                    let entries = await new Promise((resolve, reject) => {
+                        reader.readEntries(resolve, reject);
+                    });
+                    for (let entry of entries) {
+                        if (entry.kind === 'file' || entry.isFile) {
+                            /**
+                             * If the dropped file is in the list, attach it to the corresponding file input
+                             */
+                            this.process_file_attachment(entry);
+                        }
                     }
                 }
             }
