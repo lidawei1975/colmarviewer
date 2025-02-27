@@ -60,7 +60,12 @@ class cpeaks {
         this.clear_all_data();
 
 
-        const lines = peaks_tab.split('\n');
+        let lines = peaks_tab.split('\n');
+
+        /**
+         * Remove empty lines or lines with only white spaces, tabs, etc.
+         */
+        lines = lines.filter(line => line.trim() !== '');
 
         /**
          * Put lines starts with DATA into this.comments
@@ -75,8 +80,20 @@ class cpeaks {
         const formatLine = lines.find(line => line.startsWith('FORMAT'));
         this.column_formats = formatLine.split(/\s+/).slice(1);
 
-        // Extract data rows (skipping lines starting with VARS and FORMAT)
-        const dataRows = lines.filter(line => !line.startsWith('VARS') && !line.startsWith('FORMAT') && !line.startsWith('DATA') && line.trim());
+        /**
+         * Get all lines that are after the VARS and FORMAT lines
+         */
+        lines = lines.slice(lines.indexOf(varsLine) + 1);
+
+        // Extract data rows (skipping lines starting with VARS and FORMAT and DATA or is empty)
+        let dataRows = lines.filter(line => !line.startsWith('VARS') && !line.startsWith('FORMAT') && !line.startsWith('DATA') && line.trim() !== '');
+
+
+        /**
+         * Remove leading and trailing white spaces in each line of dataRows then
+         * remove dataRows that don't have same number of columns as the number of column headers
+         */
+        dataRows = dataRows.filter(row => row.trim().split(/\s+/).length === this.column_headers.length);
 
         /**
          * Split data rows into columns and save each column as an array in this.columns
