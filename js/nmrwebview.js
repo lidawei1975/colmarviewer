@@ -184,7 +184,16 @@ class file_drop_processor {
     }
 
     async process_file_attachment(entry) {
-        let file = await entry.getFile();
+        let file;
+        if (typeof FileSystemFileHandle !== 'undefined' && entry instanceof FileSystemFileHandle) {
+            file = await entry.getFile();
+        }
+        else if (typeof FileSystemFileEntry !== 'undefined' && entry instanceof FileSystemFileEntry) {
+            file = await entry.file();
+        }
+        else {
+            return;
+        }
 
         /**
          * Only if the dropped file is in the list
