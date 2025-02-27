@@ -189,7 +189,9 @@ class file_drop_processor {
             file = await entry.getFile();
         }
         else if (typeof FileSystemFileEntry !== 'undefined' && entry instanceof FileSystemFileEntry) {
-            file = await entry.file();
+            file = await new Promise((resolve, reject) => {
+                entry.file(resolve, reject);
+            });
         }
         else {
             return;
