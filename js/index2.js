@@ -9,36 +9,6 @@ catch (err) {
         alert("Failed to load WebWorker, probably due to browser incompatibility. Please use a modern browser, if you run this program locally, please read the instructions titled 'How to run COLMAR Viewer locally'");
     }
 }
-class spectrum {
-    constructor() {
-        this.header = new Float32Array(512); //header of the spectrum, 512 float32 numbers
-        this.raw_data = new Float32Array(); //raw data from the server
-        this.noise_level = 0.001; //noise level of the input spectrum
-        this.levels = [0.001, 0.002, 0.003]; //levels of the contour plot
-        this.spectral_max = Number.MAX_VALUE; //maximum value of the spectrum
-        this.n_direct = 4096; //size of direct dimension of the input spectrum. integer
-        this.n_indirect = 1204; //size of indirect dimension of the input spectrum. integer
-        this.x_ppm_start = 12.0; //start ppm of direct dimension
-        this.x_ppm_width = 12.0; //width of direct dimension
-        this.x_ppm_step = -12.0 / 4096; //step of direct dimension
-        this.y_ppm_start = 120.0; //start ppm of indirect dimension
-        this.y_ppm_width = 120.0; //width of indirect dimension
-        this.y_ppm_step = -120.0 / 1024; //step of indirect dimension
-        this.x_ppm_ref = 0.0; //reference ppm of direct dimension
-        this.y_ppm_ref = 0.0; //reference ppm of indirect dimension
-        this.picked_peaks = []; //picked peaks
-        this.fitted_peaks = []; //fitted peaks
-        this.spectrum_origin = -1; //spectrum origin: -2: experimental spectrum from fid, -1: experimental spectrum uploaded,  n(n>=0): reconstructed from experimental spectrum n
-        
-        /**
-         * Default median sigmax, sigmay, gammax, gammay
-         */
-        this.median_sigmax = 1.0;
-        this.median_sigmay = 1.0;
-        this.median_gammax = 1.0;
-        this.median_gammay = 1.0;
-    }
-};
 
 function get_data_new(triangle_2d,z_shift)
 {
