@@ -5,7 +5,7 @@ Web based NMR spectra viewer.
 Download all files/folders into one location or visit as a web server.
 
 # Usage
-Visit the web server https://lidawei1975.github.io/colmarviewer/ in your browser. COLMAR Viewer is a static web server, which means all your data stays on your computer; the server does not take any input or uploads from you.
+Visit the web server https://lidawei1975.github.io/colmarvista/ in your browser. COLMAR Viewer is a static web server, which means all your data stays on your computer; the server does not take any input or uploads from you.
 
 Alternatively, you can download the program and open index.html in your browser. This program uses WebWorker and WebAssembly, which cannot be loaded automatically when run locally unless you modify your browser settings.  
 
@@ -31,7 +31,7 @@ Warning: Modifying these settings poses a security risk. Do not load any local f
 
 # Functions
 
-Please refer to the wiki page https://github.com/lidawei1975/colmarviewer/wiki for user instructions. 
+Please refer to the wiki page https://github.com/lidawei1975/colmarvista/wiki for user instructions. 
 
 # Bug report or suggestions
 
