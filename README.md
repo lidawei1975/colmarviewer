@@ -14,4 +14,11 @@ Alternatively, you can download the program and open index.html in your browser.
 Please refer to the wiki page https://github.com/lidawei1975/colmarviewer/wiki for user instructions. 
 
               
+# References
+Please cite our publications if you found COLMARvista useful.
 
+1. Li, DW., Brüschweiler, R.; COLMARvista: an open source 2D and pseudo-3D NMR spectral processing, visualization, and analysis software in JavaScript. J. Bio. NMR (in press)
+
+2. Li, DW., Hansen, A.L., Yuan, C. et al. DEEP picker is a deep neural network for accurate deconvolution of complex two-dimensional NMR spectra. Nat. Commun. 12, 5229 (2021).
+
+3. Ying J, Delaglio F, Torchia DA, Bax A. Sparse multidimensional iterative lineshape-enhanced (SMILE) reconstruction of both non-uniformly sampled and conventional NMR data. J Biomol NMR. 2017 Jun;68(2):101-11
